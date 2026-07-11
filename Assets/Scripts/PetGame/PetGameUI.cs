@@ -68,9 +68,9 @@ public class PetGameUI : MonoBehaviour
         btnRestart?.onClick.AddListener(Restart);
         btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
-        gm.onPour.AddListener(_ => { BuildBowls(); UpdateHUD(); });
-        gm.onBowlCompleted.AddListener(() => BuildBowls());
-        gm.onPetFed.AddListener((p, pts, f) => { BuildPets(); BuildBowls(); });
+        gm.onPour.AddListener(_ => UpdateHUD());
+        gm.onBowlCompleted.AddListener(() => { });
+        gm.onPetFed.AddListener((p, pts, f) => { });
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
         gm.onSelectionChanged.AddListener(BuildBowls);
@@ -275,6 +275,7 @@ public class PetGameUI : MonoBehaviour
         if (!bowlIdToGO.ContainsKey(fromId) || !bowlIdToGO.ContainsKey(toId)) yield break;
         var fromGO = bowlIdToGO[fromId];
         var toGO = bowlIdToGO[toId];
+        if (fromGO == null || toGO == null) yield break;
         var fromRT = fromGO.GetComponent<RectTransform>();
         var toRT = toGO.GetComponent<RectTransform>();
         var fromStack = FindGO(fromGO, "FoodStack")?.transform;
@@ -294,9 +295,11 @@ public class PetGameUI : MonoBehaviour
         float duration = 0.25f;
         for (float t = 0; t < duration; t += Time.deltaTime)
         {
+            if (fromRT == null || toRT == null) yield break;
             fromRT.anchoredPosition3D = Vector3.Lerp(fromOrigPos, targetPos, t / duration);
             yield return null;
         }
+        if (fromRT == null) yield break;
         fromRT.anchoredPosition3D = targetPos;
 
         // 2. 倾斜
@@ -304,9 +307,11 @@ public class PetGameUI : MonoBehaviour
         Quaternion targetRot = Quaternion.Euler(0, 0, tiltAngle);
         for (float t = 0; t < 0.2f; t += Time.deltaTime)
         {
+            if (fromRT == null) yield break;
             fromRT.localRotation = Quaternion.Lerp(fromOrigRot, targetRot, t / 0.2f);
             yield return null;
         }
+        if (fromRT == null) yield break;
         fromRT.localRotation = targetRot;
         yield return new WaitForSeconds(0.15f);
 
