@@ -218,6 +218,14 @@ public class PetGameManager : MonoBehaviour
 
     void GenerateLevel(int id, string name, int cap, int target, PetType[] pets, FoodType[] allFoods)
     {
+        // 打乱食物顺序，防止同类食物聚在同一碗
+        var rng = new System.Random(id * 137 + name.Length * 73);
+        for (int i = allFoods.Length - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            var tmp = allFoods[i]; allFoods[i] = allFoods[j]; allFoods[j] = tmp;
+        }
+
         int bowlCount = Mathf.Max(pets.Length + 1, Mathf.CeilToInt(allFoods.Length / (float)cap));
         var inits = new List<BowlInitData>();
         int fi = 0;
