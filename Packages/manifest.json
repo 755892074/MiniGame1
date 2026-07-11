@@ -47,5 +47,15 @@
     "com.unity.modules.xr": "1.0.0",
     "cn.tuanjie.ai.generators": "file:../.codely-cli/extensions/TJGenerators/Packages/cn.tuanjie.ai.generators",
     "cn.tuanjie.codely.bridge": "1.0.68"
-  }
+  },
+  "scopedRegistries": [
+    {
+      "name": "Tuanjie",
+      "url": "https://packages.tuanjie.cn",
+      "scopes": [
+        "cn.tuanjie",
+        "com.unity"
+      ]
+    }
+  ]
 }
