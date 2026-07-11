@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.tippinggame.f8framework": "https://github.com/TippingGame/F8Framework.git#3.1.314",
+    "com.tippinggame.f8framework": "https://github.com/TippingGame/F8Framework.git#main",
     "com.qq.weixin.minigame": "https://gitee.com/wechat-minigame/minigame-tuanjie-transform-sdk.git#v0.1.32",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.2d": "2.0.1",
