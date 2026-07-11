@@ -14,7 +14,7 @@ public class PetGameUI : MonoBehaviour
 
     private Transform petArea, bowlArea;
     private Text txtLevel, txtScore, txtStep, txtStars, txtResultTitle;
-    private GameObject heldFoodHolder, resultOverlay;
+    private GameObject resultOverlay;
     private Button btnUndo, btnAddBowl, btnShuffle, btnRestart, btnNext;
 
     private List<GameObject> petGOs = new List<GameObject>();
@@ -54,7 +54,6 @@ public class PetGameUI : MonoBehaviour
         txtResultTitle = FindT("Title");
         petArea = FindGO("PetArea")?.transform;
         bowlArea = FindGO("BowlArea")?.transform;
-        heldFoodHolder = FindGO("HeldFoodHolder");
         resultOverlay = FindGO("ResultOverlay");
         btnUndo = FindB("btnUndo");     btnAddBowl = FindB("btnAddBowl");
         btnShuffle = FindB("btnShuffle"); btnRestart = FindB("btnRestart");
@@ -69,11 +68,9 @@ public class PetGameUI : MonoBehaviour
         btnRestart?.onClick.AddListener(Restart);
         btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
-        gm.onPickUp.AddListener(_ => UpdateHeld());
         gm.onPour.AddListener(_ => { BuildBowls(); UpdateHUD(); });
         gm.onBowlCompleted.AddListener(() => BuildBowls());
         gm.onPetFed.AddListener((p, pts, f) => { BuildPets(); BuildBowls(); });
-        gm.onHeldChanged.AddListener(UpdateHeld);
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
         gm.onSelectionChanged.AddListener(BuildBowls);
@@ -406,27 +403,6 @@ public class PetGameUI : MonoBehaviour
         if (txtStep) txtStep.text = $"步数:{gm.pour.totalMoves}";
     }
 
-    void UpdateHeld()
-    {
-        var food = gm.GetHeldFood();
-        if (heldFoodHolder)
-        {
-            heldFoodHolder.SetActive(food != null);
-            if (food != null)
-            {
-                var img = heldFoodHolder.GetComponentInChildren<Image>();
-                if (img != null)
-                {
-                    var spr = GetFoodSprite(food.Value);
-                    if (spr != null) img.sprite = spr;
-                }
-                var rt = heldFoodHolder.GetComponent<RectTransform>();
-                rt.sizeDelta = new Vector2(80, 80);
-            }
-        }
-    }
-
-    void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart() { if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
     void NextLevel() { if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
