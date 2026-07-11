@@ -77,7 +77,9 @@ public class PetGameManager : MonoBehaviour
     {
         if (levels.Count == 0)
             GenerateTestLevel();
-        StartLevel(currentLevelId);
+        // 不自动开始，等待玩家选关
+        isPlaying = false;
+        levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
     }
 
     public void StartLevel(int id)
@@ -199,23 +201,48 @@ public class PetGameManager : MonoBehaviour
 
     void GenerateTestLevel()
     {
-        var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
-        lv.levelId = 1;
-        lv.levelName = "鱼+骨头·初体验";
-        lv.bowlCapacity = 3;
-        lv.targetScore = 150;
-        lv.petQueue = new[] { PetType.Cat, PetType.Dog };
-        lv.bowlInits = new[]
+        GenerateLevel(1, "鱼+骨头·初体验", 3, 150, new[] { PetType.Cat, PetType.Dog },
+            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DriedFish, FoodType.BoneTreat });
+        GenerateLevel(2, "加入仓鼠", 3, 200, new[] { PetType.Cat, PetType.Dog, PetType.Hamster },
+            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn });
+        GenerateLevel(3, "鹦鹉来了", 3, 200, new[] { PetType.Dog, PetType.Parrot, PetType.Cat },
+            new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Millet, FoodType.Millet, FoodType.DriedFish, FoodType.CatKibble, FoodType.Cuttlebone });
+        GenerateLevel(4, "金鱼池", 4, 250, new[] { PetType.Fish, PetType.Cat, PetType.Hamster },
+            new[] { FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.DriedFish, FoodType.DriedFish, FoodType.SunflowerSeed, FoodType.Bloodworm, FoodType.SunflowerSeed });
+        GenerateLevel(5, "兔兔跳", 3, 250, new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog },
+            new[] { FoodType.Carrot, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Millet, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Sausage });
+        GenerateLevel(6, "猫狗大战", 4, 300, new[] { PetType.Cat, PetType.Cat, PetType.Dog, PetType.Dog },
+            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.CatTreatStick, FoodType.MeatJerky, FoodType.DogKibble, FoodType.Catnip, FoodType.DogBiscuit });
+        GenerateLevel(7, "全员出动", 3, 350, new[] { PetType.Hamster, PetType.Fish, PetType.Rabbit, PetType.Parrot },
+            new[] { FoodType.SunflowerSeed, FoodType.Corn, FoodType.FishFlake, FoodType.Bloodworm, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Cuttlebone, FoodType.Mealworm });
+        GenerateLevel(8, "猫咪天堂", 4, 350, new[] { PetType.Cat, PetType.Cat, PetType.Cat },
+            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.Catnip, FoodType.Milk, FoodType.DriedFish });
+        GenerateLevel(9, "汪汪乐园", 4, 400, new[] { PetType.Dog, PetType.Dog, PetType.Dog },
+            new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.MeatJerky, FoodType.DentalChew, FoodType.Sausage, FoodType.DogBiscuit, FoodType.Sausage });
+        GenerateLevel(10, "终极挑战", 5, 500, new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish },
+            new[] { FoodType.DriedFish, FoodType.BoneTreat, FoodType.DriedFish, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.Millet, FoodType.FishFlake, FoodType.Corn, FoodType.SunflowerSeed, FoodType.CatKibble, FoodType.DogKibble, FoodType.Cuttlebone, FoodType.Bloodworm, FoodType.Millet, FoodType.Mealworm });
+    }
+
+    void GenerateLevel(int id, string name, int cap, int target, PetType[] pets, FoodType[] allFoods)
+    {
+        int bowlCount = Mathf.Max(pets.Length + 1, Mathf.CeilToInt(allFoods.Length / (float)cap));
+        var inits = new List<BowlInitData>();
+        int fi = 0;
+        for (int i = 0; i < bowlCount; i++)
         {
-            new BowlInitData { gridPos = new Vector2Int(0, 0), foodStack = new[] { FoodType.DriedFish, FoodType.DriedFish } },
-            new BowlInitData { gridPos = new Vector2Int(1, 0), foodStack = new[] { FoodType.DriedFish } },
-            new BowlInitData { gridPos = new Vector2Int(2, 0), foodStack = new[] { FoodType.BoneTreat, FoodType.BoneTreat } },
-            new BowlInitData { gridPos = new Vector2Int(0, 1), foodStack = new[] { FoodType.BoneTreat } },
-            new BowlInitData { gridPos = new Vector2Int(1, 1), foodStack = new FoodType[] { } },
-        };
+            var foods = new List<FoodType>();
+            for (int j = 0; j < cap && fi < allFoods.Length; j++)
+                foods.Add(allFoods[fi++]);
+            inits.Add(new BowlInitData { gridPos = new Vector2Int(i % 4, i / 4), foodStack = foods.ToArray() });
+        }
+        var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
+        lv.levelId = id; lv.levelName = name; lv.bowlCapacity = cap; lv.targetScore = target;
+        lv.petQueue = pets; lv.bowlInits = inits.ToArray();
         levels.Add(lv);
     }
 
+    public int LevelCount => levels.Count;
+    public string GetLevelName(int id) => levels.Find(l => l.levelId == id)?.levelName ?? "???";
     public PetLevelConfigV2 GetCurrentLevel() => currentLevel;
     public FoodType? GetHeldFood() => pour.heldFood;
     public int GetScore() => pour.score;

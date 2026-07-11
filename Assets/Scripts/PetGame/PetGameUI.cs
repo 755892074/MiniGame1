@@ -65,9 +65,9 @@ public class PetGameUI : MonoBehaviour
     {
         btnUndo?.onClick.AddListener(() => { gm.Undo(); BuildBowls(); BuildPets(); UpdateHUD(); });
         btnAddBowl?.onClick.AddListener(() => { gm.AddBowl(); BuildBowls(); });
-        btnShuffle?.onClick.AddListener(() => { /* TODO */ });
+        btnShuffle?.onClick.AddListener(() => BackToMenu());
         btnRestart?.onClick.AddListener(Restart);
-        btnNext?.onClick.AddListener(Restart);
+        btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
         gm.onPickUp.AddListener(_ => UpdateHeld());
         gm.onPour.AddListener(_ => { BuildBowls(); UpdateHUD(); });
@@ -79,9 +79,72 @@ public class PetGameUI : MonoBehaviour
         gm.onSelectionChanged.AddListener(BuildBowls);
         gm.onPourAnim.AddListener((fromId, toId) => StartCoroutine(PourAnimation(fromId, toId)));
         gm.onFeedAnim.AddListener((bowlId, petType) => StartCoroutine(FeedAnimation(bowlId, petType)));
+
+        // 如果不在游戏中，显示关卡选择面板
+        if (!gm.isPlaying) ShowLevelSelect();
+        else BuildLevel();
     }
 
     void BuildLevel() { BuildPets(); BuildBowls(); UpdateHUD(); }
+
+    #region 关卡选择
+    GameObject levelSelectPanel;
+
+    void ShowLevelSelect()
+    {
+        if (levelSelectPanel != null) Destroy(levelSelectPanel);
+
+        levelSelectPanel = new GameObject("LevelSelect", typeof(RectTransform));
+        levelSelectPanel.transform.SetParent(transform, false);
+        var lrt = levelSelectPanel.GetComponent<RectTransform>();
+        lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one;
+        lrt.sizeDelta = Vector2.zero;
+
+        var bg = levelSelectPanel.AddComponent<Image>();
+        bg.color = new Color(0.1f, 0.08f, 0.15f, 0.95f);
+
+        // 标题
+        var titleGO = new GameObject("Title", typeof(RectTransform));
+        titleGO.transform.SetParent(levelSelectPanel.transform, false);
+        var tt = titleGO.AddComponent<Text>();
+        tt.text = "铲屎官疯了"; tt.fontSize = 40; tt.color = Color.white;
+        tt.alignment = TextAnchor.MiddleCenter; tt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var trt = titleGO.GetComponent<RectTransform>();
+        trt.anchorMin = new Vector2(0.1f, 0.75f); trt.anchorMax = new Vector2(0.9f, 0.9f);
+        trt.sizeDelta = Vector2.zero;
+
+        // 关卡按钮
+        int cols = 4;
+        float btnW = 150, btnH = 80, gap = 15;
+        for (int i = 0; i < gm.LevelCount; i++)
+        {
+            int lid = i + 1;
+            var btnGO = new GameObject($"Btn_Level{lid}", typeof(RectTransform));
+            btnGO.transform.SetParent(levelSelectPanel.transform, false);
+            var bimg = btnGO.AddComponent<Image>();
+            bimg.color = (i < 5) ? new Color(0.3f, 0.5f, 0.3f) : new Color(0.3f, 0.35f, 0.5f);
+            var btn = btnGO.AddComponent<Button>();
+            btn.onClick.AddListener(() => { Destroy(levelSelectPanel); levelSelectPanel = null; gm.currentLevelId = lid; gm.StartLevel(lid); BuildLevel(); });
+
+            var txtGO = new GameObject("Text", typeof(RectTransform));
+            txtGO.transform.SetParent(btnGO.transform, false);
+            var t = txtGO.AddComponent<Text>();
+            t.text = $"{lid}\n{gm.GetLevelName(lid)}"; t.fontSize = 14; t.color = Color.white;
+            t.alignment = TextAnchor.MiddleCenter; t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var txtRT = txtGO.GetComponent<RectTransform>();
+            txtRT.anchorMin = Vector2.zero; txtRT.anchorMax = Vector2.one; txtRT.sizeDelta = Vector2.zero;
+
+            var brt = btnGO.GetComponent<RectTransform>();
+            int col = i % cols, row = i / cols;
+            float startX = 375 - (cols * btnW + (cols - 1) * gap) / 2f + btnW / 2f;
+            float startY = 700 - row * (btnH + gap);
+            brt.anchorMin = new Vector2(0, 0); brt.anchorMax = new Vector2(0, 0);
+            brt.pivot = new Vector2(0.5f, 0.5f);
+            brt.anchoredPosition = new Vector2(startX + col * (btnW + gap), startY);
+            brt.sizeDelta = new Vector2(btnW, btnH);
+        }
+    }
+    #endregion
 
     #region 碗布局 — 手动散布，带随机偏移
     Vector2 BowlPos(int index, int total)
@@ -324,8 +387,7 @@ public class PetGameUI : MonoBehaviour
 
         Destroy(petGO);
         Destroy(headBowl);
-        BuildBowls();
-        BuildPets();
+        // 不再调用 BuildBowls/BuildPets — onPetFed 事件已经重建过了
     }
     #endregion
 
@@ -360,6 +422,16 @@ public class PetGameUI : MonoBehaviour
     void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart() { if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    void NextLevel() { if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+
+    public void BackToMenu()
+    {
+        gm.isPlaying = false;
+        if (resultOverlay) resultOverlay.SetActive(false);
+        Clear(bowlArea); Clear(petArea);
+        bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear();
+        ShowLevelSelect();
+    }
     #endregion
 
     #region helpers
