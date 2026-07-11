@@ -1,9 +1,10 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// 铲屎官疯了 v2 — 从预制体加载 UI
+/// 铲屎官疯了 v2 — UI 交互 + 动画
 /// </summary>
 public class PetGameUI : MonoBehaviour
 {
@@ -18,6 +19,7 @@ public class PetGameUI : MonoBehaviour
 
     private List<GameObject> petGOs = new List<GameObject>();
     private List<GameObject> bowlGOs = new List<GameObject>();
+    private Dictionary<int, GameObject> bowlIdToGO = new Dictionary<int, GameObject>();
 
     void Start()
     {
@@ -57,13 +59,12 @@ public class PetGameUI : MonoBehaviour
         btnUndo = FindB("btnUndo");     btnAddBowl = FindB("btnAddBowl");
         btnShuffle = FindB("btnShuffle"); btnRestart = FindB("btnRestart");
         btnNext = FindB("btnNext");
-        Debug.Log($"[PetGameUI] petArea:{petArea!=null} bowlArea:{bowlArea!=null} hudOK:{gameHUD!=null}");
     }
 
     void BindButtons()
     {
-        btnUndo?.onClick.AddListener(() => gm.Undo());
-        btnAddBowl?.onClick.AddListener(() => gm.AddBowl());
+        btnUndo?.onClick.AddListener(() => { gm.Undo(); BuildBowls(); BuildPets(); UpdateHUD(); });
+        btnAddBowl?.onClick.AddListener(() => { gm.AddBowl(); BuildBowls(); });
         btnShuffle?.onClick.AddListener(() => { /* TODO */ });
         btnRestart?.onClick.AddListener(Restart);
         btnNext?.onClick.AddListener(Restart);
@@ -75,9 +76,34 @@ public class PetGameUI : MonoBehaviour
         gm.onHeldChanged.AddListener(UpdateHeld);
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
+        gm.onSelectionChanged.AddListener(BuildBowls);
+        gm.onPourAnim.AddListener((fromId, toId) => StartCoroutine(PourAnimation(fromId, toId)));
+        gm.onFeedAnim.AddListener((bowlId, petType) => StartCoroutine(FeedAnimation(bowlId, petType)));
     }
 
     void BuildLevel() { BuildPets(); BuildBowls(); UpdateHUD(); }
+
+    #region 碗布局 — 手动散布，带随机偏移
+    Vector2 BowlPos(int index, int total)
+    {
+        var rt = bowlArea.GetComponent<RectTransform>();
+        float w = rt.rect.width - 140;
+        float h = rt.rect.height - 140;
+        int cols = Mathf.Clamp(Mathf.Max(1, (int)(w / 170f)), 1, 4);
+        int row = index / cols;
+        int col = index % cols;
+        float cellW = w / cols;
+        float cellH = 140;
+
+        float x = -w / 2 + cellW * (col + 0.5f);
+        float y = h / 2 - 70 - row * cellH;
+
+        var rng = new System.Random(index * 137 + total * 73);
+        x += (float)(rng.NextDouble() - 0.5) * 30;
+        y += (float)(rng.NextDouble() - 0.5) * 20;
+        return new Vector2(x, y);
+    }
+    #endregion
 
     void BuildPets()
     {
@@ -90,14 +116,12 @@ public class PetGameUI : MonoBehaviour
             var label = FindC<Text>(go, "QueueLabel");
             if (label) label.text = PetCN(pet);
 
-            // 切换宠物表情
             var face = FindC<Image>(go, "PetFace");
             if (face != null)
             {
                 var spr = Resources.Load<Sprite>($"PetFaces/{pet.ToString().ToLower()}/neutral");
                 if (spr != null) face.sprite = spr;
             }
-
             petGOs.Add(go);
         }
     }
@@ -105,33 +129,30 @@ public class PetGameUI : MonoBehaviour
     void BuildBowls()
     {
         if (bowlArea == null || bowlItemPf == null) return;
-        Clear(bowlArea); bowlGOs.Clear();
+        Clear(bowlArea); bowlGOs.Clear(); bowlIdToGO.Clear();
 
-        foreach (var bowl in gm.GetBowls())
+        var bowls = gm.GetBowls();
+        for (int i = 0; i < bowls.Count; i++)
         {
+            var bowl = bowls[i];
             var go = Instantiate(bowlItemPf, bowlArea);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchoredPosition = BowlPos(i, bowls.Count);
+
             int bid = bowl.bowlId;
+            bowlIdToGO[bid] = go;
+
             var btn = go.GetComponent<Button>();
-            if (btn) btn.onClick.AddListener(() => gm.PourToBowl(bid));
-
-            // 选中效果：缩放1.3倍
-            if (bid == gm.selectedBowlId)
+            if (btn)
             {
-                go.transform.localScale = Vector3.one * 1.3f;
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
             }
 
-            var stack = FindGO(go, "FoodStack")?.transform;
-            if (stack != null && foodIconPf != null)
-            {
-                Clear(stack);
-                foreach (var f in bowl.foods)
-                {
-                    var icon = Instantiate(foodIconPf, stack);
-                    // 缩小食物图标适配碗内
-                    var le = icon.GetComponent<LayoutElement>();
-                    if (le != null) { le.preferredWidth = 30; le.preferredHeight = 30; }
-                }
-            }
+            float scale = (bid == gm.selectedBowlId) ? 1.3f : 1f;
+            go.transform.localScale = Vector3.one * scale;
+
+            BuildFoodStack(go, bowl);
 
             var done = FindGO(go, "DoneMark");
             if (done) done.SetActive(bowl.isCompleted);
@@ -140,6 +161,175 @@ public class PetGameUI : MonoBehaviour
         }
     }
 
+    void BuildFoodStack(GameObject bowlGO, Bowl bowl)
+    {
+        var stack = FindGO(bowlGO, "FoodStack")?.transform;
+        if (stack == null || foodIconPf == null) return;
+
+        var layout = stack.GetComponent<LayoutGroup>();
+        if (layout) layout.enabled = false;
+
+        Clear(stack);
+        float overlap = 60f;
+        float startY = -(bowl.foods.Count - 1) * overlap / 2f;
+
+        for (int j = 0; j < bowl.foods.Count; j++)
+        {
+            var icon = Instantiate(foodIconPf, stack);
+            var irt = icon.GetComponent<RectTransform>();
+            irt.anchorMin = new Vector2(0.5f, 0.5f);
+            irt.anchorMax = new Vector2(0.5f, 0.5f);
+            irt.pivot = new Vector2(0.5f, 0.5f);
+            irt.anchoredPosition = new Vector2(0, startY + j * overlap);
+            irt.sizeDelta = new Vector2(100, 100);
+
+            var le = icon.GetComponent<LayoutElement>();
+            if (le != null) { le.preferredWidth = 100; le.preferredHeight = 100; }
+
+            var img = icon.GetComponent<Image>();
+            if (img != null)
+            {
+                var spr = GetFoodSprite(bowl.foods[j]);
+                if (spr != null) img.sprite = spr;
+            }
+        }
+    }
+
+    Sprite GetFoodSprite(FoodType type)
+    {
+        int idx = (Mathf.Abs(type.GetHashCode()) % 15) + 1;
+        return Resources.Load<Sprite>($"ArtFoods/food{idx:D2}");
+    }
+
+    #region 动画 — 倒食物
+    IEnumerator PourAnimation(int fromId, int toId)
+    {
+        if (!bowlIdToGO.ContainsKey(fromId) || !bowlIdToGO.ContainsKey(toId)) yield break;
+        var fromGO = bowlIdToGO[fromId];
+        var toGO = bowlIdToGO[toId];
+        var fromRT = fromGO.GetComponent<RectTransform>();
+        var toRT = toGO.GetComponent<RectTransform>();
+        var fromStack = FindGO(fromGO, "FoodStack")?.transform;
+        var toStack = FindGO(toGO, "FoodStack")?.transform;
+
+        if (fromStack == null || toStack == null || fromStack.childCount == 0) yield break;
+
+        // 取出最上层食物（最后倒进去的）
+        var movingFood = fromStack.GetChild(fromStack.childCount - 1);
+
+        Vector3 fromOrigPos = fromRT.anchoredPosition3D;
+        Quaternion fromOrigRot = fromRT.localRotation;
+        Vector3 targetPos = toRT.anchoredPosition3D + new Vector3(fromRT.anchoredPosition.x < toRT.anchoredPosition.x ? -60 : 60, 90, 0);
+
+        // 1. 移到B旁
+        float duration = 0.25f;
+        for (float t = 0; t < duration; t += Time.deltaTime)
+        {
+            fromRT.anchoredPosition3D = Vector3.Lerp(fromOrigPos, targetPos, t / duration);
+            yield return null;
+        }
+        fromRT.anchoredPosition3D = targetPos;
+
+        // 2. 倾斜
+        float tiltAngle = fromRT.anchoredPosition.x < toRT.anchoredPosition.x ? -100f : 100f;
+        Quaternion targetRot = Quaternion.Euler(0, 0, tiltAngle);
+        for (float t = 0; t < 0.2f; t += Time.deltaTime)
+        {
+            fromRT.localRotation = Quaternion.Lerp(fromOrigRot, targetRot, t / 0.2f);
+            yield return null;
+        }
+        fromRT.localRotation = targetRot;
+        yield return new WaitForSeconds(0.15f);
+
+        // 3. 食物从A消失，出现在B最上方
+        if (movingFood != null)
+        {
+            movingFood.SetParent(toStack, false);
+            movingFood.SetAsLastSibling();
+            var mrt = movingFood.GetComponent<RectTransform>();
+            mrt.anchorMin = new Vector2(0.5f, 0.5f);
+            mrt.anchorMax = new Vector2(0.5f, 0.5f);
+            mrt.pivot = new Vector2(0.5f, 0.5f);
+            mrt.anchoredPosition = new Vector2(0, (toStack.childCount - 1) * 60f - (toStack.childCount - 1) * 30f);
+            // 简单放在B食物堆上方
+            float overlap = 60f;
+            float y = -(toStack.childCount - 1) * overlap / 2f + (toStack.childCount - 1) * overlap;
+            mrt.anchoredPosition = new Vector2(0, y);
+        }
+
+        yield return new WaitForSeconds(0.1f);
+
+        // 4. 回正 + 回位
+        for (float t = 0; t < 0.25f; t += Time.deltaTime)
+        {
+            fromRT.anchoredPosition3D = Vector3.Lerp(targetPos, fromOrigPos, t / 0.25f);
+            fromRT.localRotation = Quaternion.Lerp(targetRot, fromOrigRot, t / 0.25f);
+            yield return null;
+        }
+        fromRT.anchoredPosition3D = fromOrigPos;
+        fromRT.localRotation = fromOrigRot;
+
+        // 5. 同步真实数据
+        BuildBowls();
+    }
+    #endregion
+
+    #region 动画 — 宠物喂食
+    IEnumerator FeedAnimation(int bowlId, PetType petType)
+    {
+        if (!bowlIdToGO.ContainsKey(bowlId)) yield break;
+        var bowlGO = bowlIdToGO[bowlId];
+        var bowlRT = bowlGO.GetComponent<RectTransform>();
+
+        int petIdx = gm.GetFedPets().Count - 1;
+        if (petIdx < 0 || petIdx >= petGOs.Count) petIdx = 0;
+        var petGO = petGOs.Count > petIdx ? petGOs[petIdx] : null;
+        if (petGO == null) { BuildBowls(); BuildPets(); yield break; }
+
+        var petRT = petGO.GetComponent<RectTransform>();
+        Vector3 bowlOrigPos = bowlRT.anchoredPosition3D;
+        Vector3 petPos = petRT.anchoredPosition3D + new Vector3(0, 30, 0);
+
+        // 1. 碗飞到宠物旁
+        float duration = 0.35f;
+        for (float t = 0; t < duration; t += Time.deltaTime)
+        {
+            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrigPos, petPos, t / duration);
+            yield return null;
+        }
+
+        // 2. 碗消失，头顶生成碗
+        Destroy(bowlGO);
+        var headBowl = Instantiate(bowlItemPf, petGO.transform);
+        var hrt = headBowl.GetComponent<RectTransform>();
+        hrt.anchorMin = new Vector2(0.5f, 0.5f);
+        hrt.anchorMax = new Vector2(0.5f, 0.5f);
+        hrt.pivot = new Vector2(0.5f, 0.5f);
+        hrt.anchoredPosition = new Vector2(0, 80);
+        hrt.sizeDelta = new Vector2(100, 120);
+        var hbtn = headBowl.GetComponent<Button>();
+        if (hbtn) hbtn.enabled = false;
+        var dm = FindGO(headBowl, "DoneMark");
+        if (dm) dm.SetActive(false);
+
+        // 3. 宠物左移出屏幕
+        Vector3 petOrig = petRT.anchoredPosition3D;
+        Vector3 petOff = petOrig + new Vector3(-600, 0, 0);
+        duration = 0.6f;
+        for (float t = 0; t < duration; t += Time.deltaTime)
+        {
+            petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petOff, t / duration);
+            yield return null;
+        }
+
+        Destroy(petGO);
+        Destroy(headBowl);
+        BuildBowls();
+        BuildPets();
+    }
+    #endregion
+
+    #region HUD
     void UpdateHUD()
     {
         if (txtLevel) txtLevel.text = $"第{gm.currentLevelId}关";
@@ -147,11 +337,30 @@ public class PetGameUI : MonoBehaviour
         if (txtStep) txtStep.text = $"步数:{gm.pour.totalMoves}";
     }
 
-    void UpdateHeld() { if (heldFoodHolder) heldFoodHolder.SetActive(gm.GetHeldFood() != null); }
+    void UpdateHeld()
+    {
+        var food = gm.GetHeldFood();
+        if (heldFoodHolder)
+        {
+            heldFoodHolder.SetActive(food != null);
+            if (food != null)
+            {
+                var img = heldFoodHolder.GetComponentInChildren<Image>();
+                if (img != null)
+                {
+                    var spr = GetFoodSprite(food.Value);
+                    if (spr != null) img.sprite = spr;
+                }
+                var rt = heldFoodHolder.GetComponent<RectTransform>();
+                rt.sizeDelta = new Vector2(80, 80);
+            }
+        }
+    }
 
-    void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string('★', s) + new string('☆', 3 - s); }
+    void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart() { if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    #endregion
 
     #region helpers
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }

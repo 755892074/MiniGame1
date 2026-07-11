@@ -15,7 +15,7 @@ public class PetGameManager : MonoBehaviour
 
     [Header("状态")]
     public int currentLevelId = 1;
-    public int selectedBowlId = -1;        // 当前选中的碗（拿出来源的碗）
+    public int selectedBowlId = -1;
     public float elapsedTime;
     public bool isPlaying;
 
@@ -23,11 +23,10 @@ public class PetGameManager : MonoBehaviour
     public int targetScore => currentLevel?.targetScore ?? 200;
 
     private PetLevelConfigV2 currentLevel;
-    private float levelTimer;
 
     #region 事件
     public UnityEvent<int> onScoreChanged = new UnityEvent<int>();
-    public UnityEvent<PetType, int, bool> onPetFed = new UnityEvent<PetType, int, bool>(); // pet, points, isFirst
+    public UnityEvent<PetType, int, bool> onPetFed = new UnityEvent<PetType, int, bool>();
     public UnityEvent onMistake = new UnityEvent();
     public UnityEvent<int> onLevelComplete = new UnityEvent<int>();
     public UnityEvent onLevelFail = new UnityEvent();
@@ -35,6 +34,9 @@ public class PetGameManager : MonoBehaviour
     public UnityEvent<PourResult> onPour = new UnityEvent<PourResult>();
     public UnityEvent onBowlCompleted = new UnityEvent();
     public UnityEvent onHeldChanged = new UnityEvent();
+    public UnityEvent onSelectionChanged = new UnityEvent();
+    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>(); // fromBowlId, toBowlId
+    public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>(); // bowlId, petType
     #endregion
 
     void Awake()
@@ -43,7 +45,6 @@ public class PetGameManager : MonoBehaviour
         Instance = this;
         LoadConfig();
         AutoStartLevel();
-        Debug.Log($"[PetGameManager] Awake: 关卡数={levels.Count}, config={(spriteConfig != null ? "OK" : "NULL")}");
     }
 
     void Update()
@@ -68,7 +69,6 @@ public class PetGameManager : MonoBehaviour
             {
                 levels = new List<PetLevelConfigV2>(loaded);
                 levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
-                Debug.Log($"[PetGameManager] 从 Resources 加载 {levels.Count} 关");
             }
         }
     }
@@ -76,10 +76,7 @@ public class PetGameManager : MonoBehaviour
     void AutoStartLevel()
     {
         if (levels.Count == 0)
-        {
-            Debug.LogWarning("[PetGameManager] 无关卡数据，生成测试关卡");
             GenerateTestLevel();
-        }
         StartLevel(currentLevelId);
     }
 
@@ -106,48 +103,59 @@ public class PetGameManager : MonoBehaviour
         }
 
         pour.InitLevel(bowls, new List<PetType>(currentLevel.petQueue));
+        selectedBowlId = -1;
         elapsedTime = 0;
         isPlaying = true;
-        Debug.Log($"[PetGameManager] StartLevel: 第{id}关 '{currentLevel.levelName}', {bowls.Count}碗, {currentLevel.petQueue.Length}宠物, 目标{targetScore}分");
     }
 
-    public void PickUpFromBowl(int bowlId)
+    /// <summary>
+    /// 点击碗：选中→取消选中→倒入
+    /// </summary>
+    public void OnBowlClicked(int bowlId)
     {
-        if (!isPlaying) { Debug.LogWarning("[PetGameManager] PickUp: 游戏未开始"); return; }
-        var err = pour.PickUp(bowlId);
-        if (err != null) { onMistake.Invoke(); Debug.LogWarning($"[PetGameManager] PickUp 失败: {err}"); return; }
-        selectedBowlId = bowlId; // 记录来源碗
-        onPickUp.Invoke(pour.heldFood!.Value);
-        onHeldChanged.Invoke();
-    }
+        if (!isPlaying) return;
 
-    public void PourToBowl(int bowlId)
-    {
-        if (!isPlaying) { Debug.LogWarning("[PetGameManager] PourTo: 游戏未开始"); return; }
-        if (pour.heldFood == null) { PickUpFromBowl(bowlId); return; }
-
-        var result = pour.PourInto(bowlId);
-        onPour.Invoke(result);
-
-        if (!result.success) { onMistake.Invoke(); Debug.LogWarning($"[PetGameManager] Pour 失败: {result.reason}"); return; }
-
-        selectedBowlId = -1; // 清除选中
-        onHeldChanged.Invoke();
-
-        // 碗满了？
-        if (result.bowlCompleted)
+        if (selectedBowlId == -1)
         {
-            onBowlCompleted.Invoke();
-            var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
-            onScoreChanged.Invoke(pour.score);
-            onPetFed.Invoke(fedPet, points, isFirst);
+            // 选中
+            selectedBowlId = bowlId;
+            onSelectionChanged.Invoke();
+        }
+        else if (selectedBowlId == bowlId)
+        {
+            // 取消选中
+            selectedBowlId = -1;
+            onSelectionChanged.Invoke();
+        }
+        else
+        {
+            // 倒入：selected → bowlId
+            int fromId = selectedBowlId;
+            selectedBowlId = -1;
+            onSelectionChanged.Invoke();
 
-            if (!isFirst)
+            var err = pour.PickUp(fromId);
+            if (err != null) { onMistake.Invoke(); return; }
+            onPickUp.Invoke(pour.heldFood!.Value);
+
+            var result = pour.PourInto(bowlId);
+            onPour.Invoke(result);
+            if (!result.success) { onMistake.Invoke(); return; }
+            onHeldChanged.Invoke();
+
+            // 通知 UI 播倒入动画
+            onPourAnim.Invoke(fromId, bowlId);
+
+            if (result.bowlCompleted)
             {
-                Debug.Log($"[PetGameManager] 其他宠物抱怨不公平！（匹配了{petQueueToString(fedPet)}而非队首{currentPetQueueStr()}）");
+                onBowlCompleted.Invoke();
+                var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
+                onScoreChanged.Invoke(pour.score);
+                onPetFed.Invoke(fedPet, points, isFirst);
+                // 通知 UI 播喂食动画
+                onFeedAnim.Invoke(bowlId, fedPet);
+                CheckWin();
             }
-
-            CheckWin();
         }
     }
 
@@ -155,6 +163,7 @@ public class PetGameManager : MonoBehaviour
     {
         if (pour.Undo())
         {
+            selectedBowlId = -1;
             onScoreChanged.Invoke(pour.score);
             onHeldChanged.Invoke();
         }
@@ -177,7 +186,6 @@ public class PetGameManager : MonoBehaviour
         {
             isPlaying = false;
             int stars = pour.score >= targetScore * 2 ? 3 : pour.score >= targetScore * 1.5f ? 2 : 1;
-            Debug.Log($"[PetGameManager] 通关! 得分{pour.score}/{targetScore}, ★{stars}");
             onLevelComplete.Invoke(stars);
         }
     }
@@ -191,13 +199,12 @@ public class PetGameManager : MonoBehaviour
 
     void GenerateTestLevel()
     {
-        // 简单测试关：2个宠物（猫+狗），5个碗，容量3
         var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
         lv.levelId = 1;
         lv.levelName = "鱼+骨头·初体验";
         lv.bowlCapacity = 3;
         lv.targetScore = 150;
-        lv.petQueue = new[] { PetType.Cat, PetType.Dog }; // 猫在前，狗在后
+        lv.petQueue = new[] { PetType.Cat, PetType.Dog };
         lv.bowlInits = new[]
         {
             new BowlInitData { gridPos = new Vector2Int(0, 0), foodStack = new[] { FoodType.DriedFish, FoodType.DriedFish } },
@@ -207,7 +214,6 @@ public class PetGameManager : MonoBehaviour
             new BowlInitData { gridPos = new Vector2Int(1, 1), foodStack = new FoodType[] { } },
         };
         levels.Add(lv);
-        Debug.Log("[PetGameManager] 生成测试关卡（5碗/2宠物）");
     }
 
     public PetLevelConfigV2 GetCurrentLevel() => currentLevel;
@@ -217,7 +223,4 @@ public class PetGameManager : MonoBehaviour
     public PetType? GetCurrentPet() => pour.CurrentPet;
     public List<PetType> GetPetQueue() => pour.originalPets;
     public List<PetType> GetFedPets() => pour.fedPets;
-
-    string currentPetQueueStr() => pour.CurrentPet?.ToString() ?? "无";
-    string petQueueToString(PetType p) => p.ToString();
 }
