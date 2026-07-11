@@ -35,8 +35,6 @@ public class PetGameManager : MonoBehaviour
     public UnityEvent onBowlCompleted = new UnityEvent();
     public UnityEvent onHeldChanged = new UnityEvent();
     public UnityEvent onSelectionChanged = new UnityEvent();
-    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>(); // fromBowlId, toBowlId
-    public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>(); // bowlId, petType
     #endregion
 
     void Awake()
@@ -134,22 +132,17 @@ public class PetGameManager : MonoBehaviour
         }
         else
         {
-            // 倒入：selected → bowlId
+            // 批量倒入：selected → bowlId
             int fromId = selectedBowlId;
             selectedBowlId = -1;
             onSelectionChanged.Invoke();
 
-            var err = pour.PickUp(fromId);
-            if (err != null) { onMistake.Invoke(); return; }
-            onPickUp.Invoke(pour.heldFood!.Value);
+            int count = pour.PickUpAll(fromId);
+            if (count == 0) { onMistake.Invoke(); return; }
 
-            var result = pour.PourInto(bowlId);
+            var result = pour.PourInto(bowlId, count);
             onPour.Invoke(result);
             if (!result.success) { onMistake.Invoke(); return; }
-            onHeldChanged.Invoke();
-
-            // 通知 UI 播倒入动画
-            onPourAnim.Invoke(fromId, bowlId);
 
             if (result.bowlCompleted)
             {
@@ -157,8 +150,6 @@ public class PetGameManager : MonoBehaviour
                 var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
                 onScoreChanged.Invoke(pour.score);
                 onPetFed.Invoke(fedPet, points, isFirst);
-                // 通知 UI 播喂食动画
-                onFeedAnim.Invoke(bowlId, fedPet);
                 CheckWin();
             }
         }
