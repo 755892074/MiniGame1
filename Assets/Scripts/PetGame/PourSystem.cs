@@ -133,7 +133,7 @@ public class PourSystem
         score += points;
         fedPets.Add(matchedPet);
 
-        // 从队列中移除
+        // 从队列中移除宠物
         var newQueue = new Queue<PetType>();
         bool removed = false;
         while (petQueue.Count > 0)
@@ -194,7 +194,7 @@ public class PourSystem
     }
 
     #region 工具
-    Bowl GetBowl(int id) => bowls.Find(b => b.bowlId == id);
+    public Bowl GetBowl(int id) => bowls.Find(b => b.bowlId == id);
 
     int FindBowlHeldFrom()
     {

@@ -209,7 +209,15 @@ public class PetGameUI : MonoBehaviour
             if (btn)
             {
                 btn.onClick.RemoveAllListeners();
-                btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
+                if (bowl.isCompleted)
+                {
+                    btn.interactable = false; // 已完成碗不可点击
+                }
+                else
+                {
+                    btn.interactable = true;
+                    btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
+                }
             }
 
             float scale = (bid == gm.selectedBowlId) ? 1.3f : 1f;
@@ -275,10 +283,11 @@ public class PetGameUI : MonoBehaviour
         var fromStack = FindGO(fromGO, "FoodStack")?.transform;
         var toStack = FindGO(toGO, "FoodStack")?.transform;
 
-        if (fromStack == null || toStack == null || fromStack.childCount == 0) yield break;
+        if (fromStack == null || toStack == null) yield break;
 
-        // 取出最上层食物（最后倒进去的）
-        var movingFood = fromStack.GetChild(fromStack.childCount - 1);
+        GameObject movingFood = null;
+        if (fromStack.childCount > 0)
+            movingFood = fromStack.GetChild(fromStack.childCount - 1).gameObject;
 
         Vector3 fromOrigPos = fromRT.anchoredPosition3D;
         Quaternion fromOrigRot = fromRT.localRotation;
@@ -307,16 +316,14 @@ public class PetGameUI : MonoBehaviour
         // 3. 食物从A消失，出现在B最上方
         if (movingFood != null)
         {
-            movingFood.SetParent(toStack, false);
-            movingFood.SetAsLastSibling();
+            movingFood.transform.SetParent(toStack, false);
+            movingFood.transform.SetAsLastSibling();
+            float overlap = 60f;
+            float y = -(toStack.childCount - 1) * overlap / 2f + (toStack.childCount - 1) * overlap;
             var mrt = movingFood.GetComponent<RectTransform>();
             mrt.anchorMin = new Vector2(0.5f, 0.5f);
             mrt.anchorMax = new Vector2(0.5f, 0.5f);
             mrt.pivot = new Vector2(0.5f, 0.5f);
-            mrt.anchoredPosition = new Vector2(0, (toStack.childCount - 1) * 60f - (toStack.childCount - 1) * 30f);
-            // 简单放在B食物堆上方
-            float overlap = 60f;
-            float y = -(toStack.childCount - 1) * overlap / 2f + (toStack.childCount - 1) * overlap;
             mrt.anchoredPosition = new Vector2(0, y);
         }
 

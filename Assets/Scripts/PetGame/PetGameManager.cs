@@ -117,6 +117,9 @@ public class PetGameManager : MonoBehaviour
     {
         if (!isPlaying) return;
 
+        var bowl = pour.GetBowl(bowlId);
+        if (bowl != null && bowl.isCompleted) return; // 已完成碗不能操作
+
         if (selectedBowlId == -1)
         {
             // 选中
@@ -201,26 +204,16 @@ public class PetGameManager : MonoBehaviour
 
     void GenerateTestLevel()
     {
-        GenerateLevel(1, "鱼+骨头·初体验", 3, 150, new[] { PetType.Cat, PetType.Dog },
-            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DriedFish, FoodType.BoneTreat });
-        GenerateLevel(2, "加入仓鼠", 3, 200, new[] { PetType.Cat, PetType.Dog, PetType.Hamster },
-            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn });
-        GenerateLevel(3, "鹦鹉来了", 3, 200, new[] { PetType.Dog, PetType.Parrot, PetType.Cat },
-            new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Millet, FoodType.Millet, FoodType.DriedFish, FoodType.CatKibble, FoodType.Cuttlebone });
-        GenerateLevel(4, "金鱼池", 4, 250, new[] { PetType.Fish, PetType.Cat, PetType.Hamster },
-            new[] { FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.DriedFish, FoodType.DriedFish, FoodType.SunflowerSeed, FoodType.Bloodworm, FoodType.SunflowerSeed });
-        GenerateLevel(5, "兔兔跳", 3, 250, new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog },
-            new[] { FoodType.Carrot, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Millet, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Sausage });
-        GenerateLevel(6, "猫狗大战", 4, 300, new[] { PetType.Cat, PetType.Cat, PetType.Dog, PetType.Dog },
-            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.CatTreatStick, FoodType.MeatJerky, FoodType.DogKibble, FoodType.Catnip, FoodType.DogBiscuit });
-        GenerateLevel(7, "全员出动", 3, 350, new[] { PetType.Hamster, PetType.Fish, PetType.Rabbit, PetType.Parrot },
-            new[] { FoodType.SunflowerSeed, FoodType.Corn, FoodType.FishFlake, FoodType.Bloodworm, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Cuttlebone, FoodType.Mealworm });
-        GenerateLevel(8, "猫咪天堂", 4, 350, new[] { PetType.Cat, PetType.Cat, PetType.Cat },
-            new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.Catnip, FoodType.Milk, FoodType.DriedFish });
-        GenerateLevel(9, "汪汪乐园", 4, 400, new[] { PetType.Dog, PetType.Dog, PetType.Dog },
-            new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.MeatJerky, FoodType.DentalChew, FoodType.Sausage, FoodType.DogBiscuit, FoodType.Sausage });
-        GenerateLevel(10, "终极挑战", 5, 500, new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish },
-            new[] { FoodType.DriedFish, FoodType.BoneTreat, FoodType.DriedFish, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.Millet, FoodType.FishFlake, FoodType.Corn, FoodType.SunflowerSeed, FoodType.CatKibble, FoodType.DogKibble, FoodType.Cuttlebone, FoodType.Bloodworm, FoodType.Millet, FoodType.Mealworm });
+        GenerateLevel(1, "鱼+骨头·初体验", 3, 150, new[] { PetType.Cat, PetType.Dog }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat });
+        GenerateLevel(2, "加入仓鼠", 3, 200, new[] { PetType.Cat, PetType.Dog, PetType.Hamster }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn });
+        GenerateLevel(3, "鹦鹉来了", 3, 200, new[] { PetType.Dog, PetType.Parrot, PetType.Cat }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble });
+        GenerateLevel(4, "金鱼池", 4, 250, new[] { PetType.Fish, PetType.Cat, PetType.Hamster }, new[] { FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn, FoodType.SunflowerSeed });
+        GenerateLevel(5, "兔兔跳", 3, 250, new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog }, new[] { FoodType.Carrot, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat });
+        GenerateLevel(6, "猫狗大战", 4, 300, new[] { PetType.Cat, PetType.Cat, PetType.Dog, PetType.Dog }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.CatTreatStick, FoodType.MeatJerky, FoodType.DogKibble, FoodType.Catnip, FoodType.DogBiscuit, FoodType.CatKibble, FoodType.DogKibble, FoodType.DogBiscuit, FoodType.Catnip });
+        GenerateLevel(7, "全员出动", 3, 350, new[] { PetType.Hamster, PetType.Fish, PetType.Rabbit, PetType.Parrot }, new[] { FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn, FoodType.FishFlake, FoodType.FishFlake, FoodType.Bloodworm, FoodType.Carrot, FoodType.Carrot, FoodType.Hay, FoodType.Millet, FoodType.Millet, FoodType.Cuttlebone, FoodType.Mealworm, FoodType.Millet, FoodType.Corn, FoodType.FishFlake });
+        GenerateLevel(8, "猫咪天堂", 4, 350, new[] { PetType.Cat, PetType.Cat, PetType.Cat }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.Catnip, FoodType.Milk, FoodType.DriedFish, FoodType.CatKibble });
+        GenerateLevel(9, "汪汪乐园", 4, 400, new[] { PetType.Dog, PetType.Dog, PetType.Dog }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.MeatJerky, FoodType.MeatJerky, FoodType.DentalChew, FoodType.Sausage, FoodType.DogBiscuit, FoodType.MeatJerky });
+        GenerateLevel(10, "终极挑战", 5, 500, new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Corn, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.CatKibble, FoodType.DogKibble, FoodType.Cuttlebone, FoodType.Bloodworm, FoodType.Millet, FoodType.Mealworm, FoodType.Cuttlebone, FoodType.SunflowerSeed, FoodType.Carrot });
     }
 
     void GenerateLevel(int id, string name, int cap, int target, PetType[] pets, FoodType[] allFoods)
