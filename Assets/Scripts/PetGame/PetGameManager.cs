@@ -203,6 +203,7 @@ public class PetGameManager : MonoBehaviour
                 onPourAnim.Invoke(fromId, bowlId);
             }
             CheckWin();
+        }
     }
 
     public void Undo()
