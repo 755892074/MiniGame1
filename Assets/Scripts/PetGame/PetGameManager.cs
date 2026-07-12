@@ -263,10 +263,10 @@ public class PetGameManager : MonoBehaviour
 
         // 优先从磁盘加载已保存的关卡
         LoadSavedLevels();
-        if (levels.Count > 0) return;
 
-        // 磁盘没有 → 用算法自动生成
-        Debug.Log("[PetGameManager] 未找到已保存关卡, 自动生成10关");
+        // 剩余关卡自动生成
+        if (levels.Count >= 10) return;
+        Debug.Log($"[PetGameManager] 已保存{levels.Count}关, 自动生成剩余{10 - levels.Count}关");
 
         // 难度曲线：宠物数↑ 容量↑ 额外碗合理
         PetType[][] petSets = {
@@ -288,6 +288,7 @@ public class PetGameManager : MonoBehaviour
         for (int i = 0; i < 10; i++)
         {
             int id = i + 1;
+            if (levels.Any(l => l.levelId == id)) continue; // 跳过已加载的
             var pets = petSets[i];
             int cap = caps[i];
             int ex = extra[i];
