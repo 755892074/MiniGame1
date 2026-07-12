@@ -72,7 +72,7 @@ public class PetGameUI : MonoBehaviour
         gm.onBowlCompleted.AddListener(() => { }); // 不做任何事，等动画结束统一重建
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
-        gm.onPourAnim.AddListener((f, t) => StartCoroutine(PourAnimation(f, t)));
+        gm.onPourAnim.AddListener((f, t, c) => StartCoroutine(PourAnimation(f, t, c)));
         gm.onFeedAnim.AddListener((bid, pet) => StartCoroutine(FeedAnimation(bid, pet)));
     }
 
@@ -215,7 +215,7 @@ public class PetGameUI : MonoBehaviour
     Sprite GetFoodSprite(FoodType type) { int i = (Mathf.Abs(type.GetHashCode()) % 15) + 1; return Resources.Load<Sprite>($"ArtFoods/food{i:D2}"); }
 
     #region 动画 — 倒食物
-    IEnumerator PourAnimation(int fromId, int toId)
+    IEnumerator PourAnimation(int fromId, int toId, int count)
     {
         yield return null;
 
@@ -230,12 +230,16 @@ public class PetGameUI : MonoBehaviour
         var toStack = FindGO(toGO, "FoodStack")?.transform;
         if (fromStack == null || toStack == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
-        // 取源碗最后一个食物图标
-        GameObject movingFood = null;
-        if (fromStack.childCount > 0)
-            movingFood = fromStack.GetChild(fromStack.childCount - 1).gameObject;
+        // 收集要移动的 count 个食物图标（从顶往下数）
+        int moveCount = Mathf.Min(count, fromStack.childCount);
+        var movingFoods = new List<GameObject>();
+        for (int i = 0; i < moveCount; i++)
+        {
+            int idx = fromStack.childCount - 1 - i;
+            movingFoods.Add(fromStack.GetChild(idx).gameObject);
+        }
 
-        // 判断目标碗是否已达成（动画结束后应进入喂食流程）
+        // 判断目标碗是否已达成
         var targetBowl = gm.pour.GetBowl(toId);
         bool bowlCompleted = targetBowl != null && targetBowl.isCompleted;
 
@@ -267,11 +271,14 @@ public class PetGameUI : MonoBehaviour
         if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         fromRT.localRotation = targetRot;
 
-        // 3. 食物飞过去
-        if (movingFood != null && toStack != null)
+        // 3. 食物全部飞过去
+        if (toStack != null)
         {
-            movingFood.transform.SetParent(toStack, false);
-            movingFood.transform.SetAsLastSibling();
+            for (int i = movingFoods.Count - 1; i >= 0; i--)
+            {
+                movingFoods[i].transform.SetParent(toStack, false);
+                movingFoods[i].transform.SetAsLastSibling();
+            }
         }
         yield return new WaitForSeconds(0.15f);
 
@@ -287,8 +294,7 @@ public class PetGameUI : MonoBehaviour
         fromRT.anchoredPosition3D = fromOrigPos;
         fromRT.localRotation = fromOrigRot;
 
-        // 碗未达成：正常重建UI回到Idle
-        // 碗已达成：不重建不切状态，留给FeedAnimation接管
+        // 碗未达成：重建UI
         if (!bowlCompleted)
         {
             BuildBowls();

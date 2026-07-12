@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using F8Framework.Core;
 using F8Framework.Launcher;
 using UnityEngine;
@@ -24,6 +25,7 @@ public class PetGameManager : MonoBehaviour
     public int targetScore => currentLevel?.targetScore ?? 200;
 
     private PetLevelConfigV2 currentLevel;
+    public PetLevelConfigV2 CurrentLevel => currentLevel;
     public IFSM<PetGameManager> fsm { get; private set; }
 
     /// <summary>碗按钮回调：FSM 状态决定行为</summary>
@@ -38,7 +40,7 @@ public class PetGameManager : MonoBehaviour
     public UnityEvent<PourResult> onPour = new UnityEvent<PourResult>();
     public UnityEvent onBowlCompleted = new UnityEvent();
     public UnityEvent onSelectionChanged = new UnityEvent();
-    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>();
+    public UnityEvent<int, int, int> onPourAnim = new UnityEvent<int, int, int>(); // fromId, toId, count
     public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>();
     #endregion
 
@@ -191,7 +193,7 @@ public class PetGameManager : MonoBehaviour
         }
 
         // 触发动画事件
-        onPourAnim.Invoke(fromId, toId);
+        onPourAnim.Invoke(fromId, toId, count);
         if (result.bowlCompleted)
         {
             var fedPet = pour.GetBowl(toId)?.Top != null
@@ -237,40 +239,60 @@ public class PetGameManager : MonoBehaviour
     #endregion
 
     #region 关卡生成
+    void LoadSavedLevels()
+    {
+        for (int id = 1; id <= 10; id++)
+        {
+            var lv = Resources.Load<PetLevelConfigV2>($"Levels/Level_{id:D2}");
+            if (lv != null)
+            {
+                lv = Instantiate(lv); // clone 避免修改源资产
+                levels.Add(lv);
+                Debug.Log($"[PetGameManager] 加载已保存关卡{id}: {lv.levelName}");
+            }
+        }
+    }
+
     void GenerateTestLevel()
     {
         if (levels.Count > 0) return;
 
-        // 难度递进：前3关简单，中4关中等，后3关困难
-        // 宠物组合随关卡逐渐增多
+        // 优先从磁盘加载已保存的关卡
+        LoadSavedLevels();
+        if (levels.Count > 0) return;
+
+        // 磁盘没有 → 用算法自动生成
+        Debug.Log("[PetGameManager] 未找到已保存关卡, 自动生成10关");
+
+        // 难度曲线：宠物数↑ 容量↑ 额外碗合理
         PetType[][] petSets = {
             new[] { PetType.Cat, PetType.Dog },
+            new[] { PetType.Cat, PetType.Dog },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster },
             new[] { PetType.Cat, PetType.Dog, PetType.Hamster },
             new[] { PetType.Dog, PetType.Parrot, PetType.Cat },
-            new[] { PetType.Fish, PetType.Cat, PetType.Hamster },
-            new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog, PetType.Cat },
-            new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot },
-            new[] { PetType.Fish, PetType.Rabbit, PetType.Dog, PetType.Cat, PetType.Hamster },
+            new[] { PetType.Dog, PetType.Parrot, PetType.Rabbit, PetType.Cat },
+            new[] { PetType.Fish, PetType.Rabbit, PetType.Dog, PetType.Hamster },
             new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish },
-            new[] { PetType.Dog, PetType.Cat, PetType.Rabbit, PetType.Fish, PetType.Parrot, PetType.Hamster },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish },
             new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish, PetType.Rabbit },
         };
 
-        int[] caps       = { 3, 3, 3, 3, 4, 4, 4, 4, 4, 5 };
-        int[] diffs      = { 0, 0, 0, 1, 1, 1, 1, 2, 2, 2 }; // 0=简单 1=中等 2=困难
+        int[] caps  = { 3, 3, 3, 3, 4, 4, 4, 4, 5, 5 };
+        int[] extra = { 0, 1, 0, 1, 1, 1, 2, 2, 2, 2 }; // 额外空碗数
 
         for (int i = 0; i < 10; i++)
         {
             int id = i + 1;
             var pets = petSets[i];
             int cap = caps[i];
-            int diff = diffs[i];
+            int ex = extra[i];
             int seed = id * 137 + (int)System.DateTime.Now.Ticks % 1000;
 
             string name = LevelGenerator.GetLevelName(pets, id);
-            int target = LevelGenerator.CalcTargetScore(pets.Length, diff);
+            int target = LevelGenerator.CalcTargetScore(pets.Distinct().Count());
 
-            var inits = LevelGenerator.Generate(pets, cap, diff, seed);
+            var inits = LevelGenerator.Generate(pets, cap, ex, seed);
             if (inits == null) { Debug.LogError($"[PetGameManager] 关卡{id}生成失败!"); continue; }
 
             var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
@@ -278,15 +300,14 @@ public class PetGameManager : MonoBehaviour
             lv.levelName = name;
             lv.bowlCapacity = cap;
             lv.targetScore = target;
-            lv.difficulty = diff;
+            lv.difficulty = i < 3 ? 0 : (i < 7 ? 1 : 2);
             lv.petQueue = pets;
             lv.bowlInits = inits.ToArray();
             levels.Add(lv);
 
             int totalFoods = pets.Length * cap;
             int bowlCount = inits.Count;
-            int extraBowls = bowlCount - pets.Length;
-            Debug.Log($"[PetGameManager] 关卡{id}「{name}」生成: {pets.Length}宠×{cap}={totalFoods}食物, {bowlCount}碗(含{extraBowls}空), 难度{diff}, 目标{target}分");
+            Debug.Log($"[PetGameManager] 关卡{id}「{name}」: {pets.Distinct().Count()}宠×{cap}={totalFoods}食物, {bowlCount}碗(含{ex}空), 目标{target}分");
         }
     }
     #endregion

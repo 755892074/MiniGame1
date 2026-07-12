@@ -85,17 +85,18 @@ public static class FoodPetMap
         return PetType.Cat;
     }
 
-    public static FoodType[] GetFoodsForPet(PetType p)
+    /// <summary>宠物→食物（严格一对一映射）</summary>
+    public static FoodType GetFoodForPet(PetType p)
     {
         return p switch
         {
-            PetType.Cat => new[] { FoodType.CannedCatFood, FoodType.CatKibble, FoodType.DriedFish, FoodType.CatTreatStick, FoodType.Catnip, FoodType.Milk },
-            PetType.Dog => new[] { FoodType.DogKibble, FoodType.BoneTreat, FoodType.MeatJerky, FoodType.DentalChew, FoodType.DogBiscuit, FoodType.Sausage },
-            PetType.Hamster => new[] { FoodType.SunflowerSeed, FoodType.Corn, FoodType.Mealworm },
-            PetType.Parrot => new[] { FoodType.Millet, FoodType.Cuttlebone, FoodType.SeedBag },
-            PetType.Fish => new[] { FoodType.FishFlake, FoodType.Bloodworm, FoodType.AlgaeWafer },
-            PetType.Rabbit => new[] { FoodType.Carrot, FoodType.Hay },
-            _ => new[] { FoodType.Apple, FoodType.Pellet },
+            PetType.Cat => FoodType.DriedFish,
+            PetType.Dog => FoodType.BoneTreat,
+            PetType.Hamster => FoodType.SunflowerSeed,
+            PetType.Parrot => FoodType.Millet,
+            PetType.Fish => FoodType.FishFlake,
+            PetType.Rabbit => FoodType.Carrot,
+            _ => FoodType.Apple,
         };
     }
 }
