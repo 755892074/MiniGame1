@@ -165,24 +165,23 @@ public class PetGameUI : MonoBehaviour
         if (bowlArea == null || bowlItemPf == null) return;
         Clear(bowlArea); bowlGOs.Clear(); bowlIdToGO.Clear();
         var bowls = gm.GetBowls();
-        for (int i = 0; i < bowls.Count; i++)
+        var visible = new List<Bowl>();
+        foreach (var b in bowls) if (!b.isCompleted) visible.Add(b);
+        for (int i = 0; i < visible.Count; i++)
         {
-            var bowl = bowls[i];
+            var bowl = visible[i];
             var go = Instantiate(bowlItemPf, bowlArea);
-            go.GetComponent<RectTransform>().anchoredPosition = BowlPos(i, bowls.Count);
+            go.GetComponent<RectTransform>().anchoredPosition = BowlPos(i, visible.Count);
             int bid = bowl.bowlId;
             bowlIdToGO[bid] = go;
             var btn = go.GetComponent<Button>();
             if (btn)
             {
                 btn.onClick.RemoveAllListeners();
-                btn.interactable = !bowl.isCompleted;
-                if (!bowl.isCompleted) btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
+                btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
             }
             go.transform.localScale = (bid == gm.selectedBowlId) ? Vector3.one * 1.3f : Vector3.one;
             BuildFoodStack(go, bowl);
-            var done = FindGO(go, "DoneMark");
-            if (done) done.SetActive(bowl.isCompleted);
             bowlGOs.Add(go);
         }
     }
@@ -414,6 +413,9 @@ public class PetGameUI : MonoBehaviour
     }
     #endregion
 
+    /// <summary>停止所有动画协程（切关/重开时调用）</summary>
+    public void StopAnimations() { StopAllCoroutines(); }
+
     void UpdateHUD()
     {
         if (txtLevel) txtLevel.text = $"第{gm.currentLevelId}关";
@@ -423,8 +425,8 @@ public class PetGameUI : MonoBehaviour
 
     void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
-    void Restart() { if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
-    void NextLevel() { if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    void Restart() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    void NextLevel() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
     public void BackToMenu() {  if (resultOverlay) resultOverlay.SetActive(false); Clear(bowlArea); Clear(petArea); bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear(); ShowLevelSelect(); }
 
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }

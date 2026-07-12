@@ -79,19 +79,36 @@ public class PetGameManager : MonoBehaviour
 
     public void StartLevel(int id)
     {
+        // 防御：无关卡数据时直接返回
+        if (levels == null || levels.Count == 0)
+        {
+            Debug.LogError("[PetGameManager] StartLevel: 无关卡数据!");
+            return;
+        }
+
         currentLevel = levels.Find(l => l.levelId == id);
-        if (currentLevel == null) { currentLevel = levels[0]; currentLevelId = 1; }
+        if (currentLevel == null)
+        {
+            currentLevel = levels[0];
+            currentLevelId = 1;
+            Debug.LogWarning($"[PetGameManager] 关卡{id}不存在, 回退到1");
+        }
         else currentLevelId = id;
 
         var bowls = new List<Bowl>();
-        foreach (var init in currentLevel.bowlInits)
+        if (currentLevel.bowlInits != null)
         {
-            var b = new Bowl { bowlId = bowls.Count, capacity = currentLevel.bowlCapacity, gridPos = init.gridPos };
-            foreach (var f in init.foodStack) b.foods.Add(f);
-            bowls.Add(b);
+            foreach (var init in currentLevel.bowlInits)
+            {
+                var b = new Bowl { bowlId = bowls.Count, capacity = currentLevel.bowlCapacity, gridPos = init.gridPos };
+                if (init.foodStack != null)
+                    foreach (var f in init.foodStack) b.foods.Add(f);
+                bowls.Add(b);
+            }
         }
 
-        pour.InitLevel(bowls, new List<PetType>(currentLevel.petQueue));
+        var pets = currentLevel.petQueue != null ? new List<PetType>(currentLevel.petQueue) : new List<PetType>();
+        pour.InitLevel(bowls, pets);
         selectedBowlId = -1;
         elapsedTime = 0;
 
@@ -196,6 +213,7 @@ public class PetGameManager : MonoBehaviour
         {
             selectedBowlId = -1;
             fsm?.ChangeState<IdleState>();
+            onSelectionChanged.Invoke();
             onPour.Invoke(new PourResult());
             onScoreChanged.Invoke(pour.score);
         }

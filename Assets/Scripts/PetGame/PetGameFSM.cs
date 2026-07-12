@@ -50,6 +50,7 @@ public class IdleState : PetGameState
         gm.OnBowlClicked = bowlId =>
         {
             gm.selectedBowlId = bowlId;
+            gm.onSelectionChanged.Invoke();
             fsm.ChangeState<SelectedState>();
         };
     }
@@ -66,6 +67,7 @@ public class SelectedState : PetGameState
             if (bowlId == gm.selectedBowlId)
             {
                 gm.selectedBowlId = -1;
+                gm.onSelectionChanged.Invoke();
                 fsm.ChangeState<IdleState>();
                 return;
             }
