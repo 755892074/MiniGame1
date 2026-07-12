@@ -64,13 +64,31 @@ LAYOUT_CONFIGS = {
         "margins": {"top": 0, "bottom": 0, "left": 0, "right": 0},
         "output_names": ["bg_target"],  # 由用户指定
     },
+    # 4x2食物图标（8个） — 2行4列版本
+    "foods": {
+        "desc": "食物图标（8个2x4）",
+        "rows": 2,
+        "cols": 4,
+        "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10},
+        "output_names": ["food01", "food02", "food03", "food04",
+                          "food05", "food06", "food07", "food08"],
+    },
+    # 3x2宠物头像（6个）
+    "pets": {
+        "desc": "宠物头像（6个3x2）",
+        "rows": 3,
+        "cols": 2,
+        "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10},
+        "output_names": ["pet_cat", "pet_dog", "pet_hamster",
+                          "pet_parrot", "pet_fish", "pet_rabbit"],
+    },
 }
 
 # ============================================================
 # 项目路径
 # ============================================================
 # 默认输出到团结项目的 Assets/Art/UI/ 目录下
-DEFAULT_PROJECT_ROOT = Path("F:/WorkBuddy/H5MiniGame/MiniGame1/MiniGame1_Project")
+DEFAULT_PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 DEFAULT_OUTPUT_DIR = DEFAULT_PROJECT_ROOT / "Assets/Art/UI"
 
 # ============================================================
@@ -213,12 +231,15 @@ def split_image(input_path: str, layout_name: str, output_dir: str = None,
                 name = names[i] if i < len(names) else f"asset_{i}"
                 # 裁切
                 cropped = img.crop((x, y, x + w, y + h))
+                # 食物/宠物图标去白底
+                if name.startswith("food") or name.startswith("pet_"):
+                    cropped = remove_white_bg(cropped)
                 # 保存到对应子目录
-                target_dir = get_target_dir(name)
-                target_path = output_path / target_dir / f"{name}.png"
+                target_dir = get_target_dir(name, DEFAULT_PROJECT_ROOT)
+                target_path = target_dir / f"{name}.png"
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 cropped.save(target_path, "PNG")
-                print(f"  [{i+1}] {name}.png -> {target_dir}/ ({w}x{h})")
+                print(f"  [{i+1}] {name}.png -> {target_dir.relative_to(DEFAULT_PROJECT_ROOT)}\\ ({w}x{h})")
             return True
     
     # 等分切分
@@ -249,41 +270,60 @@ def split_image(input_path: str, layout_name: str, output_dir: str = None,
             # 裁切
             cropped = img.crop((x1, y1, x2, y2))
             
-            # 智能裁剪空白边距（去除多余空白）
-            bbox = find_content_bounds(cropped)
-            if bbox:
-                # 取第一个检测到的区域（应该只有一个）
-                cx, cy, cw, ch = bbox[0]
-                cropped = cropped.crop((cx, cy, cx + cw, cy + ch))
+            # 智能裁剪空白边距（去除多余空白），仅自动检测模式启用
+            if auto_detect:
+                bbox = find_content_bounds(cropped)
+                if bbox:
+                    cx, cy, cw, ch = bbox[0]
+                    cropped = cropped.crop((cx, cy, cx + cw, cy + ch))
             
             # 保存
             name = names[idx]
-            target_dir = get_target_dir(name)
-            target_path = output_path / target_dir / f"{name}.png"
+            cropped = img.crop((x1, y1, x2, y2))
+            # 食物/宠物图标去白底
+            if name.startswith("food") or name.startswith("pet_"):
+                cropped = remove_white_bg(cropped)
+            target_dir = get_target_dir(name, DEFAULT_PROJECT_ROOT)
+            target_path = target_dir / f"{name}.png"
             target_path.parent.mkdir(parents=True, exist_ok=True)
             cropped.save(target_path, "PNG")
-            print(f"  [{idx+1}] {name}.png -> {target_dir}/ ({cropped.size[0]}x{cropped.size[1]})")
+            print(f"  [{idx+1}] {name}.png -> {target_dir.relative_to(DEFAULT_PROJECT_ROOT)}\\ ({cropped.size[0]}x{cropped.size[1]})")
             count += 1
     
     print(f"\n[完成] 共生成 {count} 个切分文件")
-    print(f"输出目录: {output_path}")
+    print(f"项目根目录: {DEFAULT_PROJECT_ROOT}")
     return True
 
 
-def get_target_dir(name: str) -> str:
-    """根据文件名前缀决定存储子目录"""
-    if name.startswith("btn_"):
-        return "Sliced"
-    elif name.startswith("panel_"):
-        return "Sliced"
+def remove_white_bg(img: Image.Image, threshold=245) -> Image.Image:
+    """将接近纯白的背景转为透明，保留图标主体"""
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    data = img.getdata()
+    new_data = []
+    for r, g, b, a in data:
+        if r > threshold and g > threshold and b > threshold:
+            new_data.append((255, 255, 255, 0))
+        else:
+            new_data.append((r, g, b, a))
+    img.putdata(new_data)
+    return img
+
+
+def get_target_dir(name: str, project_root: Path) -> Path:
+    """根据文件名前缀决定存储子目录（绝对路径）"""
+    if name.startswith("food"):
+        return project_root / "Assets/Art/PetGame/foods"
+    elif name.startswith("pet_"):
+        return project_root / "Assets/Art/PetGame/pets"
+    elif name.startswith("btn_") or name.startswith("panel_"):
+        return project_root / "Assets/Art/UI/Sliced"
     elif name.startswith("bg_"):
-        return "Backgrounds"
-    elif name.startswith("item_"):
-        return "Icons"
-    elif name.startswith("misc_"):
-        return "Icons"
+        return project_root / "Assets/Art/UI/Backgrounds"
+    elif name.startswith("item_") or name.startswith("misc_"):
+        return project_root / "Assets/Art/UI/Icons"
     else:
-        return "Raw"
+        return project_root / "Assets/Art/UI/Raw"
 
 
 # ============================================================
