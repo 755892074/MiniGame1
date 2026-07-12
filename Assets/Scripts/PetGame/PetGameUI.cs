@@ -66,9 +66,9 @@ public class PetGameUI : MonoBehaviour
         btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
         gm.onSelectionChanged.AddListener(BuildBowls);
-        gm.onPour.AddListener(_ => UpdateHUD());  // 动画期间只更新分数字
-        gm.onPetFed.AddListener((p, pts, f) => UpdateHUD());  // 动画期间只更新HUD
-        gm.onBowlCompleted.AddListener(BuildBowls);  // 满碗立即显示完成标记
+        gm.onPour.AddListener(_ => UpdateHUD());
+        gm.onPetFed.AddListener((p, pts, f) => UpdateHUD());
+        gm.onBowlCompleted.AddListener(() => { }); // 不做任何事，等动画结束统一重建
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
         gm.onPourAnim.AddListener((f, t) => StartCoroutine(PourAnimation(f, t)));
@@ -377,10 +377,12 @@ public class PetGameUI : MonoBehaviour
             yield return null;
         }
 
-        // 隐藏后销毁，接着重建界面（不包含已喂宠物）
+        // 隐藏后销毁，不再重建这个宠物
         petGO.SetActive(false);
+        petGOs.Remove(petGO);
         Destroy(petGO);
-        RebuildAll();
+        // 只重建碗和HUD，宠物通过队列重建（已喂的已被移除）
+        BuildBowls(); BuildPets(); UpdateHUD();
         gm.isAnimating = false;
     }
     #endregion
