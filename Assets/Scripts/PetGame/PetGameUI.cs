@@ -40,7 +40,7 @@ public class PetGameUI : MonoBehaviour
 
         FindRefs();
         BindButtons();
-        if (gm.isPlaying) BuildLevel();
+        if (gm.fsm != null) BuildLevel();
         else ShowLevelSelect();
     }
 
@@ -256,11 +256,11 @@ public class PetGameUI : MonoBehaviour
         Quaternion targetRot = Quaternion.Euler(0, 0, tilt);
         for (float t = 0; t < 0.15f; t += Time.deltaTime)
         {
-            if (fromRT == null) { gm.isAnimating = false; yield break; }
+            if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             fromRT.localRotation = Quaternion.Lerp(fromOrigRot, targetRot, t / 0.15f);
             yield return null;
         }
-        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         fromRT.localRotation = targetRot;
 
         // 3. 食物飞过去
@@ -274,12 +274,12 @@ public class PetGameUI : MonoBehaviour
         // 4. 回正 + 回位
         for (float t = 0; t < 0.2f; t += Time.deltaTime)
         {
-            if (fromRT == null) { gm.isAnimating = false; yield break; }
+            if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             fromRT.anchoredPosition3D = Vector3.Lerp(targetPos, fromOrigPos, t / 0.2f);
             fromRT.localRotation = Quaternion.Lerp(targetRot, fromOrigRot, t / 0.2f);
             yield return null;
         }
-        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         fromRT.anchoredPosition3D = fromOrigPos;
         fromRT.localRotation = fromOrigRot;
 
@@ -297,9 +297,9 @@ public class PetGameUI : MonoBehaviour
 
         gm.fsm?.ChangeState<FeedingState>();
 
-        if (!bowlIdToGO.ContainsKey(bowlId)) { gm.isAnimating = false; yield break; }
+        if (!bowlIdToGO.ContainsKey(bowlId)) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         var bowlGO = bowlIdToGO[bowlId];
-        if (bowlGO == null) { gm.isAnimating = false; yield break; }
+        if (bowlGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         // 找到匹配的宠物 GO（根据标签文字）
         var targetLabel = PetCN(petType);
@@ -310,7 +310,7 @@ public class PetGameUI : MonoBehaviour
             var label = FindC<Text>(go, "QueueLabel");
             if (label != null && label.text == targetLabel) { petGO = go; break; }
         }
-        if (petGO == null) { BuildBowls(); BuildPets(); gm.isAnimating = false; yield break; }
+        if (petGO == null) { BuildBowls(); BuildPets(); gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         var bowlRT = bowlGO.GetComponent<RectTransform>();
         var petRT = petGO.GetComponent<RectTransform>();
@@ -321,11 +321,11 @@ public class PetGameUI : MonoBehaviour
         float dur = 0.3f;
         for (float t = 0; t < dur; t += Time.deltaTime)
         {
-            if (bowlRT == null || petRT == null) { gm.isAnimating = false; yield break; }
+            if (bowlRT == null || petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrig, petPos + new Vector3(0, 50, 0), t / dur);
             yield return null;
         }
-        if (bowlRT == null || petRT == null) { gm.isAnimating = false; yield break; }
+        if (bowlRT == null || petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         // 2. 宠物头顶复制碗（含食物）
         var headBowl = Instantiate(bowlItemPf, petGO.transform);
@@ -349,7 +349,7 @@ public class PetGameUI : MonoBehaviour
         float shrink = 0.25f;
         for (float t = 0; t < shrink; t += Time.deltaTime)
         {
-            if (bowlGO == null) { gm.isAnimating = false; yield break; }
+            if (bowlGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             bowlGO.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.zero, t / shrink);
             yield return null;
         }
@@ -362,18 +362,18 @@ public class PetGameUI : MonoBehaviour
         float bounce = 0.2f;
         for (float t = 0; t < bounce; t += Time.deltaTime)
         {
-            if (petRT == null) { gm.isAnimating = false; yield break; }
+            if (petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petBounce, t / bounce);
             yield return null;
         }
-        if (petRT == null) { gm.isAnimating = false; yield break; }
+        if (petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         // 5. 宠物+头顶碗一起慢左移出屏
         float slide = 0.7f;
         Vector3 petOff = petBounce + new Vector3(-650, 30, 0);
         for (float t = 0; t < slide; t += Time.deltaTime)
         {
-            if (petGO == null) { gm.isAnimating = false; yield break; }
+            if (petGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             petRT.anchoredPosition3D = Vector3.Lerp(petBounce, petOff, t / slide);
             yield return null;
         }
@@ -402,7 +402,7 @@ public class PetGameUI : MonoBehaviour
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart() { if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
     void NextLevel() { if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
-    public void BackToMenu() { gm.isPlaying = false; if (resultOverlay) resultOverlay.SetActive(false); Clear(bowlArea); Clear(petArea); bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear(); ShowLevelSelect(); }
+    public void BackToMenu() {  if (resultOverlay) resultOverlay.SetActive(false); Clear(bowlArea); Clear(petArea); bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear(); ShowLevelSelect(); }
 
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }
     Text FindT(string n) => FindC<Text>(gameHUD, n);
