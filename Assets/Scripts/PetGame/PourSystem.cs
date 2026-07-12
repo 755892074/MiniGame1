@@ -77,6 +77,7 @@ public class PourSystem
         var target = GetBowl(targetBowlId);
         if (target == null) { result.reason = "碗不存在"; return result; }
         if (target.isCompleted) { result.reason = "碗已完成"; return result; }
+        if (target.foods.Count >= target.capacity) { result.reason = "碗已满"; return result; }
         if (target.foods.Count + count > target.capacity) { result.reason = "目标碗容量不足"; return result; }
         if (!target.IsEmpty && target.Top != heldFood) { result.reason = $"不能倒入：碗顶层是{target.Top}，手上是{heldFood}"; return result; }
 
