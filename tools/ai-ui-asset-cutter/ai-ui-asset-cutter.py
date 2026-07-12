@@ -57,30 +57,39 @@ LAYOUT_CONFIGS = {
                           "misc_lock", "bg_overlay", "bg_share_card"],
     },
     # 背景图（独立，无需切分）
-    "bg": {
-        "desc": "背景图（无需切分，直接复制重命名）",
-        "rows": 1,
-        "cols": 1,
-        "margins": {"top": 0, "bottom": 0, "left": 0, "right": 0},
-        "output_names": ["bg_target"],  # 由用户指定
-    },
-    # 4x2食物图标（8个） — 2行4列版本
+    # 2x4食物图标（8个，1024×512）
     "foods": {
-        "desc": "食物图标（8个2x4）",
+        "desc": "食物图标（8个4×2，256px/格，1024×512）",
         "rows": 2,
         "cols": 4,
-        "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10},
+        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
         "output_names": ["food01", "food02", "food03", "food04",
                           "food05", "food06", "food07", "food08"],
     },
-    # 3x2宠物头像（6个）
+    # 2x3宠物头像（6个，1536×1024）
     "pets": {
-        "desc": "宠物头像（6个3x2）",
-        "rows": 3,
-        "cols": 2,
-        "margins": {"top": 10, "bottom": 10, "left": 10, "right": 10},
+        "desc": "宠物头像（6个3×2，512px/格，1536×1024）",
+        "rows": 2,
+        "cols": 3,
+        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
         "output_names": ["pet_cat", "pet_dog", "pet_hamster",
                           "pet_parrot", "pet_fish", "pet_rabbit"],
+    },
+    # 2x2碗（4个，1024×1024）
+    "bowls": {
+        "desc": "碗套装（4个2×2，512px/格，1024×1024）",
+        "rows": 2,
+        "cols": 2,
+        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "output_names": ["bowl_01", "bowl_02", "bowl_03", "bowl_04"],
+    },
+    # 3x2 UI图标（6个，384×256）
+    "ui_icons": {
+        "desc": "UI图标（6个3×2，128px/格，384×256）",
+        "rows": 2,
+        "cols": 3,
+        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "output_names": ["ui_star", "ui_undo", "ui_add", "ui_shuffle", "ui_restart", "ui_next"],
     },
 }
 
@@ -320,6 +329,10 @@ def get_target_dir(name: str, project_root: Path) -> Path:
         return project_root / "Assets/Art/UI/Sliced"
     elif name.startswith("bg_"):
         return project_root / "Assets/Art/UI/Backgrounds"
+    elif name.startswith("bowl_"):
+        return project_root / "Assets/Art/PetGame/bowls/empty"
+    elif name.startswith("ui_"):
+        return project_root / "Assets/Art/PetGame/UI"
     elif name.startswith("item_") or name.startswith("misc_"):
         return project_root / "Assets/Art/UI/Icons"
     else:
