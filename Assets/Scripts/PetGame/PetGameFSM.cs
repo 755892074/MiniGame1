@@ -1,9 +1,9 @@
 using F8Framework.Core;
+using F8Framework.Launcher;
 using UnityEngine;
 
 /// <summary>
-/// 铲屎官疯了 — 游戏状态机（基于 F8Framework FSM）
-/// Owner: PetGameManager
+/// 铲屎官疯了 — 游戏状态机（F8Framework FSM）
 /// </summary>
 public static class PetGameFSM
 {
@@ -27,23 +27,24 @@ public static class PetGameFSM
 // ===== 状态基类 =====
 public abstract class PetGameState : FSMState<PetGameManager>
 {
-    private PetGameManager _gm;
-    protected PetGameManager gm => _gm;
+    protected PetGameManager gm;
+    protected IFSM<PetGameManager> fsm;
 
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
+    public override void OnInitialization(IFSM<PetGameManager> f)
     {
-        _gm = fsm.Owner;
+        fsm = f;
+        gm = f.Owner;
     }
 
-    public override void OnStateUpdate(IFSM<PetGameManager> fsm) { }
-    public override void OnStateLateUpdate(IFSM<PetGameManager> fsm) { }
-    public override void OnStateFixedUpdate(IFSM<PetGameManager> fsm) { }
+    public override void OnStateUpdate(IFSM<PetGameManager> f) { }
+    public override void OnStateLateUpdate(IFSM<PetGameManager> f) { }
+    public override void OnStateFixedUpdate(IFSM<PetGameManager> f) { }
 }
 
 // ===== Idle — 等玩家选碗 =====
 public class IdleState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
+    public override void OnStateEnter(IFSM<PetGameManager> f)
     {
         gm.selectedBowlId = -1;
         gm.OnBowlClicked = bowlId =>
@@ -52,67 +53,56 @@ public class IdleState : PetGameState
             fsm.ChangeState<SelectedState>();
         };
     }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }
 
 // ===== Selected — 已选中一个碗，等选目标 =====
 public class SelectedState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
+    public override void OnStateEnter(IFSM<PetGameManager> f)
     {
         gm.OnBowlClicked = bowlId =>
         {
             if (bowlId == gm.selectedBowlId)
             {
-                // 取消选中 → 回到 Idle
                 gm.selectedBowlId = -1;
                 fsm.ChangeState<IdleState>();
                 return;
             }
-            // 倒入：selected → bowlId
             gm.PourFromTo(gm.selectedBowlId, bowlId, fsm);
         };
     }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }
 
-// ===== Pouring — 倒食物动画中 =====
+// ===== Pouring / Feeding — 动画中无响应 =====
 public class PouringState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
-    {
-        gm.OnBowlClicked = _ => { }; // 动画中无响应
-    }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateEnter(IFSM<PetGameManager> f) { gm.OnBowlClicked = _ => { }; }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }
-
-// ===== Feeding — 喂食动画中 =====
 public class FeedingState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
-    {
-        gm.OnBowlClicked = _ => { };
-    }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateEnter(IFSM<PetGameManager> f) { gm.OnBowlClicked = _ => { }; }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }
 
 // ===== Win / Fail =====
 public class WinState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
+    public override void OnStateEnter(IFSM<PetGameManager> f)
     {
         gm.OnBowlClicked = _ => { };
         gm.onLevelComplete.Invoke(gm.CalcStars());
     }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }
-
 public class FailState : PetGameState
 {
-    public override void OnStateEnter(IFSM<PetGameManager> fsm)
+    public override void OnStateEnter(IFSM<PetGameManager> f)
     {
         gm.OnBowlClicked = _ => { };
         gm.onLevelFail.Invoke();
     }
-    public override void OnStateExit(IFSM<PetGameManager> fsm) { }
+    public override void OnStateExit(IFSM<PetGameManager> f) { }
 }

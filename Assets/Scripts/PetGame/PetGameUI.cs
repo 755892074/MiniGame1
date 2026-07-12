@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using F8Framework.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -235,6 +236,10 @@ public class PetGameUI : MonoBehaviour
         if (fromStack.childCount > 0)
             movingFood = fromStack.GetChild(fromStack.childCount - 1).gameObject;
 
+        // 判断目标碗是否已达成（动画结束后应进入喂食流程）
+        var targetBowl = gm.pour.GetBowl(toId);
+        bool bowlCompleted = targetBowl != null && targetBowl.isCompleted;
+
         Vector3 fromOrigPos = fromRT.anchoredPosition3D;
         Vector3 targetPos = toRT.anchoredPosition3D + new Vector3(
             fromRT.anchoredPosition.x < toRT.anchoredPosition.x ? -50 : 50, 70, 0);
@@ -269,7 +274,7 @@ public class PetGameUI : MonoBehaviour
             movingFood.transform.SetParent(toStack, false);
             movingFood.transform.SetAsLastSibling();
         }
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.15f);
 
         // 4. 回正 + 回位
         for (float t = 0; t < 0.2f; t += Time.deltaTime)
@@ -283,17 +288,21 @@ public class PetGameUI : MonoBehaviour
         fromRT.anchoredPosition3D = fromOrigPos;
         fromRT.localRotation = fromOrigRot;
 
-        BuildBowls();
-        BuildBowls();
-        gm.fsm?.ChangeState<IdleState>();
+        // 碗未达成：正常重建UI回到Idle
+        // 碗已达成：不重建不切状态，留给FeedAnimation接管
+        if (!bowlCompleted)
+        {
+            BuildBowls();
+            gm.fsm?.ChangeState<IdleState>();
+        }
     }
     #endregion
 
     #region 动画 — 宠物喂食
     IEnumerator FeedAnimation(int bowlId, PetType petType)
     {
-        // 等倒入动画先结束
-        yield return new WaitForSeconds(0.75f);
+        // 等倒入动画先结束（PourAnimation 约 0.55s + 容错）
+        yield return new WaitForSeconds(0.7f);
 
         gm.fsm?.ChangeState<FeedingState>();
 
@@ -314,18 +323,24 @@ public class PetGameUI : MonoBehaviour
 
         var bowlRT = bowlGO.GetComponent<RectTransform>();
         var petRT = petGO.GetComponent<RectTransform>();
-        Vector3 bowlOrig = bowlRT.anchoredPosition3D;
-        Vector3 petPos = petRT.anchoredPosition3D;
 
-        // 1. 碗飞到宠物旁
-        float dur = 0.3f;
+        // CRITICAL: 碗和宠物在不同父节点（bowlArea / petArea）
+        // 必须通过世界坐标转换
+        Vector3 bowlOrigLocal = bowlRT.anchoredPosition3D;
+        Vector3 petWorldPos = petRT.position;
+        Vector3 bowlTargetWorld = petWorldPos + new Vector3(0, 50, 0);
+        Vector3 bowlTargetLocal = bowlArea.InverseTransformPoint(bowlTargetWorld);
+
+        // 1. 碗飞到宠物旁（世界坐标转换）
+        float dur = 0.35f;
         for (float t = 0; t < dur; t += Time.deltaTime)
         {
             if (bowlRT == null || petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
-            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrig, petPos + new Vector3(0, 50, 0), t / dur);
+            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrigLocal, bowlTargetLocal, t / dur);
             yield return null;
         }
         if (bowlRT == null || petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
+        bowlRT.anchoredPosition3D = bowlTargetLocal;
 
         // 2. 宠物头顶复制碗（含食物）
         var headBowl = Instantiate(bowlItemPf, petGO.transform);
@@ -349,41 +364,49 @@ public class PetGameUI : MonoBehaviour
         float shrink = 0.25f;
         for (float t = 0; t < shrink; t += Time.deltaTime)
         {
-            if (bowlGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
+            if (bowlGO == null) break;
             bowlGO.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.zero, t / shrink);
             yield return null;
         }
-        Destroy(bowlGO);
-        bowlIdToGO.Remove(bowlId); // 避免重复引用
+        if (bowlGO != null) Destroy(bowlGO);
+        bowlIdToGO.Remove(bowlId);
+
+        yield return new WaitForSeconds(0.1f);
 
         // 4. 宠物弹一下
-        Vector3 petOrig = petRT.anchoredPosition3D;
-        Vector3 petBounce = petOrig + new Vector3(0, 25, 0);
+        Vector3 petOrigLocal = petRT.anchoredPosition3D;
+        Vector3 petBounceLocal = petOrigLocal + new Vector3(0, 25, 0);
         float bounce = 0.2f;
         for (float t = 0; t < bounce; t += Time.deltaTime)
         {
-            if (petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
-            petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petBounce, t / bounce);
+            if (petRT == null) break;
+            petRT.anchoredPosition3D = Vector3.Lerp(petOrigLocal, petBounceLocal, t / bounce);
             yield return null;
         }
         if (petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         // 5. 宠物+头顶碗一起慢左移出屏
         float slide = 0.7f;
-        Vector3 petOff = petBounce + new Vector3(-650, 30, 0);
+        Vector3 petOffLocal = petBounceLocal + new Vector3(-650, 30, 0);
         for (float t = 0; t < slide; t += Time.deltaTime)
         {
-            if (petGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
-            petRT.anchoredPosition3D = Vector3.Lerp(petBounce, petOff, t / slide);
+            if (petGO == null) break;
+            petRT.anchoredPosition3D = Vector3.Lerp(petBounceLocal, petOffLocal, t / slide);
             yield return null;
         }
 
-        // 隐藏后销毁，不再重建这个宠物
-        petGO.SetActive(false);
-        petGOs.Remove(petGO);
-        Destroy(petGO);
-        // 只重建碗和HUD，宠物通过队列重建（已喂的已被移除）
-        BuildBowls(); BuildPets(); UpdateHUD();
+        // 隐藏并销毁旧宠物GO
+        if (petGO != null)
+        {
+            petGOs.Remove(petGO);
+            Destroy(petGO);
+        }
+
+        // 6. 重建UI（BuildBowls会基于数据重建所有碗，BuildPets基于队列重建宠物）
+        BuildBowls();
+        BuildPets();
+        UpdateHUD();
+
         gm.CheckWin();
         // CheckWin 通关会切 WinState，否则回 Idle
         if (gm.fsm?.CurrentState is not WinState)
