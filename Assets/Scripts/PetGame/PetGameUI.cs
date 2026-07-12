@@ -291,60 +291,95 @@ public class PetGameUI : MonoBehaviour
     #region 动画 — 宠物喂食
     IEnumerator FeedAnimation(int bowlId, PetType petType)
     {
+        // 等倒入动画先结束
+        yield return new WaitForSeconds(0.75f);
+
         gm.isAnimating = true;
-        yield return null;
 
         if (!bowlIdToGO.ContainsKey(bowlId)) { gm.isAnimating = false; yield break; }
         var bowlGO = bowlIdToGO[bowlId];
         if (bowlGO == null) { gm.isAnimating = false; yield break; }
-        var bowlRT = bowlGO.GetComponent<RectTransform>();
 
-        int petIdx = Mathf.Min(gm.pour.fedPets.Count - 1, petGOs.Count - 1);
-        if (petIdx < 0) petIdx = 0;
-        var petGO = petGOs.Count > petIdx ? petGOs[petIdx] : null;
+        // 找到匹配的宠物 GO（根据标签文字）
+        var targetLabel = PetCN(petType);
+        GameObject petGO = null;
+        foreach (var go in petGOs)
+        {
+            if (go == null) continue;
+            var label = FindC<Text>(go, "QueueLabel");
+            if (label != null && label.text == targetLabel) { petGO = go; break; }
+        }
         if (petGO == null) { BuildBowls(); BuildPets(); gm.isAnimating = false; yield break; }
-        var petRT = petGO.GetComponent<RectTransform>();
 
+        var bowlRT = bowlGO.GetComponent<RectTransform>();
+        var petRT = petGO.GetComponent<RectTransform>();
         Vector3 bowlOrig = bowlRT.anchoredPosition3D;
-        Vector3 petTarget = petRT.anchoredPosition3D + new Vector3(0, 20, 0);
+        Vector3 petPos = petRT.anchoredPosition3D;
 
         // 1. 碗飞到宠物旁
         float dur = 0.3f;
         for (float t = 0; t < dur; t += Time.deltaTime)
         {
-            if (bowlRT == null) { gm.isAnimating = false; yield break; }
-            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrig, petTarget, t / dur);
+            if (bowlRT == null || petRT == null) { gm.isAnimating = false; yield break; }
+            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrig, petPos + new Vector3(0, 50, 0), t / dur);
             yield return null;
         }
+        if (bowlRT == null || petRT == null) { gm.isAnimating = false; yield break; }
 
-        // 2. 放大 + 消失
-        float growDur = 0.25f;
-        for (float t = 0; t < growDur; t += Time.deltaTime)
+        // 2. 宠物头顶复制碗（含食物）
+        var headBowl = Instantiate(bowlItemPf, petGO.transform);
+        headBowl.name = "HeadBowl";
+        var hrt = headBowl.GetComponent<RectTransform>();
+        hrt.anchoredPosition = new Vector2(0, 80);
+        hrt.sizeDelta = new Vector2(80, 90);
+        var srcStack = FindGO(bowlGO, "FoodStack");
+        var dstStack = FindGO(headBowl, "FoodStack");
+        if (srcStack != null && dstStack != null)
         {
-            if (bowlGO == null || petGO == null) { gm.isAnimating = false; yield break; }
-            bowlGO.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 1.3f, t / growDur);
-            yield return null;
+            foreach (Transform child in srcStack.transform)
+                Instantiate(child.gameObject, dstStack.transform);
         }
+        var hbtn = headBowl.GetComponent<Button>();
+        if (hbtn) hbtn.enabled = false;
+        var dm = FindGO(headBowl, "DoneMark");
+        if (dm) dm.SetActive(false);
 
-        // 3. 宠物弹一下再左移
-        Vector3 petOrig = petRT.anchoredPosition3D;
-        Vector3 petBounce = petOrig + new Vector3(0, 30, 0);
-        for (float t = 0; t < 0.15f; t += Time.deltaTime)
+        // 3. 原碗缩小消失
+        float shrink = 0.25f;
+        for (float t = 0; t < shrink; t += Time.deltaTime)
         {
-            if (petRT == null) { gm.isAnimating = false; yield break; }
-            petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petBounce, t / 0.15f);
+            if (bowlGO == null) { gm.isAnimating = false; yield break; }
+            bowlGO.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.zero, t / shrink);
             yield return null;
         }
-        for (float t = 0; t < 0.3f; t += Time.deltaTime)
-        {
-            if (petRT == null) { gm.isAnimating = false; yield break; }
-            petRT.anchoredPosition3D = Vector3.Lerp(petBounce, petOrig + new Vector3(-500, 0, 0), t / 0.3f);
-            yield return null;
-        }
-
         Destroy(bowlGO);
-        Destroy(petGO);
+        bowlIdToGO.Remove(bowlId); // 避免重复引用
 
+        // 4. 宠物弹一下
+        Vector3 petOrig = petRT.anchoredPosition3D;
+        Vector3 petBounce = petOrig + new Vector3(0, 25, 0);
+        float bounce = 0.2f;
+        for (float t = 0; t < bounce; t += Time.deltaTime)
+        {
+            if (petRT == null) { gm.isAnimating = false; yield break; }
+            petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petBounce, t / bounce);
+            yield return null;
+        }
+        if (petRT == null) { gm.isAnimating = false; yield break; }
+
+        // 5. 宠物+头顶碗一起慢左移出屏
+        float slide = 0.7f;
+        Vector3 petOff = petBounce + new Vector3(-650, 30, 0);
+        for (float t = 0; t < slide; t += Time.deltaTime)
+        {
+            if (petGO == null) { gm.isAnimating = false; yield break; }
+            petRT.anchoredPosition3D = Vector3.Lerp(petBounce, petOff, t / slide);
+            yield return null;
+        }
+
+        // 隐藏后销毁，接着重建界面（不包含已喂宠物）
+        petGO.SetActive(false);
+        Destroy(petGO);
         RebuildAll();
         gm.isAnimating = false;
     }

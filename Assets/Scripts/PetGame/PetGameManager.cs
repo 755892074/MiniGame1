@@ -194,13 +194,15 @@ public class PetGameManager : MonoBehaviour
                 var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
                 onScoreChanged.Invoke(pour.score);
                 onPetFed.Invoke(fedPet, points, isFirst);
-                // 通知 UI 播喂食动画（动画结束由 UI 重建界面）
-                onFeedAnim.Invoke(bowlId, fedPet);
             }
-            else
+
+            // 总先播倒入动画；碗达成时额外播喂食（延迟等倒入完）
+            onPourAnim.Invoke(fromId, bowlId);
+            if (result.bowlCompleted)
             {
-                // 通知 UI 播倒入动画
-                onPourAnim.Invoke(fromId, bowlId);
+                var fedPet = pour.GetBowl(bowlId)?.Top != null
+                    ? FoodPetMap.GetPet(pour.GetBowl(bowlId)!.Top!.Value) : PetType.Cat;
+                onFeedAnim.Invoke(bowlId, fedPet);
             }
             CheckWin();
         }
