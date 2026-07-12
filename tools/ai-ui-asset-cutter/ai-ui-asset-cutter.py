@@ -57,39 +57,55 @@ LAYOUT_CONFIGS = {
                           "misc_lock", "bg_overlay", "bg_share_card"],
     },
     # 背景图（独立，无需切分）
-    # 2x4食物图标（8个，1024×512）
+    # 4x2食物图标（512×256）
     "foods": {
-        "desc": "食物图标（8个4×2，256px/格，1024×512）",
+        "desc": "食物图标（8个4×2，128px/格，512×256）",
         "rows": 2,
         "cols": 4,
-        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
         "output_names": ["food01", "food02", "food03", "food04",
                           "food05", "food06", "food07", "food08"],
     },
-    # 2x3宠物头像（6个，1536×1024）
+    # 3x2宠物头像（768×512）
     "pets": {
-        "desc": "宠物头像（6个3×2，512px/格，1536×1024）",
+        "desc": "宠物头像（6个3×2，256px/格，768×512）",
         "rows": 2,
         "cols": 3,
-        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
         "output_names": ["pet_cat", "pet_dog", "pet_hamster",
                           "pet_parrot", "pet_fish", "pet_rabbit"],
     },
-    # 2x2碗（4个，1024×1024）
+    # 2x2碗（384×384）
     "bowls": {
-        "desc": "碗套装（4个2×2，512px/格，1024×1024）",
+        "desc": "碗套装（4个2×2，192px/格，384×384）",
         "rows": 2,
         "cols": 2,
-        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
         "output_names": ["bowl_01", "bowl_02", "bowl_03", "bowl_04"],
     },
-    # 3x2 UI图标（6个，384×256）
+    # 3x2 UI图标（240×160）
     "ui_icons": {
-        "desc": "UI图标（6个3×2，128px/格，384×256）",
+        "desc": "UI图标（6个3×2，80px/格，240×160）",
         "rows": 2,
         "cols": 3,
-        "margins": {"top": 4, "bottom": 4, "left": 4, "right": 4},
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
         "output_names": ["ui_star", "ui_undo", "ui_add", "ui_shuffle", "ui_restart", "ui_next"],
+    },
+    # 3x2 小按钮（480×160）
+    "sm_buttons": {
+        "desc": "小按钮（6个3×2，160×80px/格，480×160）",
+        "rows": 2,
+        "cols": 3,
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
+        "output_names": ["btn_undo", "btn_add", "btn_shuffle", "btn_restart", "btn_next", "btn_home"],
+    },
+    # 2x1 大按钮（720×120）
+    "lg_buttons": {
+        "desc": "大按钮（2个2×1，360×120px/格，720×120）",
+        "rows": 1,
+        "cols": 2,
+        "margins": {"top": 2, "bottom": 2, "left": 2, "right": 2},
+        "output_names": ["btn_play", "btn_retry"],
     },
 }
 
