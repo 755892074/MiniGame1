@@ -8,7 +8,6 @@
         "cn.tuanjie.codely.bridge": "1.0.34",
         "com.unity.modules.jsonserialize": "1.0.0",
         "com.unity.modules.unitywebrequest": "1.0.0",
-        "com.unity.modules.video": "1.0.0",
         "com.unity.editorcoroutines": "1.0.1"
       }
     },
@@ -36,11 +35,10 @@
       "hash": "f67e7851c345f514e9079819cae16273ff05b33c"
     },
     "com.tippinggame.f8framework": {
-      "version": "https://github.com/TippingGame/F8Framework.git#main",
+      "version": "file:../Assets/../LocalPackages/com.tippinggame.f8framework@3.1.314",
       "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "81642e3d9ea9a9964b39764ea919053e9232a993"
+      "source": "local",
+      "dependencies": {}
     },
     "com.unity.2d.animation": {
       "version": "9.2.0",
