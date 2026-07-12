@@ -48,55 +48,51 @@ public class PourSystem
         Debug.Log($"[PourSystem] Init: {bowls.Count}碗, {pets.Count}宠物排队: [{string.Join(",", pets)}]");
     }
 
-    /// <summary>点击碗：取顶层食物到手上</summary>
-    public string PickUp(int bowlId)
+    /// <summary>点击碗：取顶层所有同种食物</summary>
+    public int PickUpAll(int bowlId)
     {
         var bowl = GetBowl(bowlId);
-        if (bowl == null) return "碗不存在";
-        if (bowl.IsEmpty) return "碗是空的";
-        if (heldFood != null) return "手上已经有食物了";
-        if (bowl.isCompleted) return "碗已完成，不能取";
+        if (bowl == null || bowl.IsEmpty) return 0;
+        if (bowl.isCompleted) return 0;
 
-        heldFood = bowl.Pop();
-        Debug.Log($"[PourSystem] PickUp: 从碗{bowlId}取出 {heldFood}, 碗剩余{bowl.foods.Count}层");
-        return null; // success
+        var top = bowl.Top!.Value;
+        int count = 0;
+        for (int i = bowl.foods.Count - 1; i >= 0; i--)
+        {
+            if (bowl.foods[i] == top) count++;
+            else break;
+        }
+
+        // 移除 count 个
+        for (int i = 0; i < count; i++)
+            heldFood = bowl.Pop();
+        return count;
     }
 
-    /// <summary>点击目标碗：倒入手上的食物</summary>
-    public PourResult PourInto(int targetBowlId)
+    /// <summary>点击目标碗：倒入所有手上的食物（count个）</summary>
+    public PourResult PourInto(int targetBowlId, int count)
     {
         var result = new PourResult();
         if (heldFood == null) { result.reason = "手上没有食物"; return result; }
-
         var target = GetBowl(targetBowlId);
         if (target == null) { result.reason = "碗不存在"; return result; }
         if (target.isCompleted) { result.reason = "碗已完成"; return result; }
-        if (target.IsFull) { result.reason = "碗已满"; return result; }
+        if (target.foods.Count + count > target.capacity) { result.reason = "目标碗容量不足"; return result; }
+        if (!target.IsEmpty && target.Top != heldFood) { result.reason = $"不能倒入：碗顶层是{target.Top}，手上是{heldFood}"; return result; }
 
-        // 判定：空碗或顶层同款
-        if (target.IsEmpty || target.Top == heldFood)
+        var f = heldFood.Value;
+        for (int i = 0; i < count; i++)
+            target.Push(f);
+        heldFood = null;
+        totalMoves++;
+        result.success = true;
+
+        if (target.IsFull)
         {
-            var fromBowl = FindBowlHeldFrom();
-            SaveHistory(fromBowl, targetBowlId);
-
-            target.Push(heldFood.Value);
-            heldFood = null;
-            totalMoves++;
-            result.success = true;
-            Debug.Log($"[PourSystem] PourInto: 倒入碗{targetBowlId}, 现在{target.foods.Count}/{target.capacity}层, 顶层={target.Top}");
-
-            // 碗满了？
-            if (target.IsFull)
-            {
-                target.isCompleted = true;
-                comboCount++;
-                result.bowlCompleted = true;
-                Debug.Log($"[PourSystem] 碗{targetBowlId} 满了! isCompleted=true");
-            }
-            return result;
+            target.isCompleted = true;
+            comboCount++;
+            result.bowlCompleted = true;
         }
-
-        result.reason = $"不能倒入：碗顶层是 {target.Top}，手上是 {heldFood}";
         return result;
     }
 
@@ -133,7 +129,7 @@ public class PourSystem
         score += points;
         fedPets.Add(matchedPet);
 
-        // 从队列中移除
+        // 从队列中移除宠物
         var newQueue = new Queue<PetType>();
         bool removed = false;
         while (petQueue.Count > 0)
@@ -194,7 +190,7 @@ public class PourSystem
     }
 
     #region 工具
-    Bowl GetBowl(int id) => bowls.Find(b => b.bowlId == id);
+    public Bowl GetBowl(int id) => bowls.Find(b => b.bowlId == id);
 
     int FindBowlHeldFrom()
     {
