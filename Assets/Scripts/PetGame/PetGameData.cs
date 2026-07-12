@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 #region 枚举
@@ -38,6 +39,7 @@ public class Bowl
 
     public bool IsEmpty => foods.Count == 0;
     public bool IsFull => foods.Count >= capacity;
+    public bool IsComplete => IsFull && foods.All(f => f == foods[0]);
     public FoodType? Top => foods.Count > 0 ? foods[foods.Count - 1] : (FoodType?)null;
 
     public void Push(FoodType f) { foods.Add(f); }

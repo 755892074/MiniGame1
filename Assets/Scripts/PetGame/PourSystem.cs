@@ -26,6 +26,7 @@ public class PourSystem
     struct PourAction
     {
         public int fromBowl, toBowl;
+        public int count;                   // 倒了几个食物
         public FoodType? prevHeld;
         public int prevScore, prevCombo;
         public List<PetType> prevFedPets;
@@ -88,7 +89,7 @@ public class PourSystem
         totalMoves++;
         result.success = true;
 
-        if (target.IsFull)
+        if (target.IsComplete)
         {
             target.isCompleted = true;
             comboCount++;
@@ -152,18 +153,23 @@ public class PourSystem
         var act = history.Pop();
         var from = GetBowl(act.fromBowl);
         var to = GetBowl(act.toBowl);
+        if (from == null || to == null) return false;
 
-        // 恢复目标碗
-        if (to.foods.Count > 0) to.foods.RemoveAt(to.foods.Count - 1);
+        // 从目标碗顶端取回 count 个食物
+        var moved = new FoodType[act.count];
+        for (int i = 0; i < act.count && to.foods.Count > 0; i++)
+            moved[i] = to.Pop();
+        // 逆序放回源碗（保持原来顺序）
+        for (int i = act.count - 1; i >= 0; i--)
+            from.Push(moved[i]);
         to.isCompleted = act.wasCompleted;
-        // 恢复来源碗
-        var f = to.Pop(); // the food we just put
-        from.Push(f);
+
         heldFood = act.prevHeld;
         score = act.prevScore;
         comboCount = act.prevCombo;
+        totalMoves = Mathf.Max(0, totalMoves - 1);
         if (act.prevFedPets != null) { fedPets = act.prevFedPets; RebuildQueue(); }
-        Debug.Log($"[PourSystem] Undo: 回退, 当前分={score}");
+        Debug.Log($"[PourSystem] Undo: 回退{act.count}个食物, 当前分={score}");
         return true;
     }
 
@@ -229,12 +235,13 @@ public class PourSystem
         return new Vector2Int(Random.Range(0, 5), Random.Range(0, 5));
     }
 
-    void SaveHistory(int fromBowl, int toBowl)
+    public void SaveHistory(int fromBowl, int toBowl, int count)
     {
         history.Push(new PourAction
         {
             fromBowl = fromBowl,
             toBowl = toBowl,
+            count = count,
             prevHeld = heldFood,
             prevScore = score,
             prevCombo = comboCount,

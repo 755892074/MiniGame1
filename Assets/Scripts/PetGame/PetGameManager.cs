@@ -35,6 +35,9 @@ public class PetGameManager : MonoBehaviour
     public UnityEvent onBowlCompleted = new UnityEvent();
     public UnityEvent onHeldChanged = new UnityEvent();
     public UnityEvent onSelectionChanged = new UnityEvent();
+    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>();     // fromBowlId, toBowlId
+    public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>(); // bowlId, petType
+    public bool isAnimating;
     #endregion
 
     void Awake()
@@ -113,7 +116,7 @@ public class PetGameManager : MonoBehaviour
     /// </summary>
     public void OnBowlClicked(int bowlId)
     {
-        if (!isPlaying) return;
+        if (!isPlaying || isAnimating) return;
 
         var bowl = pour.GetBowl(bowlId);
         if (bowl != null && bowl.isCompleted) return; // 已完成碗不能操作
@@ -132,7 +135,7 @@ public class PetGameManager : MonoBehaviour
         }
         else
         {
-            // 批量倒入：selected → bowlId
+            // 批量倒入：selected → bowlId，只倒能装下的数量
             int fromId = selectedBowlId;
             selectedBowlId = -1;
             onSelectionChanged.Invoke();
@@ -140,19 +143,66 @@ public class PetGameManager : MonoBehaviour
             int count = pour.PickUpAll(fromId);
             if (count == 0) { onMistake.Invoke(); return; }
 
+            // 目标碗还能装几个
+            var target = pour.GetBowl(bowlId);
+            int canFit = target != null ? target.capacity - target.foods.Count : 0;
+            if (canFit <= 0)
+            {
+                // 装不下，全部还回源碗
+                var held = pour.heldFood;
+                var src = pour.GetBowl(fromId);
+                for (int i = 0; i < count && held.HasValue && src != null; i++)
+                    src.Push(held.Value);
+                pour.heldFood = null;
+                onPour.Invoke(new PourResult());
+                onMistake.Invoke(); return;
+            }
+
+            int extra = count - canFit;
+            if (extra > 0)
+            {
+                // 拿多了，多出来的还回去
+                var held = pour.heldFood!.Value;
+                var src = pour.GetBowl(fromId);
+                for (int i = 0; i < extra && src != null; i++)
+                    src.Push(held);
+                count = canFit;
+            }
+
             var result = pour.PourInto(bowlId, count);
+            if (!result.success)
+            {
+                // 类型不匹配，全部还回源碗
+                var held = pour.heldFood;
+                var src2 = pour.GetBowl(fromId);
+                for (int i = 0; i < count && held.HasValue && src2 != null; i++)
+                    src2.Push(held.Value);
+                pour.heldFood = null;
+                onPour.Invoke(result);
+                onMistake.Invoke(); return;
+            }
+
             onPour.Invoke(result);
-            if (!result.success) { onMistake.Invoke(); return; }
+
+            // 记录历史
+            pour.SaveHistory(fromId, bowlId, count);
 
             if (result.bowlCompleted)
             {
+                // 先触发碗完成 + 宠物喂食逻辑
                 onBowlCompleted.Invoke();
                 var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
                 onScoreChanged.Invoke(pour.score);
                 onPetFed.Invoke(fedPet, points, isFirst);
-                CheckWin();
+                // 通知 UI 播喂食动画（动画结束由 UI 重建界面）
+                onFeedAnim.Invoke(bowlId, fedPet);
             }
-        }
+            else
+            {
+                // 通知 UI 播倒入动画
+                onPourAnim.Invoke(fromId, bowlId);
+            }
+            CheckWin();
     }
 
     public void Undo()
@@ -160,8 +210,8 @@ public class PetGameManager : MonoBehaviour
         if (pour.Undo())
         {
             selectedBowlId = -1;
+            onPour.Invoke(new PourResult());   // 刷新UI
             onScoreChanged.Invoke(pour.score);
-            onHeldChanged.Invoke();
         }
     }
 

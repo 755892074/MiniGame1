@@ -65,11 +65,13 @@ public class PetGameUI : MonoBehaviour
         btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
         gm.onSelectionChanged.AddListener(BuildBowls);
-        gm.onPour.AddListener(_ => RebuildAll());
-        gm.onPetFed.AddListener((p, pts, f) => RebuildAll());
-        gm.onBowlCompleted.AddListener(() => BuildBowls());
+        gm.onPour.AddListener(_ => UpdateHUD());  // 动画期间只更新分数字
+        gm.onPetFed.AddListener((p, pts, f) => UpdateHUD());  // 动画期间只更新HUD
+        gm.onBowlCompleted.AddListener(BuildBowls);  // 满碗立即显示完成标记
         gm.onLevelComplete.AddListener(OnWin);
         gm.onLevelFail.AddListener(OnFail);
+        gm.onPourAnim.AddListener((f, t) => StartCoroutine(PourAnimation(f, t)));
+        gm.onFeedAnim.AddListener((bid, pet) => StartCoroutine(FeedAnimation(bid, pet)));
     }
 
     void RebuildAll() { BuildBowls(); BuildPets(); UpdateHUD(); }
@@ -194,16 +196,13 @@ public class PetGameUI : MonoBehaviour
         // 动态尺寸：碗容量决定食物图标大小
         float sz = bowl.capacity <= 3 ? 50f : 38f;
         float overlap = sz * 0.45f;
+        float startY = -(bowl.foods.Count - 1) * overlap / 2f;
 
-        // 从下往上堆叠，不超过碗内区域
         for (int j = 0; j < bowl.foods.Count; j++)
         {
             var icon = Instantiate(foodIconPf, stack);
             var irt = icon.GetComponent<RectTransform>();
-            irt.anchorMin = new Vector2(0.5f, 0.5f);
-            irt.anchorMax = new Vector2(0.5f, 0.5f);
-            irt.pivot = new Vector2(0.5f, 0.5f);
-            irt.anchoredPosition = new Vector2(0, j * overlap);
+            irt.anchoredPosition = new Vector2(0, startY + j * overlap);
             irt.sizeDelta = new Vector2(sz, sz);
             var le = icon.GetComponent<LayoutElement>();
             if (le != null) { le.preferredWidth = sz; le.preferredHeight = sz; }
@@ -213,6 +212,142 @@ public class PetGameUI : MonoBehaviour
     }
 
     Sprite GetFoodSprite(FoodType type) { int i = (Mathf.Abs(type.GetHashCode()) % 15) + 1; return Resources.Load<Sprite>($"ArtFoods/food{i:D2}"); }
+
+    #region 动画 — 倒食物
+    IEnumerator PourAnimation(int fromId, int toId)
+    {
+        gm.isAnimating = true;
+        yield return null; // 等一帧让 UI 先刷新
+
+        if (!bowlIdToGO.ContainsKey(fromId) || !bowlIdToGO.ContainsKey(toId)) { gm.isAnimating = false; yield break; }
+        var fromGO = bowlIdToGO[fromId];
+        var toGO = bowlIdToGO[toId];
+        if (fromGO == null || toGO == null) { gm.isAnimating = false; yield break; }
+        var fromRT = fromGO.GetComponent<RectTransform>();
+        var toRT = toGO.GetComponent<RectTransform>();
+        var fromStack = FindGO(fromGO, "FoodStack")?.transform;
+        var toStack = FindGO(toGO, "FoodStack")?.transform;
+        if (fromStack == null || toStack == null) { gm.isAnimating = false; yield break; }
+
+        // 取源碗最后一个食物图标
+        GameObject movingFood = null;
+        if (fromStack.childCount > 0)
+            movingFood = fromStack.GetChild(fromStack.childCount - 1).gameObject;
+
+        Vector3 fromOrigPos = fromRT.anchoredPosition3D;
+        Vector3 targetPos = toRT.anchoredPosition3D + new Vector3(
+            fromRT.anchoredPosition.x < toRT.anchoredPosition.x ? -50 : 50, 70, 0);
+
+        // 1. 源碗移到目标碗旁
+        float dur = 0.2f;
+        for (float t = 0; t < dur; t += Time.deltaTime)
+        {
+            if (fromRT == null || toRT == null) { gm.isAnimating = false; yield break; }
+            fromRT.anchoredPosition3D = Vector3.Lerp(fromOrigPos, targetPos, t / dur);
+            yield return null;
+        }
+        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        fromRT.anchoredPosition3D = targetPos;
+
+        // 2. 倾斜
+        float tilt = fromRT.anchoredPosition.x < toRT.anchoredPosition.x ? -80f : 80f;
+        Quaternion fromOrigRot = fromRT.localRotation;
+        Quaternion targetRot = Quaternion.Euler(0, 0, tilt);
+        for (float t = 0; t < 0.15f; t += Time.deltaTime)
+        {
+            if (fromRT == null) { gm.isAnimating = false; yield break; }
+            fromRT.localRotation = Quaternion.Lerp(fromOrigRot, targetRot, t / 0.15f);
+            yield return null;
+        }
+        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        fromRT.localRotation = targetRot;
+
+        // 3. 食物飞过去
+        if (movingFood != null && toStack != null)
+        {
+            movingFood.transform.SetParent(toStack, false);
+            movingFood.transform.SetAsLastSibling();
+        }
+        yield return new WaitForSeconds(0.1f);
+
+        // 4. 回正 + 回位
+        for (float t = 0; t < 0.2f; t += Time.deltaTime)
+        {
+            if (fromRT == null) { gm.isAnimating = false; yield break; }
+            fromRT.anchoredPosition3D = Vector3.Lerp(targetPos, fromOrigPos, t / 0.2f);
+            fromRT.localRotation = Quaternion.Lerp(targetRot, fromOrigRot, t / 0.2f);
+            yield return null;
+        }
+        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        fromRT.anchoredPosition3D = fromOrigPos;
+        fromRT.localRotation = fromOrigRot;
+
+        BuildBowls();
+        gm.isAnimating = false;
+    }
+    #endregion
+
+    #region 动画 — 宠物喂食
+    IEnumerator FeedAnimation(int bowlId, PetType petType)
+    {
+        gm.isAnimating = true;
+        yield return null;
+
+        if (!bowlIdToGO.ContainsKey(bowlId)) { gm.isAnimating = false; yield break; }
+        var bowlGO = bowlIdToGO[bowlId];
+        if (bowlGO == null) { gm.isAnimating = false; yield break; }
+        var bowlRT = bowlGO.GetComponent<RectTransform>();
+
+        int petIdx = Mathf.Min(gm.pour.fedPets.Count - 1, petGOs.Count - 1);
+        if (petIdx < 0) petIdx = 0;
+        var petGO = petGOs.Count > petIdx ? petGOs[petIdx] : null;
+        if (petGO == null) { BuildBowls(); BuildPets(); gm.isAnimating = false; yield break; }
+        var petRT = petGO.GetComponent<RectTransform>();
+
+        Vector3 bowlOrig = bowlRT.anchoredPosition3D;
+        Vector3 petTarget = petRT.anchoredPosition3D + new Vector3(0, 20, 0);
+
+        // 1. 碗飞到宠物旁
+        float dur = 0.3f;
+        for (float t = 0; t < dur; t += Time.deltaTime)
+        {
+            if (bowlRT == null) { gm.isAnimating = false; yield break; }
+            bowlRT.anchoredPosition3D = Vector3.Lerp(bowlOrig, petTarget, t / dur);
+            yield return null;
+        }
+
+        // 2. 放大 + 消失
+        float growDur = 0.25f;
+        for (float t = 0; t < growDur; t += Time.deltaTime)
+        {
+            if (bowlGO == null || petGO == null) { gm.isAnimating = false; yield break; }
+            bowlGO.transform.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 1.3f, t / growDur);
+            yield return null;
+        }
+
+        // 3. 宠物弹一下再左移
+        Vector3 petOrig = petRT.anchoredPosition3D;
+        Vector3 petBounce = petOrig + new Vector3(0, 30, 0);
+        for (float t = 0; t < 0.15f; t += Time.deltaTime)
+        {
+            if (petRT == null) { gm.isAnimating = false; yield break; }
+            petRT.anchoredPosition3D = Vector3.Lerp(petOrig, petBounce, t / 0.15f);
+            yield return null;
+        }
+        for (float t = 0; t < 0.3f; t += Time.deltaTime)
+        {
+            if (petRT == null) { gm.isAnimating = false; yield break; }
+            petRT.anchoredPosition3D = Vector3.Lerp(petBounce, petOrig + new Vector3(-500, 0, 0), t / 0.3f);
+            yield return null;
+        }
+
+        Destroy(bowlGO);
+        Destroy(petGO);
+
+        RebuildAll();
+        gm.isAnimating = false;
+    }
+    #endregion
 
     void UpdateHUD()
     {
