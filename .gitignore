@@ -33,3 +33,7 @@ desktop.ini
 *.jks
 screenshots/
 WORKFLOW.md
+
+# 包管理器机器差异（自动生成）
+Packages/packages-lock.json
+ProjectSettings/PackageManagerSettings.asset
