@@ -190,16 +190,23 @@ public class PetGameUI : MonoBehaviour
         var lg = stack.GetComponent<LayoutGroup>();
         if (lg) lg.enabled = false;
         Clear(stack);
-        float overlap = 60f;
-        float startY = -(bowl.foods.Count - 1) * overlap / 2f;
+
+        // 动态尺寸：碗容量决定食物图标大小
+        float sz = bowl.capacity <= 3 ? 50f : 38f;
+        float overlap = sz * 0.45f;
+
+        // 从下往上堆叠，不超过碗内区域
         for (int j = 0; j < bowl.foods.Count; j++)
         {
             var icon = Instantiate(foodIconPf, stack);
             var irt = icon.GetComponent<RectTransform>();
-            irt.anchoredPosition = new Vector2(0, startY + j * overlap);
-            irt.sizeDelta = new Vector2(100, 100);
+            irt.anchorMin = new Vector2(0.5f, 0.5f);
+            irt.anchorMax = new Vector2(0.5f, 0.5f);
+            irt.pivot = new Vector2(0.5f, 0.5f);
+            irt.anchoredPosition = new Vector2(0, j * overlap);
+            irt.sizeDelta = new Vector2(sz, sz);
             var le = icon.GetComponent<LayoutElement>();
-            if (le != null) { le.preferredWidth = 100; le.preferredHeight = 100; }
+            if (le != null) { le.preferredWidth = sz; le.preferredHeight = sz; }
             var img = icon.GetComponent<Image>();
             if (img) { var s = GetFoodSprite(bowl.foods[j]); if (s) img.sprite = s; }
         }

@@ -227,6 +227,31 @@ public class PetGameManager : MonoBehaviour
                 foods.Add(allFoods[fi++]);
             inits.Add(new BowlInitData { gridPos = new Vector2Int(i % 4, i / 4), foodStack = foods.ToArray() });
         }
+
+        // 防止初始就出现满碗：检测到全同种→交换一个食物到其他碗
+        for (int i = 0; i < inits.Count; i++)
+        {
+            var bowl = inits[i];
+            if (bowl.foodStack.Length < cap) continue;
+            bool allSame = true;
+            for (int j = 1; j < bowl.foodStack.Length; j++)
+                if (bowl.foodStack[j] != bowl.foodStack[0]) { allSame = false; break; }
+            if (!allSame) continue;
+
+            // 找一个食物类型不同的碗交换最后一个食物
+            for (int k = 0; k < inits.Count; k++)
+            {
+                if (k == i || inits[k].foodStack.Length == 0) continue;
+                if (inits[k].foodStack.Length > 0 && inits[k].foodStack[0] != bowl.foodStack[0])
+                {
+                    var tmp = bowl.foodStack[bowl.foodStack.Length - 1];
+                    bowl.foodStack[bowl.foodStack.Length - 1] = inits[k].foodStack[inits[k].foodStack.Length - 1];
+                    inits[k].foodStack[inits[k].foodStack.Length - 1] = tmp;
+                    Debug.Log($"[GenerateLevel] 第{id}关碗{i}全相同，与碗{k}交换");
+                    break;
+                }
+            }
+        }
         var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
         lv.levelId = id; lv.levelName = name; lv.bowlCapacity = cap; lv.targetScore = target;
         lv.petQueue = pets; lv.bowlInits = inits.ToArray();
