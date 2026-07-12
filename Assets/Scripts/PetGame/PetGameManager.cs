@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using F8Framework.Core;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// 铲屎官疯了 v2 — 脑洞倒水游戏管理器
+/// 铲屎官疯了 v2 — 脑洞倒水游戏管理器（FSM 驱动）
 /// </summary>
 public class PetGameManager : MonoBehaviour
 {
@@ -17,12 +18,15 @@ public class PetGameManager : MonoBehaviour
     public int currentLevelId = 1;
     public int selectedBowlId = -1;
     public float elapsedTime;
-    public bool isPlaying;
 
     public PourSystem pour { get; private set; } = new PourSystem();
     public int targetScore => currentLevel?.targetScore ?? 200;
 
     private PetLevelConfigV2 currentLevel;
+    public IFSM<PetGameManager> fsm { get; private set; }
+
+    /// <summary>碗按钮回调：FSM 状态决定行为</summary>
+    public System.Action<int> OnBowlClicked;
 
     #region 事件
     public UnityEvent<int> onScoreChanged = new UnityEvent<int>();
@@ -30,14 +34,11 @@ public class PetGameManager : MonoBehaviour
     public UnityEvent onMistake = new UnityEvent();
     public UnityEvent<int> onLevelComplete = new UnityEvent<int>();
     public UnityEvent onLevelFail = new UnityEvent();
-    public UnityEvent<FoodType> onPickUp = new UnityEvent<FoodType>();
     public UnityEvent<PourResult> onPour = new UnityEvent<PourResult>();
     public UnityEvent onBowlCompleted = new UnityEvent();
-    public UnityEvent onHeldChanged = new UnityEvent();
     public UnityEvent onSelectionChanged = new UnityEvent();
-    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>();     // fromBowlId, toBowlId
-    public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>(); // bowlId, petType
-    public bool isAnimating;
+    public UnityEvent<int, int> onPourAnim = new UnityEvent<int, int>();
+    public UnityEvent<int, PetType> onFeedAnim = new UnityEvent<int, PetType>();
     #endregion
 
     void Awake()
@@ -50,162 +51,143 @@ public class PetGameManager : MonoBehaviour
 
     void Update()
     {
-        if (!isPlaying) return;
-        elapsedTime += Time.deltaTime;
-        if (currentLevel != null && currentLevel.maxMoves > 0 && pour.totalMoves >= currentLevel.maxMoves)
-        {
-            if (pour.score < targetScore) FailLevel("步数用尽");
-        }
+        if (fsm != null && fsm.IsRunning)
+            elapsedTime += Time.deltaTime;
     }
 
+    #region 关卡管理
     void LoadConfig()
     {
-        if (spriteConfig == null)
-            spriteConfig = Resources.Load<PetGameSpriteConfig>("PetGameSpriteConfig");
-
-        if (levels.Count == 0)
+        levels.Clear();
+        var loaded = Resources.LoadAll<PetLevelConfigV2>("Levels");
+        if (loaded != null && loaded.Length > 0)
         {
-            var loaded = Resources.LoadAll<PetLevelConfigV2>("PetLevels");
-            if (loaded != null && loaded.Length > 0)
-            {
-                levels = new List<PetLevelConfigV2>(loaded);
-                levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
-            }
+            levels = new List<PetLevelConfigV2>(loaded);
+            levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
         }
     }
 
     void AutoStartLevel()
     {
         if (levels.Count == 0)
+        {
+            Debug.LogWarning("[PetGameManager] 无关卡数据，生成测试关卡");
             GenerateTestLevel();
-        // 不自动开始，等待玩家选关
-        isPlaying = false;
-        levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
+        }
+        StartLevel(currentLevelId);
     }
 
     public void StartLevel(int id)
     {
         currentLevel = levels.Find(l => l.levelId == id);
-        if (currentLevel == null)
-        {
-            Debug.LogError($"[PetGameManager] 找不到关卡{id}");
-            return;
-        }
+        if (currentLevel == null) { currentLevel = levels[0]; currentLevelId = 1; }
+        else currentLevelId = id;
 
         var bowls = new List<Bowl>();
-        for (int i = 0; i < currentLevel.bowlInits.Length; i++)
+        foreach (var init in currentLevel.bowlInits)
         {
-            var bi = currentLevel.bowlInits[i];
-            bowls.Add(new Bowl
-            {
-                bowlId = i,
-                capacity = currentLevel.bowlCapacity,
-                foods = new List<FoodType>(bi.foodStack),
-                gridPos = bi.gridPos,
-            });
+            var b = new Bowl { bowlId = bowls.Count, capacity = currentLevel.bowlCapacity, gridPos = init.gridPos };
+            foreach (var f in init.foodStack) b.foods.Add(f);
+            bowls.Add(b);
         }
 
         pour.InitLevel(bowls, new List<PetType>(currentLevel.petQueue));
         selectedBowlId = -1;
         elapsedTime = 0;
-        isPlaying = true;
+
+        // 创建状态机
+        fsm = PetGameFSM.Create(this);
     }
 
-    /// <summary>
-    /// 点击碗：选中→取消选中→倒入
-    /// </summary>
-    public void OnBowlClicked(int bowlId)
+    public void AddBowl()
     {
-        if (!isPlaying || isAnimating) return;
+        var bowl = pour.AddEmptyBowl();
+        Debug.Log($"[PetGameManager] 新增碗{bowl.bowlId}");
+    }
 
-        var bowl = pour.GetBowl(bowlId);
-        if (bowl != null && bowl.isCompleted) return; // 已完成碗不能操作
+    public PetLevelConfigV2 GetCurrentLevel() => currentLevel;
+    public int LevelCount => levels.Count;
+    public string GetLevelName(int id) => levels.Find(l => l.levelId == id)?.levelName ?? "???";
+    public int GetScore() => pour.score;
+    public List<Bowl> GetBowls() => pour.bowls;
+    public List<PetType> GetPetQueue()
+    {
+        var q = new List<PetType>();
+        foreach (var p in pour.petQueue) q.Add(p);
+        return q;
+    }
+    public List<PetType> GetFedPets() => pour.fedPets;
+    #endregion
 
-        if (selectedBowlId == -1)
+    #region 核心逻辑
+    /// <summary>从 fromId 倒食物到 toId，处理数据、触发动画、管理状态转换</summary>
+    public void PourFromTo(int fromId, int toId, IFSM<PetGameManager> fsmRef)
+    {
+        selectedBowlId = -1;
+        onSelectionChanged.Invoke();
+
+        int count = pour.PickUpAll(fromId);
+        if (count == 0) { onMistake.Invoke(); fsmRef.ChangeState<IdleState>(); return; }
+
+        var target = pour.GetBowl(toId);
+        int canFit = target != null ? target.capacity - target.foods.Count : 0;
+        if (canFit <= 0)
         {
-            // 选中
-            selectedBowlId = bowlId;
-            onSelectionChanged.Invoke();
+            ReturnFood(fromId, count, pour.heldFood);
+            onPour.Invoke(new PourResult());
+            onMistake.Invoke();
+            fsmRef.ChangeState<IdleState>();
+            return;
         }
-        else if (selectedBowlId == bowlId)
+
+        // 只倒能装下的数量
+        int extra = count - canFit;
+        if (extra > 0) { ReturnFood(fromId, extra, pour.heldFood!.Value); count = canFit; }
+
+        var result = pour.PourInto(toId, count);
+        if (!result.success)
         {
-            // 取消选中
-            selectedBowlId = -1;
-            onSelectionChanged.Invoke();
-        }
-        else
-        {
-            // 批量倒入：selected → bowlId，只倒能装下的数量
-            int fromId = selectedBowlId;
-            selectedBowlId = -1;
-            onSelectionChanged.Invoke();
-
-            int count = pour.PickUpAll(fromId);
-            if (count == 0) { onMistake.Invoke(); return; }
-
-            // 目标碗还能装几个
-            var target = pour.GetBowl(bowlId);
-            int canFit = target != null ? target.capacity - target.foods.Count : 0;
-            if (canFit <= 0)
-            {
-                // 装不下，全部还回源碗
-                var held = pour.heldFood;
-                var src = pour.GetBowl(fromId);
-                for (int i = 0; i < count && held.HasValue && src != null; i++)
-                    src.Push(held.Value);
-                pour.heldFood = null;
-                onPour.Invoke(new PourResult());
-                onMistake.Invoke(); return;
-            }
-
-            int extra = count - canFit;
-            if (extra > 0)
-            {
-                // 拿多了，多出来的还回去
-                var held = pour.heldFood!.Value;
-                var src = pour.GetBowl(fromId);
-                for (int i = 0; i < extra && src != null; i++)
-                    src.Push(held);
-                count = canFit;
-            }
-
-            var result = pour.PourInto(bowlId, count);
-            if (!result.success)
-            {
-                // 类型不匹配，全部还回源碗
-                var held = pour.heldFood;
-                var src2 = pour.GetBowl(fromId);
-                for (int i = 0; i < count && held.HasValue && src2 != null; i++)
-                    src2.Push(held.Value);
-                pour.heldFood = null;
-                onPour.Invoke(result);
-                onMistake.Invoke(); return;
-            }
-
+            ReturnFood(fromId, count, pour.heldFood);
             onPour.Invoke(result);
-
-            // 记录历史
-            pour.SaveHistory(fromId, bowlId, count);
-
-            if (result.bowlCompleted)
-            {
-                // 先触发碗完成 + 宠物喂食逻辑
-                onBowlCompleted.Invoke();
-                var (points, fedPet, isFirst) = pour.OnBowlComplete(bowlId);
-                onScoreChanged.Invoke(pour.score);
-                onPetFed.Invoke(fedPet, points, isFirst);
-            }
-
-            // 总先播倒入动画；碗达成时额外播喂食（延迟等倒入完）
-            onPourAnim.Invoke(fromId, bowlId);
-            if (result.bowlCompleted)
-            {
-                var fedPet = pour.GetBowl(bowlId)?.Top != null
-                    ? FoodPetMap.GetPet(pour.GetBowl(bowlId)!.Top!.Value) : PetType.Cat;
-                onFeedAnim.Invoke(bowlId, fedPet);
-            }
-            CheckWin();
+            onMistake.Invoke();
+            fsmRef.ChangeState<IdleState>();
+            return;
         }
+
+        pour.SaveHistory(fromId, toId, count);
+        onPour.Invoke(result);
+
+        // 进入倒入动画状态
+        fsmRef.ChangeState<PouringState>();
+
+        // 处理满碗
+        if (result.bowlCompleted)
+        {
+            onBowlCompleted.Invoke();
+            var (points, fedPet, isFirst) = pour.OnBowlComplete(toId);
+            onScoreChanged.Invoke(pour.score);
+            onPetFed.Invoke(fedPet, points, isFirst);
+        }
+
+        // 触发动画事件
+        onPourAnim.Invoke(fromId, toId);
+        if (result.bowlCompleted)
+        {
+            var fedPet = pour.GetBowl(toId)?.Top != null
+                ? FoodPetMap.GetPet(pour.GetBowl(toId)!.Top!.Value) : PetType.Cat;
+            onFeedAnim.Invoke(toId, fedPet);
+        }
+
+        // 动画结束后状态由 PetGameUI 的回调切换（见动画协程末尾）
+    }
+
+    void ReturnFood(int bowlId, int count, FoodType? food)
+    {
+        if (!food.HasValue) return;
+        var bowl = pour.GetBowl(bowlId);
+        for (int i = 0; i < count && bowl != null; i++)
+            bowl.Push(food.Value);
+        pour.heldFood = null;
     }
 
     public void Undo()
@@ -213,41 +195,29 @@ public class PetGameManager : MonoBehaviour
         if (pour.Undo())
         {
             selectedBowlId = -1;
-            onPour.Invoke(new PourResult());   // 刷新UI
+            fsm?.ChangeState<IdleState>();
+            onPour.Invoke(new PourResult());
             onScoreChanged.Invoke(pour.score);
         }
     }
 
-    public void AddBowl()
+    public void CheckWin()
     {
-        var bowl = pour.AddEmptyBowl();
-        Debug.Log($"[PetGameManager] IAA: 新增碗{bowl.bowlId}");
+        if (pour.petQueue.Count == 0 && pour.bowls.FindAll(b => b.isCompleted).Count >= GetCurrentLevel()?.petQueue.Length)
+            fsm?.ChangeState<WinState>();
     }
 
-    public void ShuffleBowl(int bowlId)
+    public int CalcStars()
     {
-        pour.ShuffleBowl(bowlId);
+        float pct = (float)pour.score / targetScore;
+        return pct >= 1.0f ? 3 : pct >= 0.7f ? 2 : 1;
     }
+    #endregion
 
-    void CheckWin()
-    {
-        if (pour.score >= targetScore || pour.IsComplete)
-        {
-            isPlaying = false;
-            int stars = pour.score >= targetScore * 2 ? 3 : pour.score >= targetScore * 1.5f ? 2 : 1;
-            onLevelComplete.Invoke(stars);
-        }
-    }
-
-    void FailLevel(string reason)
-    {
-        isPlaying = false;
-        Debug.Log($"[PetGameManager] 失败: {reason}");
-        onLevelFail.Invoke();
-    }
-
+    #region 关卡生成
     void GenerateTestLevel()
     {
+        if (levels.Count > 0) return;
         GenerateLevel(1, "鱼+骨头·初体验", 3, 150, new[] { PetType.Cat, PetType.Dog }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat });
         GenerateLevel(2, "加入仓鼠", 3, 200, new[] { PetType.Cat, PetType.Dog, PetType.Hamster }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed });
         GenerateLevel(3, "鹦鹉来了", 3, 200, new[] { PetType.Dog, PetType.Parrot, PetType.Cat }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble });
@@ -257,12 +227,10 @@ public class PetGameManager : MonoBehaviour
         GenerateLevel(7, "全员出动", 3, 350, new[] { PetType.Hamster, PetType.Fish, PetType.Rabbit, PetType.Parrot }, new[] { FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.Carrot, FoodType.Carrot, FoodType.Carrot, FoodType.Millet, FoodType.Millet, FoodType.Millet });
         GenerateLevel(8, "猫咪天堂", 4, 350, new[] { PetType.Cat, PetType.Cat, PetType.Cat }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.CatTreatStick });
         GenerateLevel(9, "汪汪乐园", 4, 400, new[] { PetType.Dog, PetType.Dog, PetType.Dog }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.MeatJerky, FoodType.MeatJerky, FoodType.MeatJerky, FoodType.MeatJerky });
-        GenerateLevel(10, "终极挑战", 5, 500, new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake });
     }
 
     void GenerateLevel(int id, string name, int cap, int target, PetType[] pets, FoodType[] allFoods)
     {
-        // 打乱食物顺序，防止同类食物聚在同一碗
         var rng = new System.Random(id * 137 + name.Length * 73);
         for (int i = allFoods.Length - 1; i > 0; i--)
         {
@@ -281,7 +249,7 @@ public class PetGameManager : MonoBehaviour
             inits.Add(new BowlInitData { gridPos = new Vector2Int(i % 4, i / 4), foodStack = foods.ToArray() });
         }
 
-        // 防止初始就出现满碗：检测到全同种→交换一个食物到其他碗
+        // 防止初始满碗
         for (int i = 0; i < inits.Count; i++)
         {
             var bowl = inits[i];
@@ -290,8 +258,6 @@ public class PetGameManager : MonoBehaviour
             for (int j = 1; j < bowl.foodStack.Length; j++)
                 if (bowl.foodStack[j] != bowl.foodStack[0]) { allSame = false; break; }
             if (!allSame) continue;
-
-            // 找一个食物类型不同的碗交换最后一个食物
             for (int k = 0; k < inits.Count; k++)
             {
                 if (k == i || inits[k].foodStack.Length == 0) continue;
@@ -300,24 +266,15 @@ public class PetGameManager : MonoBehaviour
                     var tmp = bowl.foodStack[bowl.foodStack.Length - 1];
                     bowl.foodStack[bowl.foodStack.Length - 1] = inits[k].foodStack[inits[k].foodStack.Length - 1];
                     inits[k].foodStack[inits[k].foodStack.Length - 1] = tmp;
-                    Debug.Log($"[GenerateLevel] 第{id}关碗{i}全相同，与碗{k}交换");
                     break;
                 }
             }
         }
+
         var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
         lv.levelId = id; lv.levelName = name; lv.bowlCapacity = cap; lv.targetScore = target;
         lv.petQueue = pets; lv.bowlInits = inits.ToArray();
         levels.Add(lv);
     }
-
-    public int LevelCount => levels.Count;
-    public string GetLevelName(int id) => levels.Find(l => l.levelId == id)?.levelName ?? "???";
-    public PetLevelConfigV2 GetCurrentLevel() => currentLevel;
-    public FoodType? GetHeldFood() => pour.heldFood;
-    public int GetScore() => pour.score;
-    public List<Bowl> GetBowls() => pour.bowls;
-    public PetType? GetCurrentPet() => pour.CurrentPet;
-    public List<PetType> GetPetQueue() => pour.originalPets;
-    public List<PetType> GetFedPets() => pour.fedPets;
+    #endregion
 }

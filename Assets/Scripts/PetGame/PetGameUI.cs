@@ -217,18 +217,18 @@ public class PetGameUI : MonoBehaviour
     #region 动画 — 倒食物
     IEnumerator PourAnimation(int fromId, int toId)
     {
-        gm.isAnimating = true;
-        yield return null; // 等一帧让 UI 先刷新
+        yield return null;
 
-        if (!bowlIdToGO.ContainsKey(fromId) || !bowlIdToGO.ContainsKey(toId)) { gm.isAnimating = false; yield break; }
+        if (!bowlIdToGO.ContainsKey(fromId) || !bowlIdToGO.ContainsKey(toId))
+            { gm.fsm?.ChangeState<IdleState>(); yield break; }
         var fromGO = bowlIdToGO[fromId];
         var toGO = bowlIdToGO[toId];
-        if (fromGO == null || toGO == null) { gm.isAnimating = false; yield break; }
+        if (fromGO == null || toGO == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         var fromRT = fromGO.GetComponent<RectTransform>();
         var toRT = toGO.GetComponent<RectTransform>();
         var fromStack = FindGO(fromGO, "FoodStack")?.transform;
         var toStack = FindGO(toGO, "FoodStack")?.transform;
-        if (fromStack == null || toStack == null) { gm.isAnimating = false; yield break; }
+        if (fromStack == null || toStack == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
 
         // 取源碗最后一个食物图标
         GameObject movingFood = null;
@@ -243,11 +243,11 @@ public class PetGameUI : MonoBehaviour
         float dur = 0.2f;
         for (float t = 0; t < dur; t += Time.deltaTime)
         {
-            if (fromRT == null || toRT == null) { gm.isAnimating = false; yield break; }
+            if (fromRT == null || toRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
             fromRT.anchoredPosition3D = Vector3.Lerp(fromOrigPos, targetPos, t / dur);
             yield return null;
         }
-        if (fromRT == null) { gm.isAnimating = false; yield break; }
+        if (fromRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         fromRT.anchoredPosition3D = targetPos;
 
         // 2. 倾斜
@@ -284,7 +284,8 @@ public class PetGameUI : MonoBehaviour
         fromRT.localRotation = fromOrigRot;
 
         BuildBowls();
-        gm.isAnimating = false;
+        BuildBowls();
+        gm.fsm?.ChangeState<IdleState>();
     }
     #endregion
 
@@ -294,7 +295,7 @@ public class PetGameUI : MonoBehaviour
         // 等倒入动画先结束
         yield return new WaitForSeconds(0.75f);
 
-        gm.isAnimating = true;
+        gm.fsm?.ChangeState<FeedingState>();
 
         if (!bowlIdToGO.ContainsKey(bowlId)) { gm.isAnimating = false; yield break; }
         var bowlGO = bowlIdToGO[bowlId];
@@ -383,7 +384,10 @@ public class PetGameUI : MonoBehaviour
         Destroy(petGO);
         // 只重建碗和HUD，宠物通过队列重建（已喂的已被移除）
         BuildBowls(); BuildPets(); UpdateHUD();
-        gm.isAnimating = false;
+        gm.CheckWin();
+        // CheckWin 通关会切 WinState，否则回 Idle
+        if (gm.fsm?.CurrentState is not WinState)
+            gm.fsm?.ChangeState<IdleState>();
     }
     #endregion
 
