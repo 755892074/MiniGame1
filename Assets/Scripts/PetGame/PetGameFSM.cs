@@ -16,7 +16,7 @@ public static class PetGameFSM
         var win      = new WinState();
         var fail     = new FailState();
 
-        var fsm = FF8.FSM.CreateFSM<PetGameManager>("PetGame", gm,
+        var fsm = FSMManager.Instance.CreateFSM<PetGameManager>("PetGame", gm,
             idle, selected, pouring, feeding, win, fail);
         fsm.DefaultState = idle;
         fsm.ChangeToDefaultState();
@@ -28,13 +28,11 @@ public static class PetGameFSM
 public abstract class PetGameState : FSMState<PetGameManager>
 {
     private PetGameManager _gm;
-    protected PetGameManager gm
+    protected PetGameManager gm => _gm;
+
+    public override void OnStateEnter(IFSM<PetGameManager> fsm)
     {
-        get
-        {
-            if (_gm == null && fsm != null) _gm = fsm.Owner;
-            return _gm;
-        }
+        _gm = fsm.Owner;
     }
 
     public override void OnStateUpdate(IFSM<PetGameManager> fsm) { }
