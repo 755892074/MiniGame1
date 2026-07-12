@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using F8Framework.Core;
+using F8Framework.Launcher;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -111,6 +112,9 @@ public class PetGameManager : MonoBehaviour
         pour.InitLevel(bowls, pets);
         selectedBowlId = -1;
         elapsedTime = 0;
+
+        // 先销毁旧状态机，防止重复创建（切关/重开时会触发）
+        FF8.FSM.DestoryFSM<PetGameManager>("PetGame");
 
         // 创建状态机
         fsm = PetGameFSM.Create(this);
