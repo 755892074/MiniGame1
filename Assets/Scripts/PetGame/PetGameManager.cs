@@ -240,63 +240,54 @@ public class PetGameManager : MonoBehaviour
     void GenerateTestLevel()
     {
         if (levels.Count > 0) return;
-        GenerateLevel(1, "鱼+骨头·初体验", 3, 150, new[] { PetType.Cat, PetType.Dog }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat });
-        GenerateLevel(2, "加入仓鼠", 3, 200, new[] { PetType.Cat, PetType.Dog, PetType.Hamster }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed });
-        GenerateLevel(3, "鹦鹉来了", 3, 200, new[] { PetType.Dog, PetType.Parrot, PetType.Cat }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble });
-        GenerateLevel(4, "金鱼池", 4, 250, new[] { PetType.Fish, PetType.Cat, PetType.Hamster }, new[] { FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed });
-        GenerateLevel(5, "兔兔跳", 3, 250, new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog }, new[] { FoodType.Carrot, FoodType.Carrot, FoodType.Carrot, FoodType.Millet, FoodType.Millet, FoodType.Millet, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat });
-        GenerateLevel(6, "猫狗大战", 4, 300, new[] { PetType.Cat, PetType.Cat, PetType.Dog, PetType.Dog }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble });
-        GenerateLevel(7, "全员出动", 3, 350, new[] { PetType.Hamster, PetType.Fish, PetType.Rabbit, PetType.Parrot }, new[] { FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.SunflowerSeed, FoodType.FishFlake, FoodType.FishFlake, FoodType.FishFlake, FoodType.Carrot, FoodType.Carrot, FoodType.Carrot, FoodType.Millet, FoodType.Millet, FoodType.Millet });
-        GenerateLevel(8, "猫咪天堂", 4, 350, new[] { PetType.Cat, PetType.Cat, PetType.Cat }, new[] { FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.DriedFish, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatKibble, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.CatTreatStick, FoodType.CatTreatStick });
-        GenerateLevel(9, "汪汪乐园", 4, 400, new[] { PetType.Dog, PetType.Dog, PetType.Dog }, new[] { FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.BoneTreat, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.DogKibble, FoodType.MeatJerky, FoodType.MeatJerky, FoodType.MeatJerky, FoodType.MeatJerky });
-    }
 
-    void GenerateLevel(int id, string name, int cap, int target, PetType[] pets, FoodType[] allFoods)
-    {
-        var rng = new System.Random(id * 137 + name.Length * 73);
-        for (int i = allFoods.Length - 1; i > 0; i--)
+        // 难度递进：前3关简单，中4关中等，后3关困难
+        // 宠物组合随关卡逐渐增多
+        PetType[][] petSets = {
+            new[] { PetType.Cat, PetType.Dog },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster },
+            new[] { PetType.Dog, PetType.Parrot, PetType.Cat },
+            new[] { PetType.Fish, PetType.Cat, PetType.Hamster },
+            new[] { PetType.Rabbit, PetType.Parrot, PetType.Dog, PetType.Cat },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot },
+            new[] { PetType.Fish, PetType.Rabbit, PetType.Dog, PetType.Cat, PetType.Hamster },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish },
+            new[] { PetType.Dog, PetType.Cat, PetType.Rabbit, PetType.Fish, PetType.Parrot, PetType.Hamster },
+            new[] { PetType.Cat, PetType.Dog, PetType.Hamster, PetType.Parrot, PetType.Fish, PetType.Rabbit },
+        };
+
+        int[] caps       = { 3, 3, 3, 3, 4, 4, 4, 4, 4, 5 };
+        int[] diffs      = { 0, 0, 0, 1, 1, 1, 1, 2, 2, 2 }; // 0=简单 1=中等 2=困难
+
+        for (int i = 0; i < 10; i++)
         {
-            int j = rng.Next(i + 1);
-            var tmp = allFoods[i]; allFoods[i] = allFoods[j]; allFoods[j] = tmp;
-        }
+            int id = i + 1;
+            var pets = petSets[i];
+            int cap = caps[i];
+            int diff = diffs[i];
+            int seed = id * 137 + (int)System.DateTime.Now.Ticks % 1000;
 
-        int bowlCount = Mathf.Max(pets.Length + 1, Mathf.CeilToInt(allFoods.Length / (float)cap));
-        var inits = new List<BowlInitData>();
-        int fi = 0;
-        for (int i = 0; i < bowlCount; i++)
-        {
-            var foods = new List<FoodType>();
-            for (int j = 0; j < cap && fi < allFoods.Length; j++)
-                foods.Add(allFoods[fi++]);
-            inits.Add(new BowlInitData { gridPos = new Vector2Int(i % 4, i / 4), foodStack = foods.ToArray() });
-        }
+            string name = LevelGenerator.GetLevelName(pets, id);
+            int target = LevelGenerator.CalcTargetScore(pets.Length, diff);
 
-        // 防止初始满碗
-        for (int i = 0; i < inits.Count; i++)
-        {
-            var bowl = inits[i];
-            if (bowl.foodStack.Length < cap) continue;
-            bool allSame = true;
-            for (int j = 1; j < bowl.foodStack.Length; j++)
-                if (bowl.foodStack[j] != bowl.foodStack[0]) { allSame = false; break; }
-            if (!allSame) continue;
-            for (int k = 0; k < inits.Count; k++)
-            {
-                if (k == i || inits[k].foodStack.Length == 0) continue;
-                if (inits[k].foodStack.Length > 0 && inits[k].foodStack[0] != bowl.foodStack[0])
-                {
-                    var tmp = bowl.foodStack[bowl.foodStack.Length - 1];
-                    bowl.foodStack[bowl.foodStack.Length - 1] = inits[k].foodStack[inits[k].foodStack.Length - 1];
-                    inits[k].foodStack[inits[k].foodStack.Length - 1] = tmp;
-                    break;
-                }
-            }
-        }
+            var inits = LevelGenerator.Generate(pets, cap, diff, seed);
+            if (inits == null) { Debug.LogError($"[PetGameManager] 关卡{id}生成失败!"); continue; }
 
-        var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
-        lv.levelId = id; lv.levelName = name; lv.bowlCapacity = cap; lv.targetScore = target;
-        lv.petQueue = pets; lv.bowlInits = inits.ToArray();
-        levels.Add(lv);
+            var lv = ScriptableObject.CreateInstance<PetLevelConfigV2>();
+            lv.levelId = id;
+            lv.levelName = name;
+            lv.bowlCapacity = cap;
+            lv.targetScore = target;
+            lv.difficulty = diff;
+            lv.petQueue = pets;
+            lv.bowlInits = inits.ToArray();
+            levels.Add(lv);
+
+            int totalFoods = pets.Length * cap;
+            int bowlCount = inits.Count;
+            int extraBowls = bowlCount - pets.Length;
+            Debug.Log($"[PetGameManager] 关卡{id}「{name}」生成: {pets.Length}宠×{cap}={totalFoods}食物, {bowlCount}碗(含{extraBowls}空), 难度{diff}, 目标{target}分");
+        }
     }
     #endregion
 }

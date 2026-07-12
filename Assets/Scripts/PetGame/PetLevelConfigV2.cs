@@ -12,6 +12,7 @@ public class PetLevelConfigV2 : ScriptableObject
     public int bowlCapacity = 3;
     public int targetScore = 200;
     public int maxMoves = 0; // 0=无限
+    public int difficulty; // 0=简单, 1=中等, 2=困难
 
     public PetType[] petQueue;
     public BowlInitData[] bowlInits;
