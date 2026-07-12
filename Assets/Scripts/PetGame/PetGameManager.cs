@@ -157,6 +157,7 @@ public class PetGameManager : MonoBehaviour
         if (canFit <= 0)
         {
             ReturnFood(fromId, count, pour.heldFood);
+            ClearHeldFood();
             onPour.Invoke(new PourResult());
             onMistake.Invoke();
             fsmRef.ChangeState<IdleState>();
@@ -171,6 +172,7 @@ public class PetGameManager : MonoBehaviour
         if (!result.success)
         {
             ReturnFood(fromId, count, pour.heldFood);
+            ClearHeldFood();
             onPour.Invoke(result);
             onMistake.Invoke();
             fsmRef.ChangeState<IdleState>();
@@ -210,8 +212,10 @@ public class PetGameManager : MonoBehaviour
         var bowl = pour.GetBowl(bowlId);
         for (int i = 0; i < count && bowl != null; i++)
             bowl.Push(food.Value);
-        pour.heldFood = null;
+        // 不要在这里清空 heldFood，交给调用方处理
     }
+
+    void ClearHeldFood() { pour.heldFood = null; }
 
     public void Undo()
     {
