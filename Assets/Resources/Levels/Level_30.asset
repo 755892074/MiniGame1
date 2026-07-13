@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 827ed980d6738904f8c5ec22cee0c851, type: 3}
+  m_Name: Level_30
+  m_EditorClassIdentifier: 
+  levelId: 30
+  levelName: "\u732B\u72D7\u4ED3\u9E66\u9C7C\xB7\u7EC8\u6781"
+  bowlCapacity: 4
+  targetScore: 180
+  maxMoves: 0
+  difficulty: 2
+  minSteps: 13
+  seed: 30064
+  version: 20260713
+  petQueue: 0000000001000000020000000300000004000000
+  bowlInits:
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0700000007000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 02000000120000000c000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0f0000000c00000012000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 12000000070000000f00000002000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0c00000002000000070000000c000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0f0000000f0000000200000012000000

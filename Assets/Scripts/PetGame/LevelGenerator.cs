@@ -1,148 +1,175 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using System.Linq;
 
 /// <summary>
-/// 关卡生成器 — 随机分布 + BFS 验证可解性
-/// 
-/// 算法：
-///   1. 为每个宠物分配不同食物类型
-///   2. Fisher-Yates 洗牌所有食物
-///   3. 随机分配到碗中（每碗 0~B 个，无初始完成碗）
-///   4. BFS 深度限制验证可解（深度12~15）
-///   5. 不可解则重新洗牌，最多尝试 200 次
+/// 关卡生成器 v3 — 随机分配 + BFS 验证管线
+///
+/// 算法:
+///   1. 为每种宠物生成 capacity 个食物，共 petCount×capacity 个
+///   2. 随机分配到 (petCount + extraBowls) 个碗中，每碗 0~capacity 个
+///   3. 确保没有初始已完成碗（满碗同色）
+///   4. BFS 验证可解性 + 求最少步数
+///   5. 不可解或 minSteps 不在范围则换种子重试
 /// </summary>
 public static class LevelGenerator
 {
-    private static System.Random rng;
-
-    /// <param name="pets">宠物队列（去重，每种宠物对应一种食物）</param>
-    /// <param name="capacity">单碗容量 B</param>
-    /// <param name="extraBowls">额外空碗数</param>
-    /// <param name="seed">随机种子</param>
-    /// <param name="maxAttempts">最大重试次数</param>
-    public static List<BowlInitData> Generate(PetType[] pets, int capacity, int extraBowls, int seed, int maxAttempts = 200)
+    public static bool Generate(PetType[] pets, int capacity, int extraBowls, int seed,
+        out LevelData result, int timeoutMs = 5000, int maxAttempts = 200)
     {
-        rng = new System.Random(seed);
+        result = null;
         int petCount = pets.Distinct().Count();
         int totalBowls = petCount + extraBowls;
-        if (totalBowls < petCount) totalBowls = petCount; // 至少要有 petCount 个碗
+        int totalFoods = petCount * capacity;
 
-        // 1. 为每个宠物分配食物（严格一对一映射）
+        // 宠物→食物映射
         var petFoodMap = new Dictionary<PetType, FoodType>();
-        foreach (var pet in pets)
-        {
-            if (petFoodMap.ContainsKey(pet)) continue;
+        foreach (var pet in pets.Distinct())
             petFoodMap[pet] = FoodPetMap.GetFoodForPet(pet);
-        }
 
-        // 2. 生成食物列表：每个宠物 × B 个同类食物
-        var allFoods = new List<FoodType>();
-        foreach (var pet in pets)
+        // 构造食物池：每种宠物对应 capacity 个同色食物
+        var foodPool = new List<FoodType>();
+        foreach (var pet in pets.Distinct())
             for (int i = 0; i < capacity; i++)
-                allFoods.Add(petFoodMap[pet]);
+                foodPool.Add(petFoodMap[pet]);
 
-        int foodCount = allFoods.Count;
-
-        // 3. 多次尝试随机生成 + BFS 验证
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            // Fisher-Yates shuffle
-            for (int i = allFoods.Count - 1; i > 0; i--)
+            int actualSeed = seed + attempt * 31;
+            var rng = new System.Random(actualSeed);
+
+            // 1. Fisher-Yates 洗牌食物池
+            var shuffled = new List<FoodType>(foodPool);
+            for (int i = shuffled.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
-                var tmp = allFoods[i]; allFoods[i] = allFoods[j]; allFoods[j] = tmp;
+                (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
             }
 
-            // 随机分配到碗
-            var bowls = new List<Bowl>();
-            int foodCursor = 0;
-            bool valid = true;
-
+            // 2. 分配到碗中（完全随机，只看有无余量）
+            var bowls = new List<List<FoodType>>();
             for (int b = 0; b < totalBowls; b++)
+                bowls.Add(new List<FoodType>());
+
+            bool allocOk = true;
+            foreach (var food in shuffled)
             {
-                var bowl = new Bowl { bowlId = b, capacity = capacity };
-                int remaining = allFoods.Count - foodCursor;
-                if (remaining <= 0) break;
+                // 随机选一个有余量的碗（不限制颜色）
+                var candidates = new List<int>();
+                for (int b = 0; b < bowls.Count; b++)
+                    if (bowls[b].Count < capacity) candidates.Add(b);
 
-                // 随机放 0~capacity 个，但确保最后几个碗能均匀分完
-                int maxFill = Mathf.Min(capacity, remaining);
-                int fill = rng.Next(0, maxFill + 1);
+                if (candidates.Count == 0) { allocOk = false; break; }
 
-                // 不能全空：如果前期碗太空，后面食物装不下
-                int bowlsLeft = totalBowls - b - 1;
-                int maxAfter = bowlsLeft * capacity;
-                int minNeeded = Mathf.Max(0, remaining - maxAfter);
-                fill = Mathf.Clamp(fill, minNeeded, maxFill);
+                int target = candidates[rng.Next(candidates.Count)];
+                bowls[target].Add(food);
+            }
+            if (!allocOk) continue;
 
-                for (int k = 0; k < fill; k++)
-                    bowl.foods.Add(allFoods[foodCursor + k]);
-                foodCursor += fill;
-
-                // 不能有初始已完成碗
-                if (bowl.IsComplete)
+            // 3. 确保没有初始已完成碗
+            bool hasInitialComplete = false;
+            foreach (var b in bowls)
+            {
+                if (b.Count == capacity && b.All(f => f.Equals(b[0])))
                 {
-                    valid = false;
+                    hasInitialComplete = true;
                     break;
                 }
-                bowls.Add(bowl);
             }
+            if (hasInitialComplete) continue;
 
-            if (!valid || foodCursor < allFoods.Count) continue;
+            // 4. 确保所有食物都分配了
+            int placedCount = bowls.Sum(b => b.Count);
+            if (placedCount < totalFoods) continue;
 
-            // 补齐空碗
-            while (bowls.Count < totalBowls)
-                bowls.Add(new Bowl { bowlId = bowls.Count, capacity = capacity });
+            // 5. BFS 验证可解性 + 求最少步数
+            var sw = Stopwatch.StartNew();
+            int minSteps = BFSMinSteps(bowls, capacity, petCount, sw, timeoutMs);
 
-            // BFS 验证（限制深度避免卡死）
-            int bfsDepth = Mathf.Clamp(petCount * 4, 10, 20);
-            if (IsSolvable(bowls, capacity, petCount, bfsDepth))
+            if (minSteps > 0)
             {
                 var inits = new List<BowlInitData>();
                 for (int i = 0; i < bowls.Count; i++)
-                    inits.Add(new BowlInitData { foodStack = bowls[i].foods.ToArray() });
-                Debug.Log($"[LevelGenerator] seed={seed} pets={petCount} cap={capacity} bowls={totalBowls} extra={extraBowls} foods={foodCount} attempt={attempt + 1} ✓可解");
-                return inits;
+                    inits.Add(new BowlInitData { foodStack = bowls[i].ToArray() });
+
+                result = new LevelData
+                {
+                    bowlInits = inits,
+                    minSteps = minSteps,
+                    seed = actualSeed,
+                    petCount = petCount,
+                    capacity = capacity,
+                    extraBowls = extraBowls,
+                    attempt = attempt + 1
+                };
+
+                UnityEngine.Debug.Log($"[LevelGenerator] ✓ seed={actualSeed} pets={petCount} cap={capacity} extra={extraBowls} minSteps={minSteps} attempt={attempt + 1}");
+                return true;
             }
         }
 
-        Debug.LogError($"[LevelGenerator] {maxAttempts}次尝试后仍不可解! seed={seed}");
+        UnityEngine.Debug.LogError($"[LevelGenerator] {maxAttempts}次尝试后仍不可解! seed={seed}");
+        return false;
+    }
+
+    // 旧版兼容
+    public static List<BowlInitData> Generate(PetType[] pets, int capacity, int extraBowls, int seed, int maxAttempts = 200)
+    {
+        if (Generate(pets, capacity, extraBowls, seed, out var data, maxAttempts: maxAttempts))
+            return data.bowlInits;
         return null;
     }
 
-    /// <summary>BFS 验证可解性（限制状态数）</summary>
-    private static bool IsSolvable(List<Bowl> bowls, int capacity, int requiredCompletes, int maxDepth)
+    /// <summary>
+    /// BFS 求最少步数解（带超时保护）
+    /// 返回最少步数，-1=不可解或超时
+    /// </summary>
+    private static int BFSMinSteps(List<List<FoodType>> initialBowls, int capacity,
+        int requiredCompletes, Stopwatch sw, int timeoutMs)
     {
-        int maxStates = 8000;
-        var visited = new HashSet<string>();
-        var initialState = Canonicalize(bowls);
-        visited.Add(initialState);
+        // 先检查初始状态是否已经满足（不应该发生，但安全起见）
+        int initialComplete = CountComplete(initialBowls, capacity);
+        if (initialComplete >= requiredCompletes)
+            return 0;
 
-        var queue = new Queue<(List<Bowl> state, int depth)>();
-        queue.Enqueue((CloneBowls(bowls), 0));
+        string initialState = Canonicalize(initialBowls);
+        var visited = new HashSet<string> { initialState };
+        var queue = new Queue<(List<List<FoodType>> state, int depth)>();
+        queue.Enqueue((CloneState(initialBowls), 0));
 
-        while (queue.Count > 0 && visited.Count < maxStates)
+        int maxDepth = 40;
+        long maxStates = 100000;
+
+        while (queue.Count > 0)
         {
+            if (queue.Count % 100 == 0 && sw.ElapsedMilliseconds > timeoutMs)
+                return -1;
+
             var (state, depth) = queue.Dequeue();
 
-            int completeCount = 0;
-            foreach (var b in state) if (b.IsComplete) completeCount++;
+            int completeCount = CountComplete(state, capacity);
             if (completeCount >= requiredCompletes)
-                return true;
+                return depth;
 
             if (depth >= maxDepth) continue;
+            if (visited.Count >= maxStates) continue;
 
             int bowlCount = state.Count;
             for (int from = 0; from < bowlCount; from++)
             {
                 var src = state[from];
-                if (src.IsEmpty || src.isCompleted) continue;
+                if (src.Count == 0) continue;
 
-                int pickCount = 0;
-                FoodType topFood = src.Top!.Value;
-                for (int i = src.foods.Count - 1; i >= 0; i--)
+                // 跳过已满同色碗
+                bool srcComplete = src.Count == capacity && src.All(f => f.Equals(src[0]));
+                if (srcComplete) continue;
+
+                FoodType topFood = src[src.Count - 1];
+                int topCount = 0;
+                for (int i = src.Count - 1; i >= 0; i--)
                 {
-                    if (src.foods[i] == topFood) pickCount++;
+                    if (src[i].Equals(topFood)) topCount++;
                     else break;
                 }
 
@@ -150,53 +177,55 @@ public static class LevelGenerator
                 {
                     if (from == to) continue;
                     var dst = state[to];
-                    if (dst.isCompleted) continue;
-                    if (dst.foods.Count >= capacity) continue;
-                    if (!dst.IsEmpty && dst.Top != topFood) continue;
+                    if (dst.Count >= capacity) continue;
+                    if (dst.Count > 0 && !dst[dst.Count - 1].Equals(topFood)) continue;
 
-                    int pourCount = Mathf.Min(pickCount, capacity - dst.foods.Count);
+                    int pourCount = Mathf.Min(topCount, capacity - dst.Count);
                     if (pourCount <= 0) continue;
 
-                    var newState = CloneBowls(state);
+                    var newState = CloneState(state);
                     for (int k = 0; k < pourCount; k++)
-                        newState[from].Pop();
+                        newState[from].RemoveAt(newState[from].Count - 1);
                     for (int k = 0; k < pourCount; k++)
-                        newState[to].foods.Add(topFood);
+                        newState[to].Add(topFood);
 
-                    newState[to].isCompleted = false; // BFS中不标记完成
-
-                    var canon = Canonicalize(newState);
+                    string canon = Canonicalize(newState);
                     if (visited.Add(canon))
                         queue.Enqueue((newState, depth + 1));
                 }
             }
         }
 
-        return false;
+        return -1;
     }
 
-    private static List<Bowl> CloneBowls(List<Bowl> bowls)
+    private static int CountComplete(List<List<FoodType>> bowls, int capacity)
     {
-        var clone = new List<Bowl>();
+        int count = 0;
         foreach (var b in bowls)
-        {
-            var cb = new Bowl { bowlId = b.bowlId, capacity = b.capacity };
-            cb.foods.AddRange(b.foods);
-            clone.Add(cb);
-        }
+            if (b.Count == capacity && b.Count > 0 && b.All(f => f.Equals(b[0])))
+                count++;
+        return count;
+    }
+
+    private static string Canonicalize(List<List<FoodType>> bowls)
+    {
+        var parts = bowls.Select(b =>
+            b.Count == 0 ? "_" : string.Join(",", b.Select(f => ((int)f).ToString()))
+        ).ToList();
+        parts.Sort();
+        return string.Join("|", parts);
+    }
+
+    private static List<List<FoodType>> CloneState(List<List<FoodType>> src)
+    {
+        var clone = new List<List<FoodType>>(src.Count);
+        foreach (var b in src)
+            clone.Add(new List<FoodType>(b));
         return clone;
     }
 
-    private static string Canonicalize(List<Bowl> bowls)
-    {
-        var lists = bowls.Select(b =>
-            b.foods.Count == 0 ? "_" : string.Join(",", b.foods.Select(f => ((int)f).ToString()))
-        ).ToList();
-        lists.Sort();
-        return string.Join("|", lists);
-    }
-
-    /// <summary>计算目标分</summary>
+    /// <summary>计算目标分（最优分的70%）</summary>
     public static int CalcTargetScore(int petCount)
     {
         int optimal = 100;
@@ -220,4 +249,29 @@ public static class LevelGenerator
         };
         return $"{petStr}·{suffix}";
     }
+
+    public static string GetDifficultyLabel(int levelId)
+    {
+        if (levelId <= 5) return "新手";
+        if (levelId <= 10) return "入门";
+        if (levelId <= 15) return "进阶";
+        if (levelId <= 20) return "中难";
+        if (levelId <= 30) return "困难";
+        if (levelId <= 50) return "挑战";
+        return "地狱";
+    }
+}
+
+/// <summary>
+/// 关卡生成结果（含难度标注）
+/// </summary>
+public class LevelData
+{
+    public List<BowlInitData> bowlInits;
+    public int minSteps;
+    public int seed;
+    public int petCount;
+    public int capacity;
+    public int extraBowls;
+    public int attempt;
 }

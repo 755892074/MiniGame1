@@ -10,24 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 827ed980d6738904f8c5ec22cee0c851, type: 3}
-  m_Name: Level_01
+  m_Name: Level_06
   m_EditorClassIdentifier: 
-  levelId: 1
-  levelName: "\u732B\u72D7\xB7\u521D\u4F53\u9A8C"
+  levelId: 6
+  levelName: "\u732B\u72D7\u4ED3\xB7\u9AD8\u624B"
   bowlCapacity: 3
-  targetScore: 110
+  targetScore: 130
   maxMoves: 0
-  difficulty: 0
-  minSteps: 3
-  seed: 1000
+  difficulty: 1
+  minSteps: 7
+  seed: 6003
   version: 20260713
-  petQueue: 0000000001000000
+  petQueue: 000000000100000002000000
   bowlInits:
   - gridPos: {x: 0, y: 0}
-    foodStack: 070000000200000002000000
+    foodStack: 07000000020000000c000000
   - gridPos: {x: 0, y: 0}
     foodStack: 02000000
   - gridPos: {x: 0, y: 0}
-    foodStack: 07000000
+    foodStack: 070000000c000000
   - gridPos: {x: 0, y: 0}
-    foodStack: 07000000
+    foodStack: 020000000c00000007000000

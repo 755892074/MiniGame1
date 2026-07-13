@@ -62,7 +62,7 @@ public class PetGameUI : MonoBehaviour
     {
         btnUndo?.onClick.AddListener(() => { gm.Undo(); RebuildAll(); });
         btnAddBowl?.onClick.AddListener(() => { gm.AddBowl(); BuildBowls(); });
-        btnShuffle?.onClick.AddListener(() => BackToMenu());
+        btnShuffle?.onClick.AddListener(() => { ShuffleCurrentBowl(); });
         btnRestart?.onClick.AddListener(Restart);
         btnNext?.onClick.AddListener(NextLevel);
         gm.onScoreChanged.AddListener(_ => UpdateHUD());
@@ -212,7 +212,7 @@ public class PetGameUI : MonoBehaviour
         }
     }
 
-    Sprite GetFoodSprite(FoodType type) { int i = (Mathf.Abs(type.GetHashCode()) % 15) + 1; return Resources.Load<Sprite>($"ArtFoods/food{i:D2}"); }
+    Sprite GetFoodSprite(FoodType type) { int i = ((int)type % 15) + 1; return Resources.Load<Sprite>($"ArtFoods/food{i:D2}"); }
 
     #region 动画 — 倒食物
     IEnumerator PourAnimation(int fromId, int toId, int count)
@@ -415,7 +415,18 @@ public class PetGameUI : MonoBehaviour
         gm.CheckWin();
         // CheckWin 通关会切 WinState，否则回 Idle
         if (gm.fsm?.CurrentState is not WinState)
+        {
+            // 检测死局
+            if (gm.CheckDeadlock())
+            {
+                Debug.Log("[PetGameUI] 检测到死局! 可触发看广告+1碗");
+                // TODO: 接入广告 SDK 后，这里弹出死局救援弹窗
+                // 暂时自动加一个碗方便测试
+                gm.AddBowl();
+                BuildBowls();
+            }
             gm.fsm?.ChangeState<IdleState>();
+        }
     }
     #endregion
 
@@ -432,6 +443,7 @@ public class PetGameUI : MonoBehaviour
     void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    void ShuffleCurrentBowl() { if (gm.selectedBowlId >= 0) { gm.pour.ShuffleBowl(gm.selectedBowlId); gm.selectedBowlId = -1; gm.onSelectionChanged.Invoke(); BuildBowls(); } }
     void NextLevel() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
     public void BackToMenu() {  if (resultOverlay) resultOverlay.SetActive(false); Clear(bowlArea); Clear(petArea); bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear(); ShowLevelSelect(); }
 

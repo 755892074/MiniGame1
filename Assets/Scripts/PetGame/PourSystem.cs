@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
@@ -246,19 +247,101 @@ public class PourSystem
             prevScore = score,
             prevCombo = comboCount,
             prevFedPets = new List<PetType>(fedPets),
-            wasCompleted = GetBowl(toBowl)?.isCompleted ?? false,
+            wasCompleted = GetBowl(toBowl)?.isCompleted ?? false, // 倒入前的状态
         });
     }
 
-    /// <summary>BFS 验证关卡可解（简化版）</summary>
-    public static bool IsSolvable(List<Bowl> bowls, List<PetType> pets, int capacity, int maxSteps = 50)
+    /// <summary>撤销最后一条历史记录（PourInto 失败时用）</summary>
+    public void CancelLastHistory()
     {
-        // 简化：只要食物数足够喂所有宠物即可
-        int totalNeeded = pets.Count * capacity;
-        int totalAvailable = 0;
-        foreach (var b in bowls) totalAvailable += b.foods.Count;
-        Debug.Log($"[PourSystem] IsSolvable: 需要{totalNeeded}, 可用{totalAvailable}, → {(totalAvailable >= totalNeeded ? "YES" : "NO")}");
-        return totalAvailable >= totalNeeded;
+        if (history.Count > 0) history.Pop();
+    }
+
+    /// <summary>BFS 检测当前局面是否为死局（无法完成所有宠物喂养）</summary>
+    public bool IsDeadlock(int requiredCompletes)
+    {
+        // 轻量 BFS：限制深度 12，状态数 2000，足够覆盖大部分死局
+        int maxDepth = 12;
+        int maxStates = 2000;
+        var visited = new HashSet<string>();
+        var queue = new Queue<(List<Bowl> state, int depth)>();
+        string initialCanon = CanonicalizeRuntime(bowls);
+        visited.Add(initialCanon);
+        queue.Enqueue((CloneBowlsRuntime(bowls), 0));
+
+        while (queue.Count > 0 && visited.Count < maxStates)
+        {
+            var (state, depth) = queue.Dequeue();
+
+            int completeCount = 0;
+            foreach (var b in state) if (b.IsComplete) completeCount++;
+            if (completeCount >= requiredCompletes)
+                return false; // 能解，不是死局
+
+            if (depth >= maxDepth) continue;
+
+            int bowlCount = state.Count;
+            for (int from = 0; from < bowlCount; from++)
+            {
+                var src = state[from];
+                if (src.IsEmpty || src.isCompleted) continue;
+                if (!src.Top.HasValue) continue;
+
+                FoodType topFood = src.Top.Value;
+                int pickCount = 0;
+                for (int i = src.foods.Count - 1; i >= 0; i--)
+                {
+                    if (src.foods[i] == topFood) pickCount++;
+                    else break;
+                }
+
+                for (int to = 0; to < bowlCount; to++)
+                {
+                    if (from == to) continue;
+                    var dst = state[to];
+                    if (dst.isCompleted) continue;
+                    if (dst.foods.Count >= dst.capacity) continue;
+                    if (!dst.IsEmpty && dst.Top != topFood) continue;
+
+                    int pourCount = Mathf.Min(pickCount, dst.capacity - dst.foods.Count);
+                    if (pourCount <= 0) continue;
+
+                    var newState = CloneBowlsRuntime(state);
+                    for (int k = 0; k < pourCount; k++)
+                        newState[from].Pop();
+                    for (int k = 0; k < pourCount; k++)
+                        newState[to].foods.Add(topFood);
+
+                    string canon = CanonicalizeRuntime(newState);
+                    if (visited.Add(canon))
+                        queue.Enqueue((newState, depth + 1));
+                }
+            }
+        }
+
+        // BFS 耗尽仍未找到解 → 死局
+        return true;
+    }
+
+    private string CanonicalizeRuntime(List<Bowl> bowls)
+    {
+        var parts = bowls.Select(b =>
+            b.foods.Count == 0 ? "_" : string.Join(",", b.foods.Select(f => ((int)f).ToString()))
+        ).ToList();
+        parts.Sort();
+        return string.Join("|", parts);
+    }
+
+    private List<Bowl> CloneBowlsRuntime(List<Bowl> src)
+    {
+        var clone = new List<Bowl>();
+        foreach (var b in src)
+        {
+            var cb = new Bowl { bowlId = b.bowlId, capacity = b.capacity, isCompleted = b.isCompleted };
+            cb.foods.AddRange(b.foods);
+            clone.Add(cb);
+        }
+        return clone;
     }
     #endregion
 }
