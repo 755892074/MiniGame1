@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>疯狂铲屎官 — 成长系统设计文档</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface-2: #1c2330;
+    --border: #30363d; --text: #e6edf3; --dim: #8b949e;
+    --red: #f85149; --orange: #f0883e; --yellow: #d29922;
+    --green: #3fb950; --blue: #58a6ff; --purple: #bc8cff;
+    --teal: #39d0d8; --pink: #f778ba;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.7; padding:0;
+  }
+  .hero {
+    background:linear-gradient(135deg,#1a1f2e,#0d1117 60%,#1a1520);
+    border-bottom:1px solid var(--border); padding:48px 40px 40px;
+  }
+  .hero h1 {
+    font-size:28px; margin-bottom:8px;
+    background:linear-gradient(90deg,var(--green),var(--blue),var(--purple));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .hero p { color:var(--dim); font-size:14px; }
+  .container { max-width:920px; margin:0 auto; padding:28px 24px 56px; }
+  h2 {
+    font-size:20px; margin:36px 0 14px; padding-bottom:8px;
+    border-bottom:2px solid var(--border); display:flex; align-items:center; gap:8px;
+  }
+  h2 .n {
+    background:var(--blue); color:var(--bg); font-size:13px;
+    width:26px; height:26px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  h3 { font-size:16px; margin:20px 0 10px; color:var(--blue); }
+  h4 { font-size:14px; margin:16px 0 8px; color:var(--purple); }
+  p { margin-bottom:10px; }
+  ul, ol { margin:6px 0 14px 20px; }
+  li { margin-bottom:5px; }
+  code {
+    background:var(--surface-2); color:var(--orange);
+    padding:2px 6px; border-radius:4px; font-size:13px;
+    font-family:"JetBrains Mono",monospace;
+  }
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:20px; margin:14px 0;
+  }
+  .card.green { border-left:3px solid var(--green); }
+  .card.purple { border-left:3px solid var(--purple); }
+  .card.blue { border-left:3px solid var(--blue); }
+  .card.orange { border-left:3px solid var(--orange); }
+  .card.red { border-left:3px solid var(--red); }
+
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:13px; }
+  th { background:var(--surface-2); color:var(--blue); padding:10px 12px; text-align:left; font-weight:500; }
+  td { padding:10px 12px; border-bottom:1px solid var(--border); }
+  tr:hover td { background:var(--surface-2); }
+  
+  .tag {
+    display:inline-block; padding:2px 8px; border-radius:4px;
+    font-size:11px; font-weight:500; margin-right:4px;
+  }
+  .tag.green { background:rgba(63,185,80,0.15); color:var(--green); }
+  .tag.blue { background:rgba(88,166,255,0.15); color:var(--blue); }
+  .tag.purple { background:rgba(188,140,255,0.15); color:var(--purple); }
+  .tag.orange { background:rgba(240,136,62,0.15); color:var(--orange); }
+  .tag.red { background:rgba(248,81,73,0.15); color:var(--red); }
+
+  .quote {
+    border-left:3px solid var(--green); padding:12px 16px;
+    background:var(--surface); border-radius:0 8px 8px 0;
+    color:var(--dim); font-style:italic; margin:14px 0;
+  }
+  .flow {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0;
+  }
+  .flow-box {
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 14px; font-size:13px;
+  }
+  .flow-arrow { color:var(--dim); font-size:18px; }
+  .divider { border:none; border-top:1px solid var(--border); margin:32px 0; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>疯狂铲屎官 — 成长系统设计文档</h1>
+  <p>版本 V1.0 · 2026年7月 · 著作权人：黎婉丹</p>
+</div>
+
+<div class="container">
+
+<h2><span class="n">1</span> 世界观与故事设定</h2>
+
+<div class="card green">
+<h3>故事梗概</h3>
+<p>你是一个热爱动物的年轻人，刚来到一座新城市。为了生存，你在一家宠物店找到了一份<strong>"铲屎官"</strong>的工作——每天照顾客人们带来的宠物，给它们分配合适的食物。</p>
+<p>但你的心里有一个更大的梦想：<strong>救助流浪动物</strong>。</p>
+<p>下班后，你回到自己租的小屋。最初只有一只从街边捡回来的流浪猫，蜷缩在一个生锈的破铁笼里。你用打工赚来的钱，一点一点给它买食物、换更好的窝、扩大它的活动空间……</p>
+<p>渐渐地，你的善举传开了。更多的流浪动物来到你的门前——受伤的柴犬、走丢的仓鼠、被遗弃的鹦鹉……你的小屋从破旧变得温暖，最终成为一座<strong>流浪宠物乐园</strong>。</p>
+</div>
+
+<div class="card blue">
+<h3>双线叙事结构</h3>
+<table>
+  <tr>
+    <th width="15%"></th>
+    <th width="42%">主线·宠物店打工</th>
+    <th width="43%">支线·流浪宠物之家</th>
+  </tr>
+  <tr>
+    <td><strong>场景</strong></td>
+    <td>宠物店（关卡内）</td>
+    <td>你的小屋/小院（局外）</td>
+  </tr>
+  <tr>
+    <td><strong>角色</strong></td>
+    <td>客人的宠物（排队等待喂食）</td>
+    <td>你救助的流浪宠物（长期居住）</td>
+  </tr>
+  <tr>
+    <td><strong>行为</strong></td>
+    <td>倒碗分食物，满足客人需求</td>
+    <td>花钱买窝/食物/家具，照顾宠物</td>
+  </tr>
+  <tr>
+    <td><strong>产出</strong></td>
+    <td>小鱼干（工资）+ 打工经验</td>
+    <td>宠物成长 + 情感回报 + 图鉴</td>
+  </tr>
+  <tr>
+    <td><strong>情感</strong></td>
+    <td>忙碌、成就感</td>
+    <td>治愈、牵挂、不舍</td>
+  </tr>
+</table>
+</div>
+
+<hr class="divider">
+
+<h2><span class="n">2</span> 货币体系</h2>
+
+<div class="card orange">
+<h3>三种货币设计</h3>
+<table>
+  <tr>
+    <th>货币</th>
+    <th>主题命名</th>
+    <th>来源</th>
+    <th>用途</th>
+    <th>对应传统</th>
+  </tr>
+  <tr>
+    <td><span class="tag green">主货币</span></td>
+    <td><strong>小鱼干</strong></td>
+    <td>通关获得（基础工资）<br>3星通关额外奖励</td>
+    <td>买宠物窝/食物/家具<br>升级住所<br>购买关卡道具</td>
+    <td>金币</td>
+  </tr>
+  <tr>
+    <td><span class="tag blue">成就货币</span></td>
+    <td><strong>救助徽章</strong></td>
+    <td>章节通关奖励<br>成就达成<br>图鉴收集</td>
+    <td>解锁新宠物种类<br>解锁新章节<br>建造新区域</td>
+    <td>钻石/宝石</td>
+  </tr>
+  <tr>
+    <td><span class="tag purple">稀有货币</span></td>
+    <td><strong>彩虹毛球</strong></td>
+    <td>看激励视频获得<br>每日签到<br>成就奖励</td>
+    <td>加速宠物治愈<br>购买稀有家具<br>复活/提示</td>
+    <td>充值货币</td>
+  </tr>
+</table>
+</div>
+
+<h3>打工工资表（每关结算）</h3>
+<table>
+  <tr>
+    <th>评价</th><th>条件</th><th>小鱼干</th><th>打工经验</th><th>说明</th>
+  </tr>
+  <tr>
+    <td>3星完美</td><td>得分≥目标分100%</td>
+    <td><strong>80</strong></td><td>120</td>
+    <td>客人非常满意，给了小费</td>
+  </tr>
+  <tr>
+    <td>2星良好</td><td>得分≥目标分70%</td>
+    <td><strong>50</strong></td><td>80</td>
+    <td>正常工资</td>
+  </tr>
+  <tr>
+    <td>1星及格</td><td>得分低于70%但通关</td>
+    <td><strong>30</strong></td><td>50</td>
+    <td>勉强完成</td>
+  </tr>
+  <tr>
+    <td>看广告翻倍</td><td>结算时选择</td>
+    <td><strong>×2</strong></td><td>不变</td>
+    <td>IAA接入点</td>
+  </tr>
+</table>
+
+<div class="quote">"50关全部3星 = 80×50 = 4000小鱼干（不含翻倍），足够前期建设"</div>
+
+<hr class="divider">
+
+<h2><span class="n">3</span> 铲屎官等级（打工线成长）</h2>
+
+<div class="card blue">
+<p>打工经验积累升级，称号变化带来成就感，同时解锁新内容。</p>
+<table>
+  <tr>
+    <th>Lv</th><th>称号</th><th>所需经验</th><th>累计经验</th><th>解锁内容</th>
+  </tr>
+  <tr><td>1</td><td>实习铲屎官</td><td>0</td><td>0</td><td>第1-5关 + 破铁笼</td></tr>
+  <tr><td>2</td><td>初级铲屎官</td><td>300</td><td>300</td><td>第6-10关 + 纸箱窝</td></tr>
+  <tr><td>3</td><td>中级铲屎官</td><td>600</td><td>900</td><td>第11-15关 + 流浪狗入住</td></tr>
+  <tr><td>4</td><td>高级铲屎官</td><td>1000</td><td>1900</td><td>第16-20关 + 木窝</td></tr>
+  <tr><td>5</td><td>资深铲屎官</td><td>1500</td><td>3400</td><td>第21-30关 + 仓鼠入住</td></tr>
+  <tr><td>6</td><td>专家铲屎官</td><td>2200</td><td>5600</td><td>第31-40关 + 暖窝</td></tr>
+  <tr><td>7</td><td>大师铲屎官</td><td>3000</td><td>8600</td><td>第41-50关 + 鹦鹉/鱼入住</td></tr>
+  <tr><td>8</td><td>传奇铲屎官</td><td>5000</td><td>13600</td><td>宠物别墅 + 全图鉴</td></tr>
+</table>
+</div>
+
+<hr class="divider">
+
+<h2><span class="n">4</span> 流浪宠物救助系统</h2>
+
+<div class="card purple">
+<h3>宠物角色设定（6只初始宠物）</h3>
+<table>
+  <tr>
+    <th>宠物</th><th>名字</th><th>背景故事</th><th>解锁条件</th><th>救助形态</th>
+  </tr>
+  <tr>
+    <td>橘猫</td><td><strong>小橘</strong></td>
+    <td>雨天在纸箱里发抖，被你捡回家</td>
+    <td>初始解锁（第1关通关）</td>
+    <td>湿漉漉→蓬松→胖橘</td>
+  </tr>
+  <tr>
+    <td>柴犬</td><td><strong>阿黄</strong></td>
+    <td>走丢的家犬，脖子上有旧项圈</td>
+    <td>Lv3（中级铲屎官）</td>
+    <td>瘦骨嶙峋→健壮→活力满满</td>
+  </tr>
+  <tr>
+    <td>仓鼠</td><td><strong>球球</strong></td>
+    <td>从被遗弃的笼子里逃出来</td>
+    <td>Lv5（资深铲屎官）</td>
+    <td>受惊→好奇→圆滚滚</td>
+  </tr>
+  <tr>
+    <td>鹦鹉</td><td><strong>翠翠</strong></td>
+    <td>羽毛残缺，曾被关在暗无天日的角落</td>
+    <td>Lv7（大师铲屎官）</td>
+    <td>秃毛→长羽→绚丽</td>
+  </tr>
+  <tr>
+    <td>金鱼</td><td><strong>泡泡</strong></td>
+    <td>被冲进下水道又被捞起来</td>
+    <td>Lv7（大师铲屎官）</td>
+    <td>暗淡→透亮→金光闪闪</td>
+  </tr>
+  <tr>
+    <td>垂耳兔</td><td><strong>麻薯</strong></td>
+    <td>农场逃跑的家兔，耳朵受了伤</td>
+    <td>特殊关卡/活动</td>
+    <td>受伤→痊愈→蹦蹦跳跳</td>
+  </tr>
+</table>
+</div>
+
+<h3>宠物成长阶段</h3>
+<p>每只流浪宠物有 <strong>3个成长阶段</strong>，每个阶段对应不同的外观和动画：</p>
+<table>
+  <tr>
+    <th>阶段</th><th>状态</th><th>触发条件</th><th>外观表现</th><th>动画</th>
+  </tr>
+  <tr>
+    <td><span class="tag red">阶段1</span></td>
+    <td>脏兮兮（刚救助）</td>
+    <td>宠物入住</td>
+    <td>灰暗色调，瘦弱体型</td>
+    <td>idle(低头) + cry(害怕)</td>
+  </tr>
+  <tr>
+    <td><span class="tag orange">阶段2</span></td>
+    <td>干净（基本恢复）</td>
+    <td>喂食N次 / 花X小鱼干</td>
+    <td>正常色调，健康体型</td>
+    <td>idle(正常) + happy(微笑)</td>
+  </tr>
+  <tr>
+    <td><span class="tag green">阶段3</span></td>
+    <td>幸福（完全康复）</td>
+    <td>住所≥Lv3 + 喂食M次</td>
+    <td>明亮色调，圆润体型</td>
+    <td>idle(活泼) + happy(大笑) + run(跑动)</td>
+  </tr>
+</table>
+
+<div class="quote">"每只宠物需要约 5-8 关的打工收入才能完全康复，恰好匹配一章的节奏"</div>
+
+<hr class="divider">
+
+<h2><span class="n">5</span> 住所建造系统</h2>
+
+<div class="card green">
+<h3>住所升级路线（每只宠物独立）</h3>
+<table>
+  <tr>
+    <th>Lv</th><th>名称</th><th>外观</th><th>价格(小鱼干)</th><th>效果</th>
+  </tr>
+  <tr>
+    <td>1</td><td>生锈铁笼</td><td>灰色铁栏杆，窄小</td>
+    <td>免费（初始）</td>
+    <td>宠物状态锁在"脏兮兮"</td>
+  </tr>
+  <tr>
+    <td>2</td><td>纸箱窝</td><td>瓦楞纸箱+旧毛巾</td>
+    <td>200</td>
+    <td>解锁阶段2，宠物开始恢复</td>
+  </tr>
+  <tr>
+    <td>3</td><td>木制宠物窝</td><td>原木小屋，有门帘</td>
+    <td>500</td>
+    <td>解锁阶段3，宠物变得开心</td>
+  </tr>
+  <tr>
+    <td>4</td><td>保暖宠物屋</td><td>带暖气灯+食盆+水壶</td>
+    <td>1200</td>
+    <td>被动好感度+1/天</td>
+  </tr>
+  <tr>
+    <td>5</td><td>豪华宠物别墅</td><td>双层带阳台+玩具区</td>
+    <td>3000</td>
+    <td>解锁宠物专属动画+互动</td>
+  </tr>
+</table>
+</div>
+
+<h3>小院区域（全局建造）</h3>
+<p>除单个宠物窝外，小院还有 <strong>公共区域</strong> 可建造，提供全局加成：</p>
+<table>
+  <tr>
+    <th>区域</th><th>名称</th><th>价格</th><th>效果</th><th>需要徽章</th>
+  </tr>
+  <tr><td>食盆区</td><td>公共大食盆</td><td>300</td><td>所有宠物恢复速度+20%</td><td>1</td></tr>
+  <tr><td>玩具区</td><td>毛球+猫爬架</td><td>800</td><td>宠物幸福度+1/天</td><td>2</td></tr>
+  <tr><td>医疗区</td><td>小药箱+毯子</td><td>1500</td><td>新入住宠物初始状态+1级</td><td>3</td></tr>
+  <tr><td>花园</td><td>草地+花坛+遮阳伞</td><td>2500</td><td>小院外观升级，背景变化</td><td>5</td></tr>
+</table>
+
+<hr class="divider">
+
+<h2><span class="n">6</span> 宠物动画规格</h2>
+
+<div class="card red">
+<h3>帧动画方案（Sprite Animation）</h3>
+<p><strong>技术选型：帧动画</strong>（非骨骼动画），原因：WebGL兼容性好、AI可批量生成帧、Q版休闲画风不需要高帧率。</p>
+
+<h4>每只宠物的动画需求</h4>
+<table>
+  <tr>
+    <th>动作</th><th>帧数</th><th>用途</th><th>触发时机</th><th>阶段1</th><th>阶段2</th><th>阶段3</th>
+  </tr>
+  <tr><td>idle</td><td>4帧</td><td>待机呼吸</td><td>小院默认</td><td>✅ 低头</td><td>✅ 正常</td><td>✅ 活泼</td></tr>
+  <tr><td>happy</td><td>4帧</td><td>开心</td><td>被喂食/被摸</td><td>—</td><td>✅ 微笑</td><td>✅ 大笑</td></tr>
+  <tr><td>cry</td><td>4帧</td><td>哭泣</td><td>饥饿/刚入住</td><td>✅ 害怕</td><td>—</td><td>—</td></tr>
+  <tr><td>run</td><td>6帧</td><td>跑动</td><td>入住/互动</td><td>—</td><td>✅</td><td>✅ 蹦跳</td></tr>
+  <tr><td>cute</td><td>2帧</td><td>眨眼</td><td>随机彩蛋</td><td>—</td><td>✅</td><td>✅</td></tr>
+</table>
+
+<div class="quote">"单只宠物全阶段：约 20-24 帧。6只宠物总计：120-144 帧。加脏版本变体：约 240 帧。"</div>
+
+<h4>美术规格</h4>
+<ul>
+  <li><strong>单帧尺寸：</strong>256 × 256 px</li>
+  <li><strong>帧率：</strong>8-10 fps（休闲游戏标准）</li>
+  <li><strong>风格：</strong>Q版扁平，粗线条 + 平涂色块</li>
+  <li><strong>Sprite Sheet：</strong>每只宠物一张 1024 × 1024</li>
+  <li><strong>阶段区分：</strong>阶段1（灰暗+瘦弱）→ 阶段2（正常色）→ 阶段3（明亮+圆润）</li>
+</ul>
+</div>
+
+<hr class="divider">
+
+<h2><span class="n">7</span> 存档数据结构</h2>
+
+<div class="card orange">
+<h3>玩家存档（JSON）</h3>
+<pre style="background:var(--surface-2);padding:14px;border-radius:8px;font-size:12px;line-height:1.5;overflow-x:auto;color:var(--text);">
+{
+  "version": "1.0",
+  "playerName": "",
+  "level": 1,                    // 铲屎官等级
+  "exp": 0,                      // 打工经验
+  "fishCoins": 0,                // 小鱼干
+  "rescueMedals": 0,             // 救助徽章
+  "rainbowBalls": 0,             // 彩虹毛球
+  "currentChapter": 1,           // 当前章节
+  "levelProgress": {             // 关卡进度
+    "1": { "stars": 3, "bestScore": 280 },
+    "2": { "stars": 2, "bestScore": 180 }
+  },
+  "pets": [                      // 救助的宠物
+    {
+      "type": "Cat",
+      "name": "小橘",
+      "stage": 2,               // 成长阶段 1-3
+      "happiness": 65,           // 好感度 0-100
+      "feedCount": 8,            // 累计喂食次数
+      "houseLevel": 2,           // 住所等级
+      "storyUnlocked": true      // 故事是否解锁
+    }
+  ],
+  "yardBuildings": [             // 小院建筑
+    { "id": "foodBowl", "level": 1 },
+    { "id": "toyArea", "level": 0 }
+  ],
+  "lastLoginDate": "2026-07-14",
+  "totalPlayDays": 3
+}
+</pre>
+</div>
+
+<hr class="divider">
+
+<h2><span class="n">8</span> IAA 广告接入设计</h2>
+
+<table>
+  <tr>
+    <th>接入点</th><th>触发场景</th><th>广告类型</th><th>奖励</th><th>频率限制</th>
+  </tr>
+  <tr>
+    <td>死局救援</td>
+    <td>关卡内检测到死局</td>
+    <td>激励视频</td>
+    <td>+1 空碗</td>
+    <td>每关2次</td>
+  </tr>
+  <tr>
+    <td>双倍工资</td>
+    <td>通关结算页</td>
+    <td>激励视频</td>
+    <td>小鱼干 ×2</td>
+    <td>每次结算可选</td>
+  </tr>
+  <tr>
+    <td>彩虹毛球</td>
+    <td>小院界面按钮</td>
+    <td>激励视频</td>
+    <td>+1 彩虹毛球</td>
+    <td>每日5次</td>
+  </tr>
+  <tr>
+    <td>加速治愈</td>
+    <td>宠物成长等待中</td>
+    <td>激励视频</td>
+    <td>跳过等待时间</td>
+    <td>每只宠物每日1次</td>
+  </tr>
+  <tr>
+    <td>稀有家具</td>
+    <td>商店内特定商品</td>
+    <td>激励视频</td>
+    <td>免费获取</td>
+    <td>每件限1次</td>
+  </tr>
+</table>
+
+<hr class="divider">
+
+<h2><span class="n">9</span> 开发阶段拆分</h2>
+
+<div class="card blue">
+<h3>阶段A：成长骨架（最小可行版本）</h3>
+<table>
+  <tr><th>功能</th><th>说明</th><th>美术需求</th></tr>
+  <tr><td>存档系统</td><td>JSON 序列化，存关卡进度/小鱼干/等级</td><td>无</td></tr>
+  <tr><td>结算页改造</td><td>通关后显示小鱼干奖励 + 看广告翻倍按钮</td><td>无</td></tr>
+  <tr><td>小院入口</td><td>从关卡选择页可进入小院</td><td>1张小院背景</td></tr>
+  <tr><td>小橘入住</td><td>第1关通关后，小院出现小橘（idle帧动画）</td><td>小橘 idle × 4帧</td></tr>
+  <tr><td>住所升级</td><td>花小鱼干升级铁笼→纸箱</td><td>纸箱窝图标</td></tr>
+  <tr><td>铲屎官等级</td><td>经验条 + 称号显示</td><td>称号图标 × 3</td></tr>
+</table>
+<p><strong>美术总量：约 10-15 张图</strong>（AI 生成 1-2 天）</p>
+<p><strong>开发工期：3-5 天</strong></p>
+</div>
+
+<div class="card purple">
+<h3>阶段B：情感丰满</h3>
+<table>
+  <tr><th>功能</th><th>说明</th><th>美术需求</th></tr>
+  <tr><td>6只宠物全入住</td><td>按等级解锁，每只3阶段</td><td>6只 × (idle4 + happy4 + cry4 + run6 + cute2) × 脏/干净 = 约240帧</td></tr>
+  <tr><td>宠物档案卡</td><td>点宠物弹出故事卡</td><td>6张档案UI模板</td></tr>
+  <tr><td>5级住所</td><td>铁笼→纸箱→木窝→暖窝→别墅</td><td>每级1张图标 × 5 = 25张</td></tr>
+  <tr><td>小院建筑</td><td>食盆区/玩具区/医疗区/花园</td><td>4个建筑 × 2级 = 8张</td></tr>
+  <tr><td>章节系统</td><td>每10关1章，章节封面图</td><td>5张章节图</td></tr>
+  <tr><td>音效系统</td><td>喂食/通关/救助/升级音效</td><td>10-15个音频文件</td></tr>
+</table>
+<p><strong>美术总量：约 280-300 张</strong>（AI 生成 5-7 天）</p>
+<p><strong>开发工期：2-3 周</strong></p>
+</div>
+
+<div class="card orange">
+<h3>阶段C：上线变现</h3>
+<ul>
+  <li>穿山甲广告 SDK 接入</li>
+  <li>5个广告接入点实装</li>
+  <li>每日签到系统</li>
+  <li>分享/录屏功能</li>
+  <li>隐私政策 + 防沉迷</li>
+  <li>抖音/微信平台提审</li>
+</ul>
+<p><strong>开发工期：1-2 周</strong></p>
+</div>
+
+<hr class="divider">
+
+<h2><span class="n">10</span> 美术资源 AI 生成计划</h2>
+
+<div class="card green">
+<h3>生成优先级</h3>
+<table>
+  <tr><th>优先级</th><th>资源</th><th>数量</th><th>生成工具</th><th>工期</th></tr>
+  <tr><td><span class="tag red">P0</span></td><td>小院背景</td><td>1张</td><td>AI文生图</td><td>1小时</td></tr>
+  <tr><td><span class="tag red">P0</span></td><td>小橘 idle帧动画</td><td>4帧</td><td>AI图生图</td><td>2小时</td></tr>
+  <tr><td><span class="tag red">P0</span></td><td>住所图标(Lv1-2)</td><td>2个</td><td>AI文生图</td><td>1小时</td></tr>
+  <tr><td><span class="tag orange">P1</span></td><td>其余5只宠物idle</td><td>20帧</td><td>AI图生图</td><td>1天</td></tr>
+  <tr><td><span class="tag orange">P1</span></td><td>happy/cry帧动画</td><td>48帧</td><td>AI图生图</td><td>2天</td></tr>
+  <tr><td><span class="tag orange">P1</span></td><td>住所图标(Lv3-5)</td><td>3个</td><td>AI文生图</td><td>半天</td></tr>
+  <tr><td><span class="tag blue">P2</span></td><td>run/cute帧动画</td><td>48帧</td><td>AI图生图</td><td>2天</td></tr>
+  <tr><td><span class="tag blue">P2</span></td><td>脏版本变体</td><td>120帧</td><td>AI图生图</td><td>3天</td></tr>
+  <tr><td><span class="tag blue">P2</span></td><td>小院建筑</td><td>8个</td><td>AI文生图</td><td>1天</td></tr>
+  <tr><td><span class="tag green">P3</span></td><td>章节封面</td><td>5张</td><td>AI文生图</td><td>1天</td></tr>
+</table>
+</div>
+
+<h3>AI 生成 Prompt 模板（示例）</h3>
+<pre style="background:var(--surface-2);padding:14px;border-radius:8px;font-size:12px;line-height:1.5;overflow-x:auto;color:var(--text);">
+# 角色设定锚点（先生成1张参考图）
+A cute chubby orange tabby cat, chibi style, flat colors,
+thick outlines, pastel color palette, full body, sitting pose,
+centered, white background, 256x256
+
+# idle 动画帧（基于参考图用 image-to-image）
+Same orange tabby cat, chibi style, sitting and breathing,
+frame 1/4: normal pose, frame 2/4: slightly squished,
+frame 3/4: more squished, frame 4/4: back to normal
+
+# 脏版本（阶段1）
+Same cat but dirty, wet fur, sad expression, greyish tint,
+thinner body, shivering, chibi style
+
+# 干净版本（阶段3）
+Same cat but glowing, fluffy fur, happy expression,
+bright orange color, round body, sparkles, chibi style
+</pre>
+
+<hr class="divider">
+
+<h2><span class="n">11</span> 章节与关卡关系</h2>
+
+<table>
+  <tr>
+    <th>章节</th><th>关卡</th><th>主题</th><th>解锁宠物</th><th>小院变化</th>
+  </tr>
+  <tr><td>第1章</td><td>1-10</td><td>新手入职</td><td>小橘（橘猫）</td><td>破铁笼 → 纸箱窝</td></tr>
+  <tr><td>第2章</td><td>11-20</td><td>渐入佳境</td><td>阿黄（柴犬）</td><td>木窝 + 食盆区</td></tr>
+  <tr><td>第3章</td><td>21-30</td><td>独当一面</td><td>球球（仓鼠）</td><td>暖窝 + 玩具区</td></tr>
+  <tr><td>第4章</td><td>31-40</td><td>小有名气</td><td>翠翠（鹦鹉）</td><td>医疗区 + 花园</td></tr>
+  <tr><td>第5章</td><td>41-50</td><td>宠物大师</td><td>泡泡（金鱼）</td><td>豪华别墅</td></tr>
+</table>
+
+<div class="quote">"每章10关，玩家平均3-5天通关一章，刚好解锁一只新宠物，节奏感强"</div>
+
+<hr class="divider">
+
+<h2><span class="n">12</span> 留存设计</h2>
+
+<table>
+  <tr><th>留存手段</th><th>机制</th><th>触发时机</th></tr>
+  <tr><td>每日签到</td><td>连续登录7天，每天递增小鱼干，第7天给1个彩虹毛球</td><td>首次打开</td></tr>
+  <tr><td>宠物挂念</td><td>"小橘已经等你12小时了，它好像饿了"</td><td>推送/打开游戏</td></tr>
+  <tr><td>章节悬念</td><td>"一只流浪柴犬出现在你的门口……打通第10关来救助它"</td><td>章节末</td></tr>
+  <tr><td>图鉴收集</td><td>6只宠物 × 3阶段 = 18个图鉴条目，集齐有奖励</td><td>持续</td></tr>
+  <tr><td>称号炫耀</td><td>"你已成为大师铲屎官！截图分享给好友"</td><td>升级时</td></tr>
+</table>
+
+<p style="margin-top:32px;color:var(--dim);text-align:center;font-size:12px;">
+疯狂铲屎官 V1.0 成长系统设计文档 · 2026年7月 · 著作权人：黎婉丹
+</p>
+
+</div>
+
+</body>
+</html>
