@@ -95,7 +95,9 @@ public class WinState : PetGameState
     public override void OnStateEnter(IFSM<PetGameManager> f)
     {
         gm.OnBowlClicked = _ => { };
-        gm.onLevelComplete.Invoke(gm.CalcStars());
+        // 通关结算：存档 + 发奖励
+        var result = gm.OnLevelWin();
+        gm.onLevelComplete.Invoke(result.stars);
     }
     public override void OnStateExit(IFSM<PetGameManager> f) { }
 }

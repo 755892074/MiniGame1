@@ -2,7 +2,7 @@
 """
 疯狂铲屎官 — 批量图片处理工具
 功能：去白底 → 裁切到目标尺寸 → 输出到 _processed/
-用法：python batch_process.py <raw目录或文件> [--size 256]
+用法：python batch_process.py <raw目录或文件> [--size 128]
 """
 
 import os
@@ -57,7 +57,7 @@ def crop_to_content(img, padding=10):
     return img
 
 
-def resize_to_square(img, target_size=256):
+def resize_to_square(img, target_size=128):
     """等比缩放到目标尺寸，居中放置在正方形画布上"""
     ratio = target_size / max(img.width, img.height)
     new_w = int(img.width * ratio)
@@ -134,7 +134,7 @@ def parse_filename(filename):
     return info
 
 
-def process_image(input_path, output_path, target_size=256, remove_bg=True):
+def process_image(input_path, output_path, target_size=128, remove_bg=True):
     """处理单张图片"""
     img = Image.open(input_path)
 
@@ -172,7 +172,7 @@ def main():
     for f in files:
         try:
             info = parse_filename(f.name)
-            target_size = 256 if info["type"] == "animation" else 128
+            target_size = 128 if info["type"] == "animation" else 128
             if info["type"] in ("scene", "chapter"):
                 target_size = 1024  # 场景背景不裁切
 

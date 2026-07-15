@@ -48,6 +48,7 @@ public class PetGameManager : MonoBehaviour
     {
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
+        LoadSaveData();
         LoadConfig();
         AutoStartLevel();
     }
@@ -59,6 +60,15 @@ public class PetGameManager : MonoBehaviour
     }
 
     #region 关卡管理
+    void LoadSaveData()
+    {
+        SaveSystem.Load();
+        currentLevelId = SaveSystem.Data.currentLevelId;
+        if (currentLevelId > SaveSystem.Data.highestUnlockedLevel)
+            currentLevelId = SaveSystem.Data.highestUnlockedLevel;
+        Debug.Log($"[PetGameManager] 读档: 关卡{currentLevelId} / 已解锁{SaveSystem.Data.highestUnlockedLevel} / 小鱼干{SaveSystem.Data.fishDiscount}");
+    }
+
     void LoadConfig()
     {
         levels.Clear();
@@ -140,6 +150,56 @@ public class PetGameManager : MonoBehaviour
         return q;
     }
     public List<PetType> GetFedPets() => pour.fedPets;
+    #endregion
+
+    #region 通关结算
+    /// <summary>最近一次通关结算结果（供UI取用）</summary>
+    public LevelResult lastResult { get; private set; }
+
+    public LevelResult GetCurrentLevelResult() => lastResult;
+
+    /// <summary>
+    /// 通关结算：计算星级、发奖励、存档。
+    /// 在 WinState 进入时调用。
+    /// 返回结算结果供 UI 显示。
+    /// </summary>
+    public LevelResult OnLevelWin()
+    {
+        int stars = CalcStars();
+        int score = pour.score;
+
+        // 奖励计算
+        // 小鱼干：基础50 + 每星20
+        int fishReward = 50 + stars * 20;
+        // 救助徽章：3星通关才给1枚
+        int badgeReward = stars >= 3 ? 1 : 0;
+        // 经验：每星30
+        int expReward = stars * 30;
+
+        // 存档
+        SaveSystem.RecordLevelComplete(currentLevelId, stars, score);
+        SaveSystem.AddFish(fishReward);
+        if (badgeReward > 0) SaveSystem.AddBadge(badgeReward);
+        bool leveledUp = SaveSystem.AddExp(expReward);
+        SaveSystem.Data.currentLevelId = currentLevelId + 1;
+        SaveSystem.Save();
+
+        lastResult = new LevelResult
+        {
+            levelId = currentLevelId,
+            stars = stars,
+            score = score,
+            fishReward = fishReward,
+            badgeReward = badgeReward,
+            expReward = expReward,
+            leveledUp = leveledUp,
+            newTitle = leveledUp ? SaveSystem.GetCurrentTitle() : "",
+        };
+
+        Debug.Log($"[结算] 关卡{currentLevelId} 通关! {stars}星 / 得分{score} / 小鱼干+{fishReward} / 徽章+{badgeReward} / 经验+{expReward}{(leveledUp ? " ★升级!" : "")}");
+
+        return lastResult;
+    }
     #endregion
 
     #region 核心逻辑

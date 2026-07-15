@@ -26,6 +26,21 @@ public enum PetMood
 }
 #endregion
 
+#region 通关结算结果
+/// <summary>通关结算返回的数据，供结算UI使用</summary>
+public struct LevelResult
+{
+    public int levelId;
+    public int stars;           // 1-3
+    public int score;           // 本局得分
+    public int fishReward;      // 小鱼干奖励
+    public int badgeReward;     // 救助徽章奖励
+    public int expReward;       // 经验奖励
+    public bool leveledUp;      // 是否升级
+    public string newTitle;     // 升级后的新称号
+}
+#endregion
+
 #region 碗
 /// <summary>碗：食物栈（index 0=底, Count-1=顶）</summary>
 [Serializable]

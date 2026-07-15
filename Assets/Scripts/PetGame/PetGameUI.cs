@@ -15,6 +15,12 @@ public class PetGameUI : MonoBehaviour
     private GameObject resultOverlay;
     private Button btnUndo, btnAddBowl, btnShuffle, btnRestart, btnNext;
 
+    // 结算页动态元素
+    private LevelResult lastResult;
+    private GameObject rewardPanel;
+    private Button btnWatchAd;
+    private bool adRewardClaimed;
+
     private List<GameObject> petGOs = new List<GameObject>();
     private List<GameObject> bowlGOs = new List<GameObject>();
     private Dictionary<int, GameObject> bowlIdToGO = new Dictionary<int, GameObject>();
@@ -91,36 +97,74 @@ public class PetGameUI : MonoBehaviour
         var bg = levelSelectPanel.AddComponent<Image>();
         bg.color = new Color(0.1f, 0.08f, 0.15f, 0.95f);
 
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        // --- 顶部标题 + 玩家信息 ---
         var tt = new GameObject("Title", typeof(RectTransform)).AddComponent<Text>();
         tt.transform.SetParent(levelSelectPanel.transform, false);
-        tt.text = "铲屎官疯了"; tt.fontSize = 40; tt.color = Color.white;
-        tt.alignment = TextAnchor.MiddleCenter;
-        tt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        tt.text = "疯狂铲屎官"; tt.fontSize = 40; tt.color = Color.white;
+        tt.alignment = TextAnchor.MiddleCenter; tt.font = font;
         var trt = tt.GetComponent<RectTransform>();
-        trt.anchorMin = new Vector2(0.1f, 0.75f); trt.anchorMax = new Vector2(0.9f, 0.9f);
+        trt.anchorMin = new Vector2(0.1f, 0.85f); trt.anchorMax = new Vector2(0.9f, 0.93f);
         trt.sizeDelta = Vector2.zero;
 
-        int cols = 4; float bw = 150, bh = 80, gap = 15;
+        // 玩家状态栏：称号 + 小鱼干 + 总星数
+        var info = new GameObject("PlayerInfo", typeof(RectTransform));
+        info.transform.SetParent(levelSelectPanel.transform, false);
+        var irt = info.GetComponent<RectTransform>();
+        irt.anchorMin = new Vector2(0.05f, 0.78f); irt.anchorMax = new Vector2(0.95f, 0.84f);
+        irt.sizeDelta = Vector2.zero;
+        var it = info.AddComponent<Text>();
+        int totalStars = SaveSystem.TotalStars;
+        it.text = $"{SaveSystem.GetCurrentTitle()}  |  小鱼干:{SaveSystem.Data.fishDiscount}  徽章:{SaveSystem.Data.rescueBadge}  |  总星数:{totalStars}";
+        it.fontSize = 18;
+        it.color = new Color(1f, 0.84f, 0f);
+        it.alignment = TextAnchor.MiddleCenter;
+        it.font = font;
+
+        // --- 关卡按钮 ---
+        int cols = 4; float bw = 150, bh = 90, gap = 15;
+        int highest = SaveSystem.Data.highestUnlockedLevel;
         for (int i = 0; i < gm.LevelCount; i++)
         {
             int lid = i + 1;
+            bool unlocked = lid <= highest;
+            int stars = SaveSystem.GetLevelStars(lid);
+
             var bgo = new GameObject($"Btn{lid}", typeof(RectTransform));
             bgo.transform.SetParent(levelSelectPanel.transform, false);
             var bimg = bgo.AddComponent<Image>();
-            bimg.color = i < 5 ? new Color(0.3f, 0.5f, 0.3f) : new Color(0.3f, 0.35f, 0.5f);
+            // 已通关=绿, 可玩=蓝, 锁定=灰
+            bimg.color = stars > 0 ? new Color(0.2f, 0.5f, 0.25f)
+                       : unlocked ? new Color(0.3f, 0.35f, 0.5f)
+                       : new Color(0.25f, 0.25f, 0.25f);
             var btn = bgo.AddComponent<Button>();
-            btn.onClick.AddListener(() => { Destroy(levelSelectPanel); levelSelectPanel = null; gm.currentLevelId = lid; gm.StartLevel(lid); BuildLevel(); });
+            btn.interactable = unlocked;
+            btn.onClick.AddListener(() => {
+                Destroy(levelSelectPanel); levelSelectPanel = null;
+                gm.currentLevelId = lid;
+                SaveSystem.Data.currentLevelId = lid;
+                SaveSystem.Save();
+                gm.StartLevel(lid);
+                BuildLevel();
+            });
+
+            // 关卡号 + 名称
             var tgo = new GameObject("T", typeof(RectTransform));
             tgo.transform.SetParent(bgo.transform, false);
             var t = tgo.AddComponent<Text>();
-            t.text = $"{lid}\n{gm.GetLevelName(lid)}"; t.fontSize = 14; t.color = Color.white;
-            t.alignment = TextAnchor.MiddleCenter; t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            string lockIcon = unlocked ? "" : "\n[锁定]";
+            string starStr = stars > 0 ? "\n" + new string((char)9733, stars) : "";
+            t.text = $"{lid}\n{gm.GetLevelName(lid)}{starStr}{lockIcon}";
+            t.fontSize = 13; t.color = unlocked ? Color.white : new Color(0.5f, 0.5f, 0.5f);
+            t.alignment = TextAnchor.MiddleCenter; t.font = font;
             var trt2 = tgo.GetComponent<RectTransform>();
             trt2.anchorMin = Vector2.zero; trt2.anchorMax = Vector2.one; trt2.sizeDelta = Vector2.zero;
+
             var brt = bgo.GetComponent<RectTransform>();
             int col = i % cols, row = i / cols;
             float sx = 375 - (cols * bw + (cols - 1) * gap) / 2f + bw / 2f;
-            float sy = 700 - row * (bh + gap);
+            float sy = 680 - row * (bh + gap);
             brt.anchorMin = brt.anchorMax = new Vector2(0, 0);
             brt.pivot = new Vector2(0.5f, 0.5f);
             brt.anchoredPosition = new Vector2(sx + col * (bw + gap), sy);
@@ -438,14 +482,240 @@ public class PetGameUI : MonoBehaviour
         if (txtLevel) txtLevel.text = $"第{gm.currentLevelId}关";
         if (txtScore) txtScore.text = $"得分:{gm.GetScore()}/{gm.targetScore}";
         if (txtStep) txtStep.text = $"步数:{gm.pour.totalMoves}";
+        UpdateCleanerHUD();
     }
 
-    void OnWin(int s) { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "通关!"; if (txtStars) txtStars.text = new string((char)9733, s) + new string((char)9734, 3 - s); }
+    /// <summary>更新铲屎官等级/货币 HUD（叠加显示在 HUD 顶部）</summary>
+    private GameObject cleanerHUD;
+    private Text txtTitle, txtFish, txtExp;
+    void UpdateCleanerHUD()
+    {
+        if (cleanerHUD == null) BuildCleanerHUD();
+        if (txtTitle) txtTitle.text = $"{SaveSystem.GetCurrentTitle()}";
+        if (txtFish) txtFish.text = $"{SaveSystem.Data.fishDiscount}";
+        if (txtExp)
+        {
+            int toNext = SaveSystem.ExpToNextLevel();
+            txtExp.text = toNext > 0 ? $"下一级:{toNext}" : "MAX";
+        }
+    }
+
+    void BuildCleanerHUD()
+    {
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        cleanerHUD = new GameObject("CleanerHUD", typeof(RectTransform));
+        cleanerHUD.transform.SetParent(transform, false);
+        var rt = cleanerHUD.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0.9f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.sizeDelta = Vector2.zero;
+
+        // 称号（左上）
+        var titleGO = new GameObject("CleanerTitle", typeof(RectTransform));
+        titleGO.transform.SetParent(cleanerHUD.transform, false);
+        var titleRT = titleGO.GetComponent<RectTransform>();
+        titleRT.anchorMin = new Vector2(0.02f, 0.5f);
+        titleRT.anchorMax = new Vector2(0.3f, 0.95f);
+        titleRT.sizeDelta = Vector2.zero;
+        txtTitle = titleGO.AddComponent<Text>();
+        txtTitle.fontSize = 16;
+        txtTitle.color = new Color(1f, 0.84f, 0f);
+        txtTitle.alignment = TextAnchor.MiddleLeft;
+        txtTitle.font = font;
+
+        // 小鱼干（右上）
+        var fishGO = new GameObject("FishDisplay", typeof(RectTransform));
+        fishGO.transform.SetParent(cleanerHUD.transform, false);
+        var fishRT = fishGO.GetComponent<RectTransform>();
+        fishRT.anchorMin = new Vector2(0.7f, 0.5f);
+        fishRT.anchorMax = new Vector2(0.98f, 0.95f);
+        fishRT.sizeDelta = Vector2.zero;
+        txtFish = fishGO.AddComponent<Text>();
+        txtFish.fontSize = 16;
+        txtFish.color = new Color(1f, 0.8f, 0.3f);
+        txtFish.alignment = TextAnchor.MiddleRight;
+        txtFish.font = font;
+
+        // 经验（右上下方）
+        var expGO = new GameObject("ExpDisplay", typeof(RectTransform));
+        expGO.transform.SetParent(cleanerHUD.transform, false);
+        var expRT = expGO.GetComponent<RectTransform>();
+        expRT.anchorMin = new Vector2(0.7f, 0.05f);
+        expRT.anchorMax = new Vector2(0.98f, 0.45f);
+        expRT.sizeDelta = Vector2.zero;
+        txtExp = expGO.AddComponent<Text>();
+        txtExp.fontSize = 12;
+        txtExp.color = new Color(0.7f, 0.7f, 0.7f);
+        txtExp.alignment = TextAnchor.MiddleRight;
+        txtExp.font = font;
+    }
+
+    void OnWin(int stars)
+    {
+        // 从 PetGameManager 获取完整结算结果
+        lastResult = gm.GetCurrentLevelResult();
+        adRewardClaimed = false;
+
+        if (resultOverlay) resultOverlay.SetActive(true);
+        if (txtResultTitle) txtResultTitle.text = "通关!";
+        if (txtStars) txtStars.text = new string((char)9733, stars) + new string((char)9734, 3 - stars);
+
+        BuildRewardPanel();
+    }
+
+    /// <summary>构建结算页奖励面板（小鱼干/徽章/经验 + 看广告翻倍按钮）</summary>
+    void BuildRewardPanel()
+    {
+        if (rewardPanel != null) Destroy(rewardPanel);
+
+        rewardPanel = new GameObject("RewardPanel", typeof(RectTransform));
+        rewardPanel.transform.SetParent(resultOverlay?.transform ?? transform, false);
+        var rt = rewardPanel.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.15f, 0.15f);
+        rt.anchorMax = new Vector2(0.85f, 0.6f);
+        rt.sizeDelta = Vector2.zero;
+        var bg = rewardPanel.AddComponent<Image>();
+        bg.color = new Color(0.15f, 0.12f, 0.2f, 0.95f);
+
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        // --- 奖励行 ---
+        float yPos = 0.35f;
+        var rewards = new (string, int, Color)[]
+        {
+            ("+ " + lastResult.fishReward, lastResult.fishReward, new Color(1f, 0.8f, 0.3f)),
+            ("+ " + lastResult.badgeReward, lastResult.badgeReward, new Color(0.9f, 0.75f, 0.3f)),
+            ("+ " + lastResult.expReward + " EXP", lastResult.expReward, new Color(0.4f, 0.8f, 1f)),
+        };
+        string[] labels = { "小鱼干", "救助徽章", "经验" };
+
+        for (int i = 0; i < rewards.Length; i++)
+        {
+            if (rewards[i].Item2 <= 0 && i == 1) continue; // 徽章为0不显示
+
+            var row = new GameObject($"Reward{i}", typeof(RectTransform));
+            row.transform.SetParent(rewardPanel.transform, false);
+            var rrt = row.GetComponent<RectTransform>();
+            rrt.anchorMin = new Vector2(0.1f, yPos - i * 0.12f);
+            rrt.anchorMax = new Vector2(0.9f, yPos - i * 0.12f + 0.1f);
+            rrt.sizeDelta = Vector2.zero;
+            var t = row.AddComponent<Text>();
+            t.text = $"{labels[i]}  {rewards[i].Item1}";
+            t.fontSize = 22;
+            t.color = rewards[i].Item3;
+            t.alignment = TextAnchor.MiddleCenter;
+            t.font = font;
+        }
+
+        // --- 升级提示 ---
+        if (lastResult.leveledUp)
+        {
+            var upGO = new GameObject("LevelUpBanner", typeof(RectTransform));
+            upGO.transform.SetParent(rewardPanel.transform, false);
+            var urt = upGO.GetComponent<RectTransform>();
+            urt.anchorMin = new Vector2(0.05f, 0.85f);
+            urt.anchorMax = new Vector2(0.95f, 0.98f);
+            urt.sizeDelta = Vector2.zero;
+            var ut = upGO.AddComponent<Text>();
+            ut.text = $"恭喜晋升 → {lastResult.newTitle}!";
+            ut.fontSize = 26;
+            ut.color = new Color(1f, 0.84f, 0f);
+            ut.alignment = TextAnchor.MiddleCenter;
+            ut.fontStyle = FontStyle.Bold;
+            ut.font = font;
+        }
+
+        // --- 看广告翻倍按钮 ---
+        if (lastResult.fishReward > 0)
+        {
+            var adGO = new GameObject("BtnWatchAd", typeof(RectTransform));
+            adGO.transform.SetParent(rewardPanel.transform, false);
+            var art = adGO.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0.2f, 0.02f);
+            art.anchorMax = new Vector2(0.8f, 0.14f);
+            art.sizeDelta = Vector2.zero;
+            var adImg = adGO.AddComponent<Image>();
+            adImg.color = new Color(0.95f, 0.6f, 0.1f);
+            btnWatchAd = adGO.AddComponent<Button>();
+            var adText = new GameObject("T", typeof(RectTransform));
+            adText.transform.SetParent(adGO.transform, false);
+            var adtrt = adText.GetComponent<RectTransform>();
+            adtrt.anchorMin = Vector2.zero; adtrt.anchorMax = Vector2.one; adtrt.sizeDelta = Vector2.zero;
+            var at = adText.AddComponent<Text>();
+            at.text = $"看广告 小鱼干x{lastResult.fishReward * 2}";
+            at.fontSize = 18;
+            at.color = Color.white;
+            at.alignment = TextAnchor.MiddleCenter;
+            at.font = font;
+            btnWatchAd.onClick.AddListener(OnWatchAdForDouble);
+        }
+    }
+
+    /// <summary>看广告翻倍奖励回调（目前无广告SDK，先模拟）</summary>
+    void OnWatchAdForDouble()
+    {
+        if (adRewardClaimed) return;
+        adRewardClaimed = true;
+
+        // TODO: 接入真实广告SDK：SDK.ShowRewardedAd(() => { ... })
+        int bonus = lastResult.fishReward; // 翻倍 = 再给一份
+        SaveSystem.AddFish(bonus);
+        Debug.Log($"[结算] 看广告翻倍! 小鱼干+{bonus}");
+
+        if (btnWatchAd != null) btnWatchAd.gameObject.SetActive(false);
+
+        // 更新面板显示
+        BuildRewardPanel();
+        adRewardClaimed = true; // 标记已领取
+        if (rewardPanel != null)
+        {
+            // 简单提示已翻倍
+            var tip = new GameObject("AdDone", typeof(RectTransform));
+            tip.transform.SetParent(rewardPanel.transform, false);
+            var trt = tip.GetComponent<RectTransform>();
+            trt.anchorMin = new Vector2(0.2f, 0.02f);
+            trt.anchorMax = new Vector2(0.8f, 0.14f);
+            trt.sizeDelta = Vector2.zero;
+            var t = tip.AddComponent<Text>();
+            t.text = $"已翻倍! +{bonus} 小鱼干";
+            t.fontSize = 20;
+            t.color = new Color(0.4f, 1f, 0.4f);
+            t.alignment = TextAnchor.MiddleCenter;
+            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+    }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
-    void Restart() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.StartLevel(gm.currentLevelId); BuildLevel(); }
+    void Restart()
+    {
+        StopAnimations();
+        if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
+        if (resultOverlay) resultOverlay.SetActive(false);
+        gm.StartLevel(gm.currentLevelId);
+        BuildLevel();
+    }
     void ShuffleCurrentBowl() { if (gm.selectedBowlId >= 0) { gm.pour.ShuffleBowl(gm.selectedBowlId); gm.selectedBowlId = -1; gm.onSelectionChanged.Invoke(); BuildBowls(); } }
-    void NextLevel() { StopAnimations(); if (resultOverlay) resultOverlay.SetActive(false); gm.currentLevelId = gm.currentLevelId >= gm.LevelCount ? 1 : gm.currentLevelId + 1; gm.StartLevel(gm.currentLevelId); BuildLevel(); }
-    public void BackToMenu() {  if (resultOverlay) resultOverlay.SetActive(false); Clear(bowlArea); Clear(petArea); bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear(); ShowLevelSelect(); }
+    void NextLevel()
+    {
+        StopAnimations();
+        if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
+        if (resultOverlay) resultOverlay.SetActive(false);
+        // 跟随存档的解锁进度，不越界
+        int next = gm.currentLevelId + 1;
+        if (next > gm.LevelCount) next = gm.LevelCount;
+        gm.currentLevelId = next;
+        SaveSystem.Data.currentLevelId = next;
+        SaveSystem.Save();
+        gm.StartLevel(next);
+        BuildLevel();
+    }
+    public void BackToMenu()
+    {
+        if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
+        if (resultOverlay) resultOverlay.SetActive(false);
+        Clear(bowlArea); Clear(petArea);
+        bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear();
+        ShowLevelSelect();
+    }
 
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }
     Text FindT(string n) => FindC<Text>(gameHUD, n);
