@@ -278,9 +278,10 @@ namespace PetGameEditor
 
         static void SetFont(Text txt)
         {
-            // 优先用内置 Arial；拿不到则保留 AddComponent 时赋的默认字体，避免字体为 null 导致文字不显示
-            Font arial = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            if (arial != null) txt.font = arial;
+            // 团结引擎内置字体已更名为 LegacyRuntime.ttf（原 Arial.ttf 已失效，调用会抛异常）
+            // 拿不到则保留 Text 组件的默认字体，避免异常
+            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            if (font != null) txt.font = font;
         }
 
         static GameObject CreateButton(string name, Transform parent, string label, Color color)
