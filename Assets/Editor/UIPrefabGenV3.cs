@@ -72,6 +72,21 @@ public class UIPrefabGenV3
         return s;
     }
 
+    /// <summary>铺满拉伸的背景图（放到底层）</summary>
+    static void AddBackground(Transform parent, string bgSubPath)
+    {
+        var go = NewGO("Background", parent);
+        go.transform.SetAsFirstSibling();
+        var img = go.AddComponent<Image>();
+        var sp = LoadSprite(bgSubPath);
+        if (sp) { img.sprite = sp; img.preserveAspect = false; }
+        else img.color = COL_BG;
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.sizeDelta = Vector2.zero;
+    }
+
     static GameObject NewGO(string name, Transform parent)
     {
         var go = new GameObject(name, typeof(RectTransform));
@@ -323,6 +338,7 @@ public class UIPrefabGenV3
     static void CreateSplashPanel()
     {
         var root = CreatePanelRoot("SplashPanel", COL_BG);
+        AddBackground(root.transform, "backgrounds/bg_room_cozy.png");
 
         var logoSprite = LoadSprite("pets/cat/happy.png");
         AddImageCenter(root.transform, "imgLogo", new Vector2(240, 240),
@@ -359,6 +375,7 @@ public class UIPrefabGenV3
     static void CreateLoginPanel()
     {
         var root = CreatePanelRoot("LoginPanel", COL_BG);
+        AddBackground(root.transform, "backgrounds/bg_room_cozy.png");
 
         var logoSprite = LoadSprite("pets/cat/happy.png");
         AddImageCenter(root.transform, "imgMiniLogo", new Vector2(120, 120),
@@ -473,6 +490,7 @@ public class UIPrefabGenV3
     static void CreateMainMenuPanel()
     {
         var root = CreatePanelRoot("MainMenuPanel", COL_BG);
+        AddBackground(root.transform, "backgrounds/bg_room_cozy.png");
 
         // 顶部信息条
         var playerBar = AddImage(root.transform, "pnlPlayerBar", Vector2.zero, Vector2.zero,

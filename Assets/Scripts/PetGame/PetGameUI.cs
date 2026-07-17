@@ -125,6 +125,9 @@ public class PetGameUI : MonoBehaviour
         // --- 关卡按钮 ---
         int cols = 4; float bw = 150, bh = 90, gap = 15;
         int highest = SaveSystem.Data.highestUnlockedLevel;
+#if UNITY_EDITOR
+        highest = gm.LevelCount; // 开发期：全部解锁，方便测试任意关卡
+#endif
         for (int i = 0; i < gm.LevelCount; i++)
         {
             int lid = i + 1;

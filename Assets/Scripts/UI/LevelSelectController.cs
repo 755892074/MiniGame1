@@ -51,6 +51,9 @@ public class LevelSelectController : MonoBehaviour
         var levels = Resources.LoadAll<PetLevelConfigV2>("Levels");
         int levelCount = levels != null ? levels.Length : 50;
         int highest = SaveSystem.Data.highestUnlockedLevel;
+#if UNITY_EDITOR
+        highest = levelCount; // 开发期：全部解锁，方便测试任意关卡
+#endif
 
         Debug.Log($"[LevelSelect] 生成关卡网格: {levelCount}关, 已解锁{highest}");
 

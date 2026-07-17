@@ -24,7 +24,17 @@ public class PetGameSceneSetup
         var mgr = new GameObject("PetGameManager"); mgr.AddComponent<PetGameManager>();
 
         // PetGameUI 自动创建 Canvas 和所有 UI
-        new GameObject("PetGameUI").AddComponent<PetGameUI>();
+        var petUI = new GameObject("PetGameUI").AddComponent<PetGameUI>();
+
+        // 场景背景图（作为 PetGameUI 第一个子物体，运行时随其 Canvas 渲染，置于 UI 底层）
+        var bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        bg.transform.SetParent(petUI.transform, false);
+        bg.transform.SetAsFirstSibling();
+        var bgRT = bg.GetComponent<RectTransform>();
+        bgRT.anchorMin = Vector2.zero; bgRT.anchorMax = Vector2.one; bgRT.sizeDelta = Vector2.zero;
+        var bgSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/PetGame/backgrounds/bg_garden.png");
+        if (bgSprite != null) { bg.GetComponent<Image>().sprite = bgSprite; bg.GetComponent<Image>().preserveAspect = false; }
+        else bg.GetComponent<Image>().color = new Color(0.96f, 0.94f, 0.9f);
 
         EnsureBuildSettings("Assets/Scenes/PetGameScene.unity");
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/PetGameScene.unity");

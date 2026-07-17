@@ -135,7 +135,7 @@ public class PetGamePrefabGenV2
         var root = new GameObject("GameHUD", typeof(RectTransform), typeof(Image));
         var rt = root.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(750, 1334);
-        root.GetComponent<Image>().color = new Color(0.97f, 0.95f, 0.9f);
+        root.GetComponent<Image>().color = new Color(0, 0, 0, 0); // 透明，露出场景背景图
 
         // ===== 顶栏 =====
         var topBar = new GameObject("TopBar", typeof(RectTransform), typeof(Image));
@@ -163,12 +163,11 @@ public class PetGamePrefabGenV2
         bHL.childAlignment = TextAnchor.MiddleCenter; bHL.spacing = 10;
         bHL.childForceExpandWidth = false; bHL.padding = new RectOffset(10, 10, 0, 0);
 
-        // ui03 提示、ui05(进度条作取消) → 改成ui04暂停 改用ui01开始
-        // 撤回+加碗+打乱+重来：用小按钮 + emoji
-        SmallIconButton(btnRow.transform, "btnUndo", "↩");
-        SmallIconButton(btnRow.transform, "btnAddBowl", "🥣+");
-        SmallIconButton(btnRow.transform, "btnShuffle", "🔀");
-        SmallIconButton(btnRow.transform, "btnRestart", "🔄");
+        // 撤回+加碗+打乱+重来：用小按钮 + 中文文字（默认字体不支持 emoji）
+        SmallIconButton(btnRow.transform, "btnUndo", "撤回");
+        SmallIconButton(btnRow.transform, "btnAddBowl", "加碗");
+        SmallIconButton(btnRow.transform, "btnShuffle", "打乱");
+        SmallIconButton(btnRow.transform, "btnRestart", "重来");
 
         // ===== 宠物区域 =====
         var petArea = new GameObject("PetArea", typeof(RectTransform));
