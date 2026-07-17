@@ -578,18 +578,22 @@ public class UIPrefabGenV3
         AddButton(cardT, "btnResetSave", "重置存档",
             new Vector2(240, 48), new Vector2(0, -150), COL_DANGER, 16);
 
-        // 关闭按钮
+        // 关闭按钮（Image 和 Text 不能在同一 GO，Text 放子物体）
         var closeGO = NewGO("btnClose", cardT);
         var closeImg = closeGO.AddComponent<Image>();
         closeImg.color = new Color(0.6f, 0.58f, 0.55f);
         closeGO.AddComponent<Button>();
-        var closeT = closeGO.AddComponent<Text>();
+        var closeTxtGO = NewGO("txt", closeGO.transform);
+        var closeT = closeTxtGO.AddComponent<Text>();
         closeT.text = "X";
         closeT.fontSize = 20;
         closeT.color = COL_WHITE;
         closeT.font = FONT;
         closeT.alignment = TextAnchor.MiddleCenter;
         closeT.fontStyle = FontStyle.Bold;
+        closeTxtGO.GetComponent<RectTransform>().anchorMin = Vector2.zero;
+        closeTxtGO.GetComponent<RectTransform>().anchorMax = Vector2.one;
+        closeTxtGO.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
         var clRT = closeGO.GetComponent<RectTransform>();
         clRT.anchorMin = new Vector2(1f, 1f);
         clRT.anchorMax = new Vector2(1f, 1f);
