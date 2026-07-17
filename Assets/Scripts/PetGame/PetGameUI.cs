@@ -710,11 +710,11 @@ public class PetGameUI : MonoBehaviour
     }
     public void BackToMenu()
     {
+        StopAnimations();
         if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
         if (resultOverlay) resultOverlay.SetActive(false);
-        Clear(bowlArea); Clear(petArea);
-        bowlGOs.Clear(); petGOs.Clear(); bowlIdToGO.Clear();
-        ShowLevelSelect();
+        // 多场景模式：返回主菜单场景
+        GameSceneManager.LoadMenu();
     }
 
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }

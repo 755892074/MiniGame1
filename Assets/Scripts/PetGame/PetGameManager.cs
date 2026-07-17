@@ -50,6 +50,15 @@ public class PetGameManager : MonoBehaviour
         Instance = this;
         LoadSaveData();
         LoadConfig();
+
+        // 多场景模式：检查 GameSceneManager 是否指定了关卡
+        int pendingLevel = GameSceneManager.pendingLevelId;
+        if (pendingLevel > 0)
+        {
+            currentLevelId = pendingLevel;
+            GameSceneManager.pendingLevelId = -1;  // 清除标记
+        }
+
         AutoStartLevel();
     }
 

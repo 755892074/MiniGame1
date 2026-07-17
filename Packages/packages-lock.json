@@ -13,7 +13,7 @@
       }
     },
     "cn.tuanjie.codely.bridge": {
-      "version": "1.0.68",
+      "version": "1.0.70",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -21,6 +21,12 @@
         "com.unity.ugui": "1.0.0"
       },
       "url": "https://packages.tuanjie.cn"
+    },
+    "com.bytedance.starksdk": {
+      "version": "file:../Assets/../LocalPackages/com.bytedance.starksdk@6.7.9",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {}
     },
     "com.qq.weixin.minigame": {
       "version": "https://gitee.com/wechat-minigame/minigame-tuanjie-transform-sdk.git#v0.1.32",

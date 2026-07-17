@@ -55,6 +55,11 @@ public static class SaveSystem
         public bool sfxEnabled = true;
         public float bgmVolume = 1f;
         public float sfxVolume = 1f;
+
+        // --- 登录/隐私 ---
+        public bool privacyAgreed = false;   // 是否同意隐私政策
+        public string loginType = "guest";  // "guest" 或 "douyin"
+        public string userId = "";          // 登录后的用户ID
     }
 
     [Serializable]
