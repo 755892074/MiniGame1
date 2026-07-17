@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水排序 IAA 小游戏数值设计参考手册</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1c2330;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-2: #f0883e;
+    --green: #3fb950;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --cyan: #39d2c8;
+    --pink: #f778ba;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    padding: 0;
+  }
+  .hero {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 60%, #1a1520 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 40px 40px;
+  }
+  .hero h1 {
+    font-size: 28px;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero p { color: var(--text-dim); font-size: 14px; }
+  .container { max-width: 980px; margin: 0 auto; padding: 32px 24px 64px; }
+  h2 {
+    font-size: 22px;
+    margin: 40px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  h2 .num {
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 14px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+  h3 { font-size: 17px; margin: 24px 0 12px; color: var(--accent); }
+  p { margin-bottom: 12px; color: var(--text); }
+  ul, ol { margin: 8px 0 16px 20px; }
+  li { margin-bottom: 6px; }
+  code {
+    background: var(--surface-2);
+    color: var(--accent-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .formula-box {
+    background: linear-gradient(135deg, #1a2030, #161b22);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 18px 24px;
+    margin: 16px 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    text-align: center;
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  th {
+    background: var(--surface-2);
+    color: var(--accent);
+    padding: 10px 12px;
+    text-align: left;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  td {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .tag {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 4px;
+  }
+  .tag-green { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .tag-red { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+  .tag-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .tag-purple { background: rgba(188,140,255,0.15); color: var(--purple); border: 1px solid rgba(188,140,255,0.3); }
+  .tag-cyan { background: rgba(57,210,200,0.15); color: var(--cyan); border: 1px solid rgba(57,210,200,0.3); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .mini-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .mini-card .big-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .mini-card .label { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+  .warning {
+    background: rgba(248,81,73,0.08);
+    border-left: 3px solid var(--red);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+  }
+  .tip {
+    background: rgba(63,185,80,0.08);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+  }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 28px;
+    margin: 24px 0;
+  }
+  .toc ol { margin: 8px 0 0 20px; }
+  .toc li { margin-bottom: 8px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .footer-note {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .chart-placeholder {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 16px 0;
+  }
+  .correction-notice {
+    background: rgba(210,153,34,0.1);
+    border: 1px solid rgba(210,153,34,0.4);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>水排序 IAA 小游戏数值设计参考手册</h1>
+  <p>聚焦「水排序 / Water Sort」品类 · 开个大脑门 / Magic Sort! / 倒了个水 · 微信小游戏生态 | 更新：2026-07-13</p>
+</div>
+
+<div class="container">
+
+<!-- 更正说明 -->
+<div class="correction-notice">
+  <strong style="color:var(--yellow);">📋 更正说明</strong><br>
+  上一版将《开个大脑门》误描述为"画线物理解谜"，实际为<strong>水排序（倒水分类）</strong>玩法。本版已全面更正，并针对水排序品类重新做了数值拆解。
+</div>
+
+<!-- 目录 -->
+<div class="toc">
+  <strong>目录</strong>
+  <ol>
+    <li><a href="#s1">水排序品类概述 & 核心玩法</a></li>
+    <li><a href="#s2">关卡生成算法 & 难度参数表</a></li>
+    <li><a href="#s3">难度曲线设计（水排序专属）</a></li>
+    <li><a href="#s4">变现设计：IAA / IAP / 混变</a></li>
+    <li><a href="#s5">案例拆解：开个大脑门 / Magic Sort! / 倒了个水</a></li>
+    <li><a href="#s6">逆向拆解 & 关卡数据采集方法</a></li>
+    <li><a href="#s7">数值落地：从 0 到 1 的关卡表模板</a></li>
+  </ol>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1"><span class="num">1</span> 水排序品类概述 & 核心玩法</h2>
+
+<p><strong>水排序（Water Sort / Color Sort）</strong>是 2024-2025 年休闲小游戏领域的<strong>顶级品类</strong>，单款下载超 1.8 亿，头部产品内购收入超 2100 万美元。玩法极简但极度上瘾。</p>
+
+<h3>核心规则（一句话）</h3>
+<div class="card">
+  <p>屏幕上有若干瓶子，每个瓶子装有多层不同颜色的液体。玩家<strong>点击瓶子A → 点击瓶子B</strong>，将 A 的顶层液体倒入 B。规则：</p>
+  <ul>
+    <li>只能倒出<strong>最顶层连续同色</strong>的液体</li>
+    <li>目标瓶必须为<strong>空瓶</strong>或<strong>顶层同色且有剩余空间</strong></li>
+    <li>每个瓶子容量固定（通常 4 层）</li>
+    <li>当所有瓶子都只装单一颜色 → <strong>通关</strong></li>
+  </ul>
+</div>
+
+<h3>难度变量（只有这几个维度！）</h3>
+<div class="grid-2">
+  <div class="mini-card">
+    <h3 style="margin-top:0;color:var(--cyan);">基础变量</h3>
+    <ul style="margin-bottom:0;">
+      <li><strong>颜色数</strong>（3 → 12+）</li>
+      <li><strong>瓶子数</strong>（4 → 14+）</li>
+      <li><strong>空瓶数</strong>（缓冲空间，0~3）</li>
+      <li>每瓶容量（通常固定 = 4 层）</li>
+    </ul>
+  </div>
+  <div class="mini-card">
+    <h3 style="margin-top:0;color:var(--purple);">进阶变量（后期引入）</h3>
+    <ul style="margin-bottom:0;">
+      <li><strong>未知颜色</strong>（需先移开上层才显示）</li>
+      <li><strong>遮蔽瓶子</strong>（完成指定整瓶才解锁）</li>
+      <li><strong>特殊液体</strong>（渐变色、混合色）</li>
+      <li><strong>限定步数 / 限时</strong>（高压模式）</li>
+    </ul>
+  </div>
+</div>
+
+<div class="tip">
+  <strong>核心洞察：</strong>水排序的难度几乎<strong>完全由"空瓶数"决定</strong>——空瓶 = 缓冲空间 = 玩家的工作记忆负载。12 色 + 1 空瓶 远比 4 色 + 3 空瓶难。这是数值设计的<strong>第一杠杆</strong>。
+</div>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2"><span class="num">2</span> 关卡生成算法 & 难度参数表</h2>
+
+<p>水排序不是手工设计每一关的，而是<strong>程序化生成 + 求解器验证</strong>。这是该品类可量产数百上千关的核心技术。</p>
+
+<h3>2.1 生成管线（Scramble-and-Solve）</h3>
+<div class="card">
+  <div class="formula-box" style="margin-top:0;">
+    构造已解状态 → 合法逆操作打乱 → BFS/DFS 求解 → 记录最少步数 → 验证可解性
+  </div>
+  <ol>
+    <li><strong>构造已解状态</strong>：N 个瓶子，每个装满 4 层同色</li>
+    <li><strong>打乱</strong>：从已解状态做随机合法的<strong>逆向倒水</strong>操作（Scramble Range 控制打乱深度）</li>
+    <li><strong>求解验证</strong>：用 BFS（广度优先搜索）计算<strong>最少步数解</strong>，确保关卡可解</li>
+    <li><strong>难度标注</strong>：最少步数越长 = 越难；同时记录死局检测</li>
+  </ol>
+</div>
+
+<h3>2.2 难度参数表（核心数值！直接可用）</h3>
+
+<div class="card">
+  <p>以下是经过验证的<strong>分阶段难度参数配置</strong>，直接作为你关卡生成器的输入参数：</p>
+  <table>
+    <tr>
+      <th>阶段（关卡号）</th>
+      <th>颜色数</th>
+      <th>空瓶数</th>
+      <th>打乱深度</th>
+      <th>最少解步数</th>
+      <th>难度定位</th>
+    </tr>
+    <tr>
+      <td>0 ~ 9</td>
+      <td>3 ~ 5</td>
+      <td>0 ~ 1</td>
+      <td>18 ~ 34</td>
+      <td>3 ~ 12</td>
+      <td><span class="tag tag-green">新手教学</span></td>
+    </tr>
+    <tr>
+      <td>10 ~ 19</td>
+      <td>5</td>
+      <td>0 ~ 1</td>
+      <td>22 ~ 38</td>
+      <td>8 ~ 10</td>
+      <td><span class="tag tag-cyan">入门</span></td>
+    </tr>
+    <tr>
+      <td>20 ~ 39</td>
+      <td>5 ~ 7</td>
+      <td>0 ~ 1</td>
+      <td>26 ~ 44</td>
+      <td>8 ~ 9</td>
+      <td><span class="tag tag-yellow">进阶</span></td>
+    </tr>
+    <tr>
+      <td>40 ~ 59</td>
+      <td>6 ~ 9</td>
+      <td>0 ~ 2</td>
+      <td>30 ~ 52</td>
+      <td>10 ~ 12</td>
+      <td><span class="tag tag-yellow">中难</span></td>
+    </tr>
+    <tr>
+      <td>60 ~ 79</td>
+      <td>8 ~ 11</td>
+      <td>0 ~ 2</td>
+      <td>36 ~ 60</td>
+      <td>10 ~ 13</td>
+      <td><span class="tag tag-red">困难</span></td>
+    </tr>
+    <tr>
+      <td>80+</td>
+      <td>9 ~ 12</td>
+      <td>0 ~ 1</td>
+      <td>30 ~ 44</td>
+      <td>10 ~ 14</td>
+      <td><span class="tag tag-red">地狱</span></td>
+    </tr>
+  </table>
+  <p style="margin-top:12px;color:var(--text-dim);font-size:13px;">
+    注意：80+ 关空瓶数反而降回 0~1，但颜色数维持高位——这是<strong>减少缓冲逼出纯逻辑推理</strong>的高难度设计。
+  </p>
+</div>
+
+<div class="tip">
+  <strong>难度规律总结：</strong>
+  <ul style="margin-bottom:0;">
+    <li><strong>颜色数</strong> = 长期维度，缓慢线性增长（3 → 12）</li>
+    <li><strong>空瓶数</strong> = 短期维度，用来制造"难-易"波动（卡点关减空瓶，喘息关加空瓶）</li>
+    <li><strong>打乱深度</strong> = 控制局面混乱程度，影响求解步数</li>
+  </ul>
+</div>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3"><span class="num">3</span> 难度曲线设计（水排序专属）</h2>
+
+<h3>3.1 "净空间"理论——水排序的心流核心</h3>
+
+<div class="card">
+  <p>水排序的每一步操作都在改变<strong>净空间（Net Space）</strong>，这是判断玩家是否进入心流的核心指标：</p>
+  <table>
+    <tr><th>操作类型</th><th>空间影响</th><th>玩家感受</th></tr>
+    <tr><td><strong>空间正操作</strong>：完成一整瓶同色 / 清空混合瓶</td><td><span class="tag tag-green">↑ 增加</span></td><td>爽感！解压！</td></tr>
+    <tr><td><strong>空间中性操作</strong>：同色叠加但未满</td><td><span class="tag tag-yellow">→ 不变</span></td><td>过渡，可接受</td></tr>
+    <tr><td><strong>空间负操作</strong>：把颜色倒入空瓶</td><td><span class="tag tag-red">↓ 减少</span></td><td>消耗万能位，焦虑</td></tr>
+  </table>
+  <p><strong>设计原则：</strong>关卡的前几步应该引导玩家做空间正操作（快速完成 1~2 瓶），建立信心和爽感；中段进入博弈期；卡点在于无法在有限步数内找到空间正操作序列。</p>
+</div>
+
+<h3>3.2 "3 易 1 难"在水排序中的落地</h3>
+
+<div class="card">
+  <table>
+    <tr><th>关卡类型</th><th>配置</th><th>通关率目标</th><th>广告触发</th></tr>
+    <tr>
+      <td>简单关（3关）</td>
+      <td>颜色少 + <strong>2 空瓶</strong></td>
+      <td>90%+</td>
+      <td>通关后可选激励视频</td>
+    </tr>
+    <tr>
+      <td><strong>卡点关（1关）</strong></td>
+      <td>颜色多 + <strong>1 空瓶或 0 空瓶</strong></td>
+      <td><strong>30~50%</strong></td>
+      <td>死局 → 加瓶子/提示 → <strong>激励视频</strong></td>
+    </tr>
+    <tr>
+      <td>喘息关（紧接卡点后）</td>
+      <td>颜色适中 + <strong>2~3 空瓶</strong></td>
+      <td>85%+</td>
+      <td>降低挫败感</td>
+    </tr>
+  </table>
+</div>
+
+<div class="chart-placeholder">
+<svg viewBox="0 0 600 280" style="width:100%;max-width:600px;margin:0 auto;display:block;">
+  <line x1="60" y1="240" x2="560" y2="240" stroke="#30363d" stroke-width="1.5"/>
+  <line x1="60" y1="40" x2="60" y2="240" stroke="#30363d" stroke-width="1.5"/>
+  <text x="540" y="262" fill="#8b949e" font-size="12">关卡号 →</text>
+  <text x="18" y="45" fill="#8b949e" font-size="12" transform="rotate(-90 18,45)">颜色数 →</text>
+  
+  <!-- 颜色数增长（平滑上升） -->
+  <path d="M 60,220 Q 150,210 200,195 T 320,165 T 440,120 T 540,75" 
+        fill="none" stroke="#39d2c8" stroke-width="2.5"/>
+  <text x="430" y="70" fill="#39d2c8" font-size="11">颜色数（缓慢增长）</text>
+  
+  <!-- 空瓶数波动（制造难度波峰波谷） -->
+  <path d="M 60,190 L 100,195 L 140,185 L 180,140 L 220,180 L 260,190 L 300,130 L 340,175 L 380,185 L 420,115 L 460,170 L 500,180 L 540,120" 
+        fill="none" stroke="#f0883e" stroke-width="2"/>
+  <text x="420" y="110" fill="#f0883e" font-size="11">空瓶数（波浪 = 难度波动）</text>
+  
+  <!-- 卡点标注 -->
+  <circle cx="180" cy="140" r="4" fill="#f85149"/>
+  <text x="165" y="130" fill="#f85149" font-size="10">卡点</text>
+  <circle cx="300" cy="130" r="4" fill="#f85149"/>
+  <text x="285" y="120" fill="#f85149" font-size="10">卡点</text>
+  <circle cx="420" cy="115" r="4" fill="#f85149"/>
+  <text x="405" y="105" fill="#f85149" font-size="10">卡点</text>
+  
+  <text x="65" y="232" fill="#8b949e" font-size="10">多</text>
+  <text x="58" y="50" fill="#8b949e" font-size="10">少</text>
+  <text x="48" y="200" fill="#f0883e" font-size="10">空</text>
+  <text x="48" y="215" fill="#f0883e" font-size="10">瓶</text>
+</svg>
+  <p style="text-align:center;color:var(--text-dim);font-size:13px;margin-top:8px;">
+    颜色数平滑增长 + 空瓶数波浪波动 = 难度"3 易 1 难"曲线
+  </p>
+</div>
+
+<h3>3.3 死局检测 & 自动救援</h3>
+<div class="card">
+  <p>水排序的<strong>死局（无解局面）</strong>是变现关键触发点。设计要求：</p>
+  <ul>
+    <li>系统<strong>实时检测死局</strong>（玩家每步后用 BFS 验证当前局面是否可解）</li>
+    <li>检测到死局 → 弹窗提示："当前已无解，选择：①放弃重来 ②<strong>看广告 +1 瓶子</strong> ③花费金币 +1 瓶子"</li>
+    <li>加 1 个空瓶 ≈ 降低难度 <strong>50%</strong>（双倍缓冲空间），几乎保证可解</li>
+  </ul>
+</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4"><span class="num">4</span> 变现设计</h2>
+
+<h3>4.1 三种变现模式对比</h3>
+
+<div class="card">
+  <table>
+    <tr><th>模式</th><th>收入来源</th><th>代表产品</th><th>适用场景</th></tr>
+    <tr>
+      <td><strong>纯 IAA</strong></td>
+      <td>激励视频 + 插屏广告</td>
+      <td>开个大脑门、倒了个水</td>
+      <td>微信小游戏，国内用户</td>
+    </tr>
+    <tr>
+      <td><strong>纯 IAP</strong></td>
+      <td>金币包、道具包、去广告</td>
+      <td>Magic Sort!（2100万美元）</td>
+      <td>App Store/Google Play，海外</td>
+    </tr>
+    <tr>
+      <td><strong>混变</strong></td>
+      <td>IAA + IAP 双引擎</td>
+      <td>Sort Up!</td>
+      <td>长线运营，兼顾免费/付费</td>
+    </tr>
+  </table>
+</div>
+
+<h3>4.2 IAA 变现点位（微信小游戏）</h3>
+
+<div class="grid-2">
+  <div class="mini-card">
+    <h3 style="margin-top:0;color:var(--green);">高效激励视频点位</h3>
+    <ul style="margin-bottom:0;">
+      <li>✅ <strong>死局 → +1 瓶子</strong>（核心点位！）</li>
+      <li>✅ <strong>卡关 → 获取提示</strong>（高亮下一步）</li>
+      <li>✅ <strong>撤销道具</strong>（回退一步）</li>
+      <li>✅ <strong>洗牌道具</strong>（重新打乱）</li>
+      <li>✅ 通关后<strong>翻倍金币</strong>奖励</li>
+      <li>✅ 每日签到领金币</li>
+    </ul>
+  </div>
+  <div class="mini-card">
+    <h3 style="margin-top:0;color:var(--red);">插屏点位（谨慎使用）</h3>
+    <ul style="margin-bottom:0;">
+      <li>⚠️ 关卡间过渡页（可放）</li>
+      <li>⚠️ 连续通关 3 关后（可放）</li>
+      <li>❌ 游戏进行中（绝对禁止）</li>
+      <li>❌ 前 5 关（绝对禁止）</li>
+      <li>❌ 新手教程期间</li>
+    </ul>
+  </div>
+</div>
+
+<h3>4.3 IAP 内购设计（参考 Magic Sort!）</h3>
+
+<div class="card">
+  <p>Magic Sort! 内购收入 2113 万美元，其中美国市场占 80%。核心付费设计：</p>
+  <table>
+    <tr><th>商品</th><th>价格</th><th>收入占比</th><th>销量占比</th><th>逻辑</th></tr>
+    <tr>
+      <td>1000 金币</td>
+      <td>$1.99</td>
+      <td><strong>~25%</strong></td>
+      <td><strong>>40%</strong></td>
+      <td>死局复活需 900 金币 = 刚好 1 包</td>
+    </tr>
+    <tr>
+      <td>道具包（2000金币+5道具）</td>
+      <td>$4.99</td>
+      <td>第二高</td>
+      <td>第二高</td>
+      <td>性价比驱动</td>
+    </tr>
+    <tr>
+      <td>道具包（大）</td>
+      <td>$0.99~$19.99</td>
+      <td>补充</td>
+      <td>补充</td>
+      <td>覆盖不同付费层级</td>
+    </tr>
+  </table>
+  <p style="margin-top:12px;"><strong>核心付费驱动：</strong>"连胜机制"——连续通关倍数奖励累加，死局时花 900 金币保连胜，形成强烈付费动机。</p>
+</div>
+
+<h3>4.4 广告频次参考</h3>
+
+<div class="card">
+  <table>
+    <tr><th>指标</th><th>建议值</th><th>说明</th></tr>
+    <tr><td>新手期（前5关）广告</td><td>0 次</td><td>纯体验，不伤 D1 留存</td></tr>
+    <tr><td>单关激励视频上限</td><td>2~3 次</td><td>+1瓶 / 提示 / 撤销</td></tr>
+    <tr><td>插屏触发</td><td>每 3 关 1 次</td><td>仅在关卡间</td></tr>
+    <tr><td>单日游戏时长目标</td><td>≥ 5 分钟</td><td>微信广告金门槛</td></tr>
+    <tr><td>激励视频 eCPM</td><td>30~80 元</td><td>国内微信</td></tr>
+  </table>
+</div>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5"><span class="num">5</span> 案例拆解</h2>
+
+<h3>5.1 开个大脑门 —— 纯 IAA 微信小游戏</h3>
+<div class="card">
+  <table>
+    <tr><th>维度</th><th>设计</th></tr>
+    <tr><td>题材包装</td><td>液体 = 不同口味<strong>奶茶</strong>，排序完成 = 做完奶茶</td></tr>
+    <tr><td>操作</td><td>两步点击（选瓶 → 倒瓶），0 学习成本</td></tr>
+    <tr><td>难度曲线</td><td>100+ 关，颜色数 2→4+，层层递进</td></tr>
+    <tr><td>特殊机制</td><td>特殊液体、渐变色（后期引入）</td></tr>
+    <tr><td>变现</td><td>无强制付费，看广告获取提示/道具</td></tr>
+    <tr><td>反馈设计</td><td>液体流动动画 + 倒水音效 = 解压爽感</td></tr>
+  </table>
+</div>
+
+<h3>5.2 Magic Sort! —— 纯 IAP 海外爆款（$2100万）</h3>
+<div class="card">
+  <table>
+    <tr><th>维度</th><th>设计</th></tr>
+    <tr><td>市场</td><td>美国为主（80% 收入）</td></tr>
+    <tr><td>关卡量</td><td>每次版本 +100 关，持续更新</td></tr>
+    <tr><td>核心付费钩子</td><td><strong>连胜倍数奖励</strong> → 死局花 900 金币保连胜</td></tr>
+    <tr><td>进阶机制</td><td>未知颜色（需移开上层才显示）、遮蔽瓶子（完成指定瓶才解锁）</td></tr>
+    <tr><td>沉浸细节</td><td>流动效果 + 满瓶震动 + 木塞封口动画</td></tr>
+    <tr><td>留存系统</td><td>等级奖励、排行榜、日历打卡、成就收集</td></tr>
+    <tr><td>关卡衔接</td><td>无缝衔接，通关即进下一关</td></tr>
+  </table>
+</div>
+
+<h3>5.3 倒了个水 —— 红包提现型（下沉市场）</h3>
+<div class="card">
+  <table>
+    <tr><th>维度</th><th>设计</th></tr>
+    <tr><td>核心钩子</td><td><strong>通关送红包</strong>，看广告开红包，提现至微信</td></tr>
+    <tr><td>关卡量</td><td>200 关</td></tr>
+    <tr><td>难度</td><td>单色 → 渐变色液体逐步增加</td></tr>
+    <tr><td>道具</td><td>撤销（100金币）、洗牌（看广告）</td></tr>
+    <tr><td>提现门槛</td><td>0.3 元起提（极低门槛拉留存）</td></tr>
+    <tr><td>广告模式</td><td>"自愿观看换奖励"为主，无强制弹窗</td></tr>
+  </table>
+</div>
+
+<div class="tip">
+  <strong>三个案例的三种路径：</strong>
+  <ul style="margin-bottom:0;">
+    <li><strong>纯 IAA</strong>（开个大脑门）→ 适合微信生态，门槛最低</li>
+    <li><strong>纯 IAP</strong>（Magic Sort!）→ 适合海外 App，收入天花板高</li>
+    <li><strong>红包提现</strong>（倒了个水）→ 适合下沉市场，裂变快但 ARPU 低</li>
+  </ul>
+  作为独立开发者做微信小游戏，<strong>建议走纯 IAA 路线</strong>，参考开个大脑门模型。
+</div>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6"><span class="num">6</span> 逆向拆解 & 关卡数据采集</h2>
+
+<h3>6.1 体验记录表（玩 30~50 关）</h3>
+<div class="card">
+  <table>
+    <tr><th>关卡号</th><th>颜色数</th><th>瓶子数</th><th>空瓶数</th><th>通关用时</th><th>是否死局</th><th>看广告次数</th><th>广告类型</th></tr>
+    <tr><td>1</td><td>3</td><td>5</td><td>2</td><td>15s</td><td>否</td><td>0</td><td>-</td></tr>
+    <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+    <tr><td>4</td><td>5</td><td>7</td><td><strong>0</strong></td><td>120s</td><td><strong>是</strong></td><td><strong>2</strong></td><td>+1瓶/提示</td></tr>
+  </table>
+</div>
+
+<h3>6.2 拆解重点</h3>
+<div class="card">
+  <ol>
+    <li><strong>颜色数 vs 关卡号</strong>曲线 → 找到颜色增长节奏</li>
+    <li><strong>空瓶数 vs 关卡号</strong>曲线 → 找到难度波动规律（波谷 = 卡点）</li>
+    <li><strong>死局触发率</strong> → 统计多少比例的关会触发死局（建议 20~30%）</li>
+    <li><strong>广告触发条件</strong> → 死局后弹什么？失败几次后弹提示？</li>
+    <li><strong>道具价格</strong> → 金币定价体系（撤销/提示/加瓶各多少币）</li>
+  </ol>
+</div>
+
+<h3>6.3 如果你会编程——自己跑求解器</h3>
+<div class="card">
+  <p>水排序的最少步数求解可以用 <strong>BFS</strong> 实现，代码不长。你可以：</p>
+  <ol>
+    <li>录制竞品关卡初始局面（截图 → 人工标注每瓶颜色层）</li>
+    <li>用你的 BFS 求解器算出<strong>理论最少步数</strong></li>
+    <li>对比你通关实际用了多少步 → 衡量关卡实际难度</li>
+    <li>批量生成关卡，用求解器筛选出目标步数范围的关卡</li>
+  </ol>
+  <p><code>状态 = 所有瓶子的颜色序列 | 操作 = 合法倒水 | 目标 = 所有瓶单色</code></p>
+</div>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7"><span class="num">7</span> 数值落地：关卡表模板</h2>
+
+<div class="card">
+  <h3>关卡配置表（CSV / Excel）</h3>
+  <table>
+    <tr>
+      <th>level_id</th>
+      <th>colors</th>
+      <th>bottles</th>
+      <th>empty</th>
+      <th>scramble</th>
+      <th>min_steps</th>
+      <th>target_pass_rate</th>
+      <th>ad_trigger</th>
+      <th>note</th>
+    </tr>
+    <tr><td>1</td><td>3</td><td>5</td><td>2</td><td>20</td><td>5</td><td>98%</td><td>none</td><td>教学关</td></tr>
+    <tr><td>2</td><td>3</td><td>5</td><td>2</td><td>24</td><td>6</td><td>95%</td><td>reward_optional</td><td>-</td></tr>
+    <tr><td>3</td><td>4</td><td>6</td><td>2</td><td>28</td><td>7</td><td>90%</td><td>reward_optional</td><td>-</td></tr>
+    <tr><td><strong>4</strong></td><td><strong>5</strong></td><td><strong>7</strong></td><td><strong>1</strong></td><td><strong>36</strong></td><td><strong>10</strong></td><td><strong>40%</strong></td><td><strong>add_bottle/hint</strong></td><td><strong>卡点关</strong></td></tr>
+    <tr><td>5</td><td>4</td><td>6</td><td>2</td><td>26</td><td>7</td><td>88%</td><td>reward_optional</td><td>喘息关</td></tr>
+    <tr><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td><td>...</td></tr>
+    <tr><td>10</td><td>5</td><td>7</td><td>1</td><td>38</td><td>10</td><td>45%</td><td>add_bottle</td><td>卡点</td></tr>
+    <tr><td>20</td><td>6</td><td>8</td><td>1</td><td>42</td><td>9</td><td>50%</td><td>hint/shuffle</td><td>-</td></tr>
+    <tr><td>50</td><td>8</td><td>10</td><td>1</td><td>48</td><td>11</td><td>35%</td><td>add_bottle</td><td>中难</td></tr>
+    <tr><td>80</td><td>10</td><td>12</td><td>1</td><td>44</td><td>12</td><td>30%</td><td>add_bottle</td><td>困难</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>金币定价参考</h3>
+  <table>
+    <tr><th>道具</th><th>金币价格</th><th>也可通过</th></tr>
+    <tr><td>撤销一步</td><td>100</td><td>-</td></tr>
+    <tr><td>提示（高亮下一步）</td><td>100~200</td><td>看 1 次激励视频</td></tr>
+    <tr><td>洗牌（重新打乱）</td><td>300</td><td>看 1 次激励视频</td></tr>
+    <tr><td>+1 瓶子（死局救援）</td><td><strong>900</strong></td><td>看 1 次激励视频</td></tr>
+    <tr><td>通关奖励</td><td>20 金币/关</td><td>连胜倍数累加</td></tr>
+  </table>
+</div>
+
+<div class="tip" style="margin-top:24px;">
+  <strong>给独立开发者的行动建议：</strong>
+  <ol style="margin-bottom:0;">
+    <li>先实现<strong>水排序核心逻辑 + BFS 求解器</strong>（验证可解性）</li>
+    <li>用第 2 节的参数表配置<strong>关卡生成器</strong>，程序化批量生成</li>
+    <li>重点打磨<strong>死局检测 + 救援弹窗</strong>（这是变现命脉）</li>
+    <li>题材包装建议做<strong>奶茶/饮料/鸡尾酒</strong>主题（视觉吸引力强，符合开个大脑门验证过的方向）</li>
+    <li>先做 50 关软启动，看 D1 留存和死局触发率，再迭代参数</li>
+  </ol>
+</div>
+
+<!-- 速查表 -->
+<h2><span class="num">★</span> 一页速查表</h2>
+
+<div class="card">
+  <table>
+    <tr><th>参数</th><th>新手期(0-9关)</th><th>中期(20-59关)</th><th>后期(80+关)</th></tr>
+    <tr><td>颜色数</td><td>3~5</td><td>5~9</td><td>9~12</td></tr>
+    <tr><td>空瓶数</td><td>0~1</td><td>0~2</td><td>0~1</td></tr>
+    <tr><td>最少解步数</td><td>3~12</td><td>8~12</td><td>10~14</td></tr>
+    <tr><td>通关率目标</td><td>90%+</td><td>50~70%</td><td>30~40%</td></tr>
+    <tr><td>广告频次</td><td>0</td><td>1~2次/关</td><td>2~3次/关</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>核心指标</th><th>目标值</th></tr>
+    <tr><td>D1 次留</td><td>≥ 30%（水排序品类通常高于均值）</td></tr>
+    <tr><td>死局触发率</td><td>20~30%（死局 = 广告机会）</td></tr>
+    <tr><td>单局激励视频</td><td>2~3 次</td></tr>
+    <tr><td>+1瓶救援定价</td><td>900 金币 / 1 次激励视频</td></tr>
+    <tr><td>单日游戏时长</td><td>≥ 5 分钟（微信广告金门槛）</td></tr>
+    <tr><td>关卡更新节奏</td><td>每次版本 +100 关</td></tr>
+  </table>
+</div>
+
+<div class="footer-note">
+  本手册基于行业公开资料、产品案例分析、算法文档整理。数值为参考范围，需根据 A/B 测试调整。<br>
+  品类：水排序 Water Sort | 更新：2026-07-13
+</div>
+
+</div>
+</body>
+</html>

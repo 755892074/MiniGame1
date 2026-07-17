@@ -5,9 +5,12 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: Assets/Scenes/MainMenuPet.unity
-    guid: cd30fe29df479ca49bc47b9c7eff81d2
+  - enabled: 1
+    path: Assets/Scenes/BootScene.unity
+    guid: fe2f9edada2421040a74d6c8a4bb37bb
+  - enabled: 1
+    path: Assets/Scenes/MenuScene.unity
+    guid: 06b10b253b3057d4997fecda4678f2d7
   - enabled: 1
     path: Assets/Scenes/PetGameScene.unity
     guid: 05cb593704b7edf4f91a20883e7a4af7

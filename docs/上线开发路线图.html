@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>铲屎官疯了 — 上线开发路线图</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface-2: #1c2330;
+    --border: #30363d; --text: #e6edf3; --dim: #8b949e;
+    --red: #f85149; --orange: #f0883e; --yellow: #d29922;
+    --green: #3fb950; --blue: #58a6ff; --purple: #bc8cff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    line-height:1.7; padding:0;
+  }
+  .hero {
+    background:linear-gradient(135deg,#1a1f2e,#0d1117 60%,#1a1520);
+    border-bottom:1px solid var(--border); padding:40px 40px 36px;
+  }
+  .hero h1 {
+    font-size:26px; margin-bottom:6px;
+    background:linear-gradient(90deg,var(--blue),var(--green));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .hero p { color:var(--dim); font-size:14px; }
+  .container { max-width:920px; margin:0 auto; padding:28px 24px 56px; }
+  h2 {
+    font-size:20px; margin:36px 0 14px; padding-bottom:8px;
+    border-bottom:2px solid var(--border); display:flex; align-items:center; gap:8px;
+  }
+  h2 .n {
+    background:var(--blue); color:var(--bg); font-size:13px;
+    width:26px; height:26px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  h3 { font-size:16px; margin:20px 0 10px; color:var(--blue); }
+  p { margin-bottom:10px; }
+  ul, ol { margin:6px 0 14px 20px; }
+  li { margin-bottom:5px; }
+  code {
+    background:var(--surface-2); color:var(--orange);
+    padding:2px 6px; border-radius:4px; font-size:13px;
+    font-family:"JetBrains Mono",monospace;
+  }
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:18px 22px; margin:14px 0;
+  }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+  th { background:var(--surface-2); color:var(--blue); padding:8px 10px; text-align:left; border:1px solid var(--border); }
+  td { padding:8px 10px; border:1px solid var(--border); }
+  tr:nth-child(even) td { background:rgba(255,255,255,0.02); }
+  .p0 { color:var(--red); font-weight:700; }
+  .p1 { color:var(--orange); font-weight:700; }
+  .p2 { color:var(--yellow); font-weight:700; }
+  .done { color:var(--green); }
+  .miss { color:var(--red); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0; }
+  .mini {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:14px;
+  }
+  .mini h4 { color:var(--blue); margin-bottom:6px; font-size:14px; }
+  .tag {
+    display:inline-block; padding:1px 8px; border-radius:10px;
+    font-size:11px; font-weight:600;
+  }
+  .tag-p0 { background:rgba(248,81,73,0.15); color:var(--red); border:1px solid rgba(248,81,73,0.3); }
+  .tag-p1 { background:rgba(240,136,62,0.15); color:var(--orange); border:1px solid rgba(240,136,62,0.3); }
+  .tag-p2 { background:rgba(210,153,34,0.15); color:var(--yellow); border:1px solid rgba(210,153,34,0.3); }
+  .tag-ok { background:rgba(63,185,80,0.15); color:var(--green); border:1px solid rgba(63,185,80,0.3); }
+  .phase {
+    background:linear-gradient(135deg,#1a2030,#161b22);
+    border-left:4px solid var(--blue); border-radius:0 10px 10px 0;
+    padding:16px 20px; margin:16px 0;
+  }
+  .phase h3 { margin-top:0; }
+  .warn {
+    background:rgba(248,81,73,0.08); border-left:3px solid var(--red);
+    border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0;
+  }
+  .tip {
+    background:rgba(63,185,80,0.08); border-left:3px solid var(--green);
+    border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0;
+  }
+  .footer { text-align:center; color:var(--dim); font-size:12px; margin-top:40px; padding-top:20px; border-top:1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>铲屎官疯了 — 上线开发路线图</h1>
+  <p>目标：抖音小游戏 IAA 纯广告变现 · 软著申请版本 | 2026-07-13</p>
+</div>
+
+<div class="container">
+
+<!-- 现状总览 -->
+<h2>当前项目状态</h2>
+
+<div class="card">
+<table>
+  <tr><th>模块</th><th>状态</th><th>说明</th></tr>
+  <tr><td>核心玩法（倒水+宠物队列+计分）</td><td class="done">✓ 完成</td><td>FSM驱动、撤销、死局检测、50关数据</td></tr>
+  <tr><td>关卡生成管线</td><td class="done">✓ 完成</td><td>BatchLevelGenerator + CSV配置 + BFS验证</td></tr>
+  <tr><td>UI 系统</td><td class="done">✓ 完成</td><td>HUD、关卡选择、动画、结果弹窗</td></tr>
+  <tr><td>美术资源</td><td class="done">✓ 部分完成</td><td>宠物/碗/食物图标有，但无 App Icon</td></tr>
+  <tr><td>平台 SDK</td><td class="miss">✗ 微信</td><td>当前是微信小游戏配置，需接抖音 SDK</td></tr>
+  <tr><td>广告 SDK</td><td class="miss">✗ 缺失</td><td>仅有 TODO 注释，无任何 SDK</td></tr>
+  <tr><td>合规系统</td><td class="miss">✗ 缺失</td><td>隐私政策、防沉迷、自审自查全部没有</td></tr>
+  <tr><td>音效系统</td><td class="miss">✗ 缺失</td><td>零音频文件，审核会被拒（P1规则）</td></tr>
+  <tr><td>存档系统</td><td class="miss">✗ 未接入</td><td>GameManager有PlayerPrefs但PetGameManager没用</td></tr>
+  <tr><td>分享/录屏</td><td class="miss">✗ 缺失</td><td>抖音平台必需功能</td></tr>
+</table>
+</div>
+
+<!-- 软著申请要求 -->
+<h2>软著申请需要什么</h2>
+
+<div class="card">
+<p>软著（计算机软件著作权登记证书）是抖音小游戏<strong>上架的前置硬性条件</strong>，没有软著连审核都进不去。</p>
+
+<h3>软著申请材料</h3>
+<ul>
+  <li><strong>源代码</strong>：前30页 + 后30页（共60页），每页不少于50行</li>
+  <li><strong>软件说明书</strong>：设计文档或用户手册（10~15页）</li>
+  <li><strong>申请表</strong>：在中国版权保护中心官网填写</li>
+  <li><strong>身份证明</strong>：个人=身份证复印件；企业=营业执照</li>
+</ul>
+
+<h3>关键要求</h3>
+<div class="warn">
+  <strong>软著上的软件名称必须与抖音小游戏名称完全一致！</strong><br>
+  建议名称：<code>铲屎官疯了</code>（全称：<code>铲屎官疯了休闲益智小游戏软件 V1.0</code>）<br>
+  软著著作权人名称必须与抖音开发者主体名称完全一致。
+</div>
+
+<h3>时间和费用</h3>
+<table>
+  <tr><th>渠道</th><th>费用</th><th>周期</th><th>说明</th></tr>
+  <tr><td>中国版权保护中心（官方）</td><td>¥0~300</td><td>30~60个工作日</td><td>最便宜但最慢</td></tr>
+  <tr><td>火山引擎软著特惠</td><td>¥200~500</td><td>10~20个工作日</td><td>抖音官方推荐，更快</td></tr>
+  <tr><td>第三方代办</td><td>¥500~1500</td><td>7~15个工作日</td><td>最快但最贵</td></tr>
+</table>
+</div>
+
+<div class="tip">
+  <strong>建议：</strong>软著申请和开发<strong>并行进行</strong>。用当前代码直接整理源代码文档提交申请，等审核期间继续开发。
+</div>
+
+<!-- 开发路线图 -->
+<h2><span class="n">1</span> 阶段一：软著申请版（当前 → 2周）</h2>
+
+<div class="phase">
+<h3>目标：整理出可提交软著申请的代码 + 文档</h3>
+<p style="color:var(--dim);">这个阶段不需要游戏完美，只需要"能跑、有完整功能、代码规范"。</p>
+</div>
+
+<div class="card">
+<h3>需要做的</h3>
+<table>
+  <tr><th>任务</th><th>优先级</th><th>工作量</th><th>说明</th></tr>
+  <tr><td><strong>整理源代码文档</strong></td><td><span class="tag tag-p0">P0</span></td><td>1天</td><td>合并所有.cs为连续文档，前30页+后30页，每页50行</td></tr>
+  <tr><td><strong>写软件说明书</strong></td><td><span class="tag tag-p0">P0</span></td><td>1~2天</td><td>10~15页，含功能说明、界面截图、操作流程</td></tr>
+  <tr><td><strong>确定游戏名称</strong></td><td><span class="tag tag-p0">P0</span></td><td>0.5天</td><td>名称一旦提交软著不可更改，需同时注册抖音小游戏</td></tr>
+  <tr><td><strong>注册抖音开放平台</strong></td><td><span class="tag tag-p0">P0</span></td><td>1天</td><td>个人开发者实名认证，创建小游戏，填写基本信息</td></tr>
+  <tr><td><strong>提交软著申请</strong></td><td><span class="tag tag-p0">P0</span></td><td>1天</td><td>走火山引擎或代办，等结果期间继续开发</td></tr>
+</table>
+</div>
+
+<h2><span class="n">2</span> 阶段二：合规版（2~4周）</h2>
+
+<div class="phase">
+<h3>目标：满足抖音审核的硬性合规要求</h3>
+<p style="color:var(--dim);">这些不做会被审核直接打回。</p>
+</div>
+
+<div class="card">
+<table>
+  <tr><th>任务</th><th>优先级</th><th>说明</th></tr>
+  <tr>
+    <td><strong>隐私政策弹窗</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>首次进入弹出隐私协议，用户同意后才进游戏。<strong>这是审核第一道关卡</strong></td>
+  </tr>
+  <tr>
+    <td><strong>接入抖音 SDK</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>当前是微信小游戏SDK，需接入<strong>StarkSDK（抖音小游戏SDK）</strong>。团结引擎原生支持</td>
+  </tr>
+  <tr>
+    <td><strong>音效系统</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>至少：倒水声、完成碗声、喂宠物声、通关声、按钮声。<strong>审核P1规则明确要求音效正常</strong></td>
+  </tr>
+  <tr>
+    <td><strong>防沉迷系统</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>抖音SDK自带组件，需调用接入。未成年人限时+实名认证</td>
+  </tr>
+  <tr>
+    <td><strong>分享功能</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>分享到抖音聊天/动态，审核会检查是否强制分享（禁止强制）</td>
+  </tr>
+  <tr>
+    <td><strong>录屏功能</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>抖音特色功能，录屏按钮需正常工作，不能打断游戏</td>
+  </tr>
+  <tr>
+    <td><strong>自审自查报告</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>按抖音模板填写，声明无违规内容</td>
+  </tr>
+</table>
+</div>
+
+<h2><span class="n">3</span> 阶段三：商业化版（4~6周）</h2>
+
+<div class="phase">
+<h3>目标：接入广告变现，开始赚钱</h3>
+</div>
+
+<div class="card">
+<table>
+  <tr><th>任务</th><th>优先级</th><th>说明</th></tr>
+  <tr>
+    <td><strong>接入穿山甲（CSJ）广告 SDK</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>抖音官方广告聚合，激励视频+插屏。需先在变现中心申请权限</td>
+  </tr>
+  <tr>
+    <td><strong>激励视频点位接入</strong></td>
+    <td><span class="tag tag-p0">P0</span></td>
+    <td>死局+1碗（核心）、提示、撤销、翻倍奖励</td>
+  </tr>
+  <tr>
+    <td><strong>插屏广告</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>关卡间过渡，注意抖音禁止"惯性误触"设计</td>
+  </tr>
+  <tr>
+    <td><strong>关卡进度存档</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>接入PlayerPrefs或抖音云存储，记录已通关数和星级</td>
+  </tr>
+  <tr>
+    <td><strong>App Icon + 闪屏</strong></td>
+    <td><span class="tag tag-p1">P1</span></td>
+    <td>设计游戏图标、Loading界面</td>
+  </tr>
+</table>
+</div>
+
+<div class="warn">
+  <strong>抖音广告审核红线（P0违规会直接下架）：</strong>
+  <ul style="margin-bottom:0;">
+    <li>禁止"惯性点击"导致误触广告</li>
+    <li>禁止隐藏/弱化/延迟广告关闭按钮</li>
+    <li>禁止默认勾选观看视频广告</li>
+    <li>禁止把看广告作为关卡解锁的<strong>唯一</strong>前置条件（可以给奖励但不能卡死）</li>
+    <li>Banner/插屏不能遮挡游戏操作热区</li>
+  </ul>
+</div>
+
+<h2><span class="n">4</span> 阶段四：提审上线（6~8周）</h2>
+
+<div class="card">
+<ol>
+  <li><strong>ICP备案</strong>：基础信息+版本审核通过后，平台自动申报，7~20个工作日</li>
+  <li><strong>小游戏备案</strong>：需软著通过 + ICP备案 + 版本审核通过</li>
+  <li><strong>版本提审</strong>：上传正式版本，等审核（3~5个工作日）</li>
+  <li><strong>正式发布</strong>：审核通过后上线</li>
+</ol>
+</div>
+
+<!-- 时间线总览 -->
+<h2>时间线总览</h2>
+
+<div class="card">
+<table>
+  <tr><th>阶段</th><th>时间</th><th>关键产出</th></tr>
+  <tr><td><strong>阶段一</strong></td><td>第1~2周</td><td>软著申请已提交、游戏名称确定、抖音账号注册</td></tr>
+  <tr><td><strong>阶段二</strong></td><td>第2~4周（与软著审核并行）</td><td>合规版可玩版本（隐私+音效+防沉迷+抖音SDK）</td></tr>
+  <tr><td><strong>阶段三</strong></td><td>第4~6周</td><td>商业化版（广告接入+存档+Icon）</td></tr>
+  <tr><td><strong>阶段四</strong></td><td>第6~8周</td><td>提审上线（软著到手+ICP备案+版本审核）</td></tr>
+</table>
+</div>
+
+<div class="tip">
+  <strong>立即行动清单（今天就能做）：</strong>
+  <ol style="margin-bottom:0;">
+    <li><strong>确定游戏名称</strong>：建议 <code>铲屎官疯了</code>（好记、有趣、符合品类）</li>
+    <li><strong>注册抖音开放平台</strong>：个人开发者实名认证</li>
+    <li><strong>整理源代码文档</strong>：当前代码量足够，合并整理为60页即可</li>
+    <li><strong>提交软著申请</strong>：走火山引擎特惠渠道，10~20天出证</li>
+  </ol>
+</div>
+
+<div class="footer">
+  铲屎官疯了 上线路线图 | 2026-07-13 | 基于抖音小游戏2025年最新审核规则
+</div>
+
+</div>
+</body>
+</html>
