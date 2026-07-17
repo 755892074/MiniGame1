@@ -1,3 +1,5 @@
+using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -5,7 +7,7 @@ using UnityEngine.UI;
 
 public class PetGameSceneSetup
 {
-    [MenuItem("Tools/铲屎官疯了/搭建游戏场景")]
+    [MenuItem("铲屎官疯了/搭建游戏场景")]
     static void SetupGameScene()
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -22,6 +24,29 @@ public class PetGameSceneSetup
 
         var ge = new GameObject("GameEntry"); ge.AddComponent<GameEntry>();
         var mgr = new GameObject("PetGameManager"); mgr.AddComponent<PetGameManager>();
+
+        // 动画管理器（橘猫 Idle/Walk/Eat）
+        var animMgr = new GameObject("AnimationManager").AddComponent<PetGame.AnimationManager>();
+        var catSet = new PetGame.AnimationManager.PetAnimationSet();
+        catSet.petName = "cat_orange";
+        string animRoot = "Assets/Art/PetGame/Animations/cat_orange";
+        if (AssetDatabase.IsValidFolder(animRoot))
+        {
+            foreach (var sub in AssetDatabase.GetSubFolders(animRoot))
+            {
+                string animName = Path.GetFileName(sub);
+                var clip = new PetGame.AnimationManager.AnimationClip();
+                clip.animName = animName;
+                clip.isLoop = !string.Equals(animName, "Eat", System.StringComparison.OrdinalIgnoreCase);
+                foreach (var f in Directory.GetFiles(sub, "*.png").OrderBy(x => x))
+                {
+                    var s = AssetDatabase.LoadAssetAtPath<Sprite>(f);
+                    if (s != null) clip.frames.Add(s);
+                }
+                catSet.animations.Add(clip);
+            }
+        }
+        animMgr.petAnimationSets.Add(catSet);
 
         // PetGameUI 自动创建 Canvas 和所有 UI
         var petUI = new GameObject("PetGameUI").AddComponent<PetGameUI>();

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using F8Framework.Core;
+using PetGame;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,6 +25,8 @@ public class PetGameUI : MonoBehaviour
     private List<GameObject> petGOs = new List<GameObject>();
     private List<GameObject> bowlGOs = new List<GameObject>();
     private Dictionary<int, GameObject> bowlIdToGO = new Dictionary<int, GameObject>();
+
+    private Dictionary<int, Vector2> bowlPositions = new Dictionary<int, Vector2>();
 
     void Start()
     {
@@ -202,7 +205,30 @@ public class PetGameUI : MonoBehaviour
             var label = FindC<Text>(go, "QueueLabel");
             if (label) label.text = PetCN(pet);
             var face = FindC<Image>(go, "PetFace");
-            if (face) { var s = Resources.Load<Sprite>($"PetFaces/{pet.ToString().ToLower()}/neutral"); if (s) face.sprite = s; }
+            var animPlayer = FindC<AnimationPlayer>(go, "PetFace");
+            if (pet == PetType.Cat)
+            {
+                // 如果预制体尚未生成 AnimationPlayer（需重跑 生成UI预制体(v2)），
+                // 运行时动态挂上去，这样不依赖预制体是否已重建。
+                if (animPlayer == null && face != null)
+                {
+                    animPlayer = face.gameObject.AddComponent<AnimationPlayer>();
+                    animPlayer.uiImage = face;
+                    animPlayer.petName = "cat_orange";
+                    animPlayer.autoPlay = false;
+                }
+                if (animPlayer)
+                {
+                    animPlayer.enabled = true;
+                    animPlayer.petName = "cat_orange";
+                    animPlayer.Play("Idle");
+                }
+            }
+            else
+            {
+                if (animPlayer) animPlayer.enabled = false;
+                if (face) { var s = Resources.Load<Sprite>($"PetFaces/{pet.ToString().ToLower()}/neutral"); if (s) face.sprite = s; }
+            }
             petGOs.Add(go);
         }
     }
@@ -210,27 +236,61 @@ public class PetGameUI : MonoBehaviour
     void BuildBowls()
     {
         if (bowlArea == null || bowlItemPf == null) return;
-        Clear(bowlArea); bowlGOs.Clear(); bowlIdToGO.Clear();
-        var bowls = gm.GetBowls();
+
         var visible = new List<Bowl>();
-        foreach (var b in bowls) if (!b.isCompleted) visible.Add(b);
+        foreach (var b in gm.GetBowls()) if (!b.isCompleted) visible.Add(b);
+
+        var visibleIds = new HashSet<int>();
+        foreach (var b in visible) visibleIds.Add(b.bowlId);
+
+        // 只移除已达成/消失的碗，保留其他碗的 GameObject 和位置
+        var idsToRemove = new List<int>();
+        foreach (var kv in bowlIdToGO)
+        {
+            if (!visibleIds.Contains(kv.Key))
+            {
+                if (kv.Value != null) Destroy(kv.Value);
+                idsToRemove.Add(kv.Key);
+            }
+        }
+        foreach (var id in idsToRemove)
+        {
+            bowlIdToGO.Remove(id);
+            bowlPositions.Remove(id);
+        }
+        bowlGOs.RemoveAll(go => go == null);
+
+        // 更新或创建碗
+        var newBowlGOs = new List<GameObject>();
         for (int i = 0; i < visible.Count; i++)
         {
             var bowl = visible[i];
-            var go = Instantiate(bowlItemPf, bowlArea);
-            go.GetComponent<RectTransform>().anchoredPosition = BowlPos(i, visible.Count);
-            int bid = bowl.bowlId;
-            bowlIdToGO[bid] = go;
+            GameObject go;
+            if (!bowlIdToGO.TryGetValue(bowl.bowlId, out go) || go == null)
+            {
+                go = Instantiate(bowlItemPf, bowlArea);
+                Vector2 pos;
+                if (!bowlPositions.TryGetValue(bowl.bowlId, out pos))
+                {
+                    pos = BowlPos(i, visible.Count);
+                    bowlPositions[bowl.bowlId] = pos;
+                }
+                go.GetComponent<RectTransform>().anchoredPosition = pos;
+                bowlIdToGO[bowl.bowlId] = go;
+            }
+
             var btn = go.GetComponent<Button>();
             if (btn)
             {
                 btn.onClick.RemoveAllListeners();
+                int bid = bowl.bowlId;
                 btn.onClick.AddListener(() => gm.OnBowlClicked(bid));
             }
-            go.transform.localScale = (bid == gm.selectedBowlId) ? Vector3.one * 1.3f : Vector3.one;
+            go.transform.localScale = (bowl.bowlId == gm.selectedBowlId) ? Vector3.one * 1.3f : Vector3.one;
             BuildFoodStack(go, bowl);
-            bowlGOs.Add(go);
+            newBowlGOs.Add(go);
         }
+        bowlGOs = newBowlGOs;
     }
 
     void BuildFoodStack(GameObject bowlGO, Bowl bowl)
@@ -375,6 +435,7 @@ public class PetGameUI : MonoBehaviour
 
         var bowlRT = bowlGO.GetComponent<RectTransform>();
         var petRT = petGO.GetComponent<RectTransform>();
+        var petAnim = FindC<AnimationPlayer>(petGO, "PetFace");
 
         // CRITICAL: 碗和宠物在不同父节点（bowlArea / petArea）
         // 必须通过世界坐标转换
@@ -393,6 +454,10 @@ public class PetGameUI : MonoBehaviour
         }
         if (bowlRT == null || petRT == null) { gm.fsm?.ChangeState<IdleState>(); yield break; }
         bowlRT.anchoredPosition3D = bowlTargetLocal;
+
+        // 碗到嘴边 -> 宠物吃动画
+        if (petAnim != null && petAnim.enabled)
+            petAnim.Play("Eat");
 
         // 2. 宠物头顶复制碗（含食物）
         var headBowl = Instantiate(bowlItemPf, petGO.transform);
@@ -422,6 +487,13 @@ public class PetGameUI : MonoBehaviour
         }
         if (bowlGO != null) Destroy(bowlGO);
         bowlIdToGO.Remove(bowlId);
+
+        // 吃完准备离场 -> 走路动画，2倍速
+        if (petAnim != null && petAnim.enabled)
+        {
+            petAnim.Play("Walk");
+            petAnim.frameRate *= 2f;
+        }
 
         yield return new WaitForSeconds(0.1f);
 

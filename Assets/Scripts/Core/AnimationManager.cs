@@ -87,7 +87,9 @@ namespace PetGame
         {
             var petSet = GetPetAnimationSet(petName);
             if (petSet == null) return null;
-            return petSet.animations.Find(a => a.animName == animName);
+            // 容忍大小写差异：搭建场景时按文件夹名存成 "idle"/"walk"/"eat"，
+            // 而运行时用的是 Play("Idle"/"Walk"/"Eat")，必须不区分大小写匹配。
+            return petSet.animations.Find(a => string.Equals(a.animName, animName, System.StringComparison.OrdinalIgnoreCase));
         }
 
         void OnDestroy()

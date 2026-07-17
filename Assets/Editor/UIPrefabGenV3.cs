@@ -165,13 +165,18 @@ public class UIPrefabGenV3
 
     static Button AddButton(Transform parent, string name, string label,
         Vector2 size, Vector2 pos, Color bgColor, int fontSize = 20,
-        Vector2? anchorMin = null, Vector2? anchorMax = null)
+        Vector2? anchorMin = null, Vector2? anchorMax = null,
+        Sprite bgSprite = null)
     {
         var go = NewGO(name, parent);
         var img = go.AddComponent<Image>();
         img.color = bgColor;
-        var sp = LoadSprite("UI/ui05.png");
-        if (sp) { img.sprite = sp; img.type = Image.Type.Sliced; }
+        if (bgSprite)
+        {
+            img.sprite = bgSprite;
+            img.type = Image.Type.Simple;
+            img.preserveAspect = true; // 防止按钮图被拉伸变形
+        }
         var btn = go.AddComponent<Button>();
         var colors = btn.colors;
         colors.highlightedColor = new Color(1.05f, 1.05f, 1.05f);
@@ -518,17 +523,20 @@ public class UIPrefabGenV3
         AddImageCenter(root.transform, "imgHeroArt", new Vector2(400, 300),
             new Vector2(0, 180), heroSprite, COL_WHITE);
 
-        // 按钮
+        // 按钮：用对应元素图，避免拉伸进度条（ui05）
+        var spStart = LoadSprite("UI/elements/item_00.png");
         AddButton(root.transform, "btnContinue", "继续游戏",
-            new Vector2(340, 70), new Vector2(0, -70), COL_MAIN_BTN, 26);
+            new Vector2(340, 70), new Vector2(0, -70), COL_MAIN_BTN, 26, null, null, spStart);
 
+        var spLevel = LoadSprite("UI/elements/item_01.png");
         AddButton(root.transform, "btnLevelSelect", "选择关卡",
-            new Vector2(160, 56), new Vector2(-90, -170), COL_SUB_BTN, 18);
+            new Vector2(160, 56), new Vector2(-90, -170), COL_SUB_BTN, 18, null, null, spLevel);
         AddButton(root.transform, "btnYard", "我的小院",
             new Vector2(160, 56), new Vector2(90, -170), COL_SUB_BTN, 18);
 
+        var spSettings = LoadSprite("UI/elements/item_02.png");
         AddButton(root.transform, "btnSettings", "设置",
-            new Vector2(160, 56), new Vector2(-90, -250), new Color(0.42f, 0.42f, 0.40f), 18);
+            new Vector2(160, 56), new Vector2(-90, -250), new Color(0.42f, 0.42f, 0.40f), 18, null, null, spSettings);
         AddButton(root.transform, "btnAchievement", "成就",
             new Vector2(160, 56), new Vector2(90, -250), new Color(0.42f, 0.42f, 0.40f), 18);
 

@@ -10,7 +10,7 @@ public class PetGamePrefabGenV2
     const string PREFAB_DIR = "Assets/Resources/PrefabsV2";
     const string ART = "Assets/Art/PetGame";
 
-    [MenuItem("Tools/铲屎官疯了/生成UI预制体(v2)")]
+    [MenuItem("铲屎官疯了/生成UI预制体(v2)")]
     static void GenerateAll()
     {
         if (!System.IO.Directory.Exists(PREFAB_DIR)) System.IO.Directory.CreateDirectory(PREFAB_DIR);
@@ -60,6 +60,12 @@ public class PetGamePrefabGenV2
         faceImg.sprite = LoadSprite("pets/cat/neutral.png");
         faceImg.preserveAspect = true;
 
+        // 动画播放器（橘猫有 Idle/Walk/Eat；其他宠物由运行时按类型决定是否启用）
+        var animPlayer = face.AddComponent<PetGame.AnimationPlayer>();
+        animPlayer.uiImage = faceImg;
+        animPlayer.petName = "cat_orange";
+        animPlayer.autoPlay = false;
+
         // 排队序号
         var label = new GameObject("QueueLabel", typeof(RectTransform), typeof(Text));
         label.transform.SetParent(root.transform, false);
@@ -89,7 +95,10 @@ public class PetGamePrefabGenV2
         var bgImg = bg.GetComponent<Image>();
         bgImg.sprite = LoadSprite("bowls/empty/bowl01.png");
         bgImg.preserveAspect = true;
-        bgImg.raycastTarget = false;
+        // 关键：背景图必须可被射线命中，否则只有食物图标(子物体)能点击，
+        // 点击碗的空白区域会落空。命中后事件会向上冒泡到根节点 Button，
+        // 食物和碗空白区域都触发同一个 OnBowlClicked。
+        bgImg.raycastTarget = true;
 
         // 食物栈容器
         var stack = new GameObject("FoodStack", typeof(RectTransform));
@@ -256,9 +265,9 @@ public class PetGamePrefabGenV2
         go.GetComponent<Image>().color = new Color(0.8f, 0.7f, 0.5f, 0.95f);
         go.AddComponent<LayoutElement>().preferredWidth = 50;
         go.AddComponent<LayoutElement>().preferredHeight = 40;
-        go.GetComponent<Image>().sprite = LoadSprite("UI/ui05.png");
+        // 不用 ui05 进度条图，避免拉伸；纯色底即可
         go.GetComponent<Image>().preserveAspect = false;
-        go.GetComponent<Image>().type = Image.Type.Sliced;
+        go.GetComponent<Image>().type = Image.Type.Simple;
 
         var txt = new GameObject("Text", typeof(RectTransform));
         txt.transform.SetParent(go.transform, false);
