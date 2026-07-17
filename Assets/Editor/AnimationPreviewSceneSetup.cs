@@ -157,6 +157,7 @@ namespace PetGameEditor
             // 挂载控制器
             PetGame.AnimationPreviewController controller = canvasGO.AddComponent<PetGame.AnimationPreviewController>();
             controller.petImage = petImage;
+            controller.petDropdown = petDropdownGO.GetComponent<Dropdown>();
             controller.animDropdown = animDropdownGO.GetComponent<Dropdown>();
             controller.playButton = playBtnGO.GetComponent<Button>();
             controller.pauseButton = pauseBtnGO.GetComponent<Button>();
@@ -225,13 +226,116 @@ namespace PetGameEditor
 
         static GameObject CreateDropdown(string name, Transform parent)
         {
+            // 创建Dropdown根节点
             GameObject go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = Color.white;
+            Image img = go.AddComponent<Image>();
+            img.color = new Color(1, 1, 1, 1);
             Dropdown dd = go.AddComponent<Dropdown>();
 
-            // 这里简化了Dropdown的创建，实际项目中需要完整的Dropdown模板
-            // 但为了简洁，这里只创建基本结构
+            // Label (显示当前选中项文本)
+            GameObject labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(go.transform, false);
+            Text labelTxt = labelGO.AddComponent<Text>();
+            labelTxt.text = "Select...";
+            labelTxt.fontSize = 24;
+            labelTxt.color = new Color(0.2f, 0.2f, 0.2f, 1);
+            labelTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            RectTransform labelRT = labelGO.GetComponent<RectTransform>();
+            labelRT.anchorMin = Vector2.zero;
+            labelRT.anchorMax = Vector2.one;
+            labelRT.offsetMin = new Vector2(10, 5);
+            labelRT.offsetMax = new Vector2(-25, -5);
+            dd.captionText = labelTxt;
+
+            // Arrow (下拉箭头图标)
+            GameObject arrowGO = new GameObject("Arrow", typeof(RectTransform));
+            arrowGO.transform.SetParent(go.transform, false);
+            Image arrowImg = arrowGO.AddComponent<Image>();
+            arrowImg.color = new Color(0.2f, 0.2f, 0.2f, 1);
+            RectTransform arrowRT = arrowGO.GetComponent<RectTransform>();
+            arrowRT.anchorMin = new Vector2(1, 0.5f);
+            arrowRT.anchorMax = new Vector2(1, 0.5f);
+            arrowRT.pivot = new Vector2(1, 0.5f);
+            arrowRT.anchoredPosition = new Vector2(-10, 0);
+            arrowRT.sizeDelta = new Vector2(20, 20);
+            dd.targetGraphic = arrowImg;
+
+            // Template (下拉列表模板) - 必须初始为inactive
+            GameObject templateGO = new GameObject("Template", typeof(RectTransform));
+            templateGO.transform.SetParent(go.transform, false);
+            Image templateImg = templateGO.AddComponent<Image>();
+            templateImg.color = new Color(1, 1, 1, 1);
+            RectTransform templateRT = templateGO.GetComponent<RectTransform>();
+            templateRT.anchorMin = new Vector2(0, 0);
+            templateRT.anchorMax = new Vector2(1, 0);
+            templateRT.pivot = new Vector2(0.5f, 1);
+            templateRT.anchoredPosition = new Vector2(0, 2);
+            templateRT.sizeDelta = new Vector2(0, 150);
+            dd.template = templateRT;
+
+            // Viewport
+            GameObject viewportGO = new GameObject("Viewport", typeof(RectTransform));
+            viewportGO.transform.SetParent(templateGO.transform, false);
+            RectTransform viewportRT = viewportGO.GetComponent<RectTransform>();
+            viewportRT.anchorMin = Vector2.zero;
+            viewportRT.anchorMax = Vector2.one;
+            viewportRT.sizeDelta = Vector2.zero;
+            viewportRT.anchoredPosition = Vector2.zero;
+            Image viewportImg = viewportGO.AddComponent<Image>();
+            viewportImg.color = new Color(1, 1, 1, 1);
+
+            // Content
+            GameObject contentGO = new GameObject("Content", typeof(RectTransform));
+            contentGO.transform.SetParent(viewportGO.transform, false);
+            RectTransform contentRT = contentGO.GetComponent<RectTransform>();
+            contentRT.anchorMin = Vector2.zero;
+            contentRT.anchorMax = Vector2.one;
+            contentRT.sizeDelta = new Vector2(0, 150);
+            contentRT.anchoredPosition = Vector2.zero;
+
+            // Item (列表项模板)
+            GameObject itemGO = new GameObject("Item", typeof(RectTransform));
+            itemGO.transform.SetParent(contentGO.transform, false);
+            RectTransform itemRT = itemGO.GetComponent<RectTransform>();
+            itemRT.anchorMin = new Vector2(0, 1);
+            itemRT.anchorMax = new Vector2(1, 1);
+            itemRT.pivot = new Vector2(0.5f, 1);
+            itemRT.anchoredPosition = new Vector2(0, 0);
+            itemRT.sizeDelta = new Vector2(0, 40);
+            Toggle itemToggle = itemGO.AddComponent<Toggle>();
+
+            // Item Background
+            GameObject itemBgGO = new GameObject("Item Background", typeof(RectTransform));
+            itemBgGO.transform.SetParent(itemGO.transform, false);
+            Image itemBgImg = itemBgGO.AddComponent<Image>();
+            itemBgImg.color = new Color(1, 1, 1, 1);
+            RectTransform itemBgRT = itemBgGO.GetComponent<RectTransform>();
+            itemBgRT.anchorMin = Vector2.zero;
+            itemBgRT.anchorMax = Vector2.one;
+            itemBgRT.sizeDelta = Vector2.zero;
+            itemBgRT.anchoredPosition = Vector2.zero;
+            itemToggle.targetGraphic = itemBgImg;
+
+            // Item Label
+            GameObject itemLabelGO = new GameObject("Item Label", typeof(RectTransform));
+            itemLabelGO.transform.SetParent(itemGO.transform, false);
+            Text itemLabelTxt = itemLabelGO.AddComponent<Text>();
+            itemLabelTxt.text = "Option";
+            itemLabelTxt.fontSize = 22;
+            itemLabelTxt.color = new Color(0.2f, 0.2f, 0.2f, 1);
+            itemLabelTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            RectTransform itemLabelRT = itemLabelGO.GetComponent<RectTransform>();
+            itemLabelRT.anchorMin = Vector2.zero;
+            itemLabelRT.anchorMax = Vector2.one;
+            itemLabelRT.offsetMin = new Vector2(10, 5);
+            itemLabelRT.offsetMax = new Vector2(-10, -5);
+
+            dd.itemText = itemLabelTxt;
+
+            // 关键：Template必须初始为inactive
+            templateGO.SetActive(false);
+
             return go;
         }
 
@@ -239,12 +343,79 @@ namespace PetGameEditor
         {
             GameObject go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.sizeDelta = Vector2.zero;
+            rt.anchoredPosition = Vector2.zero;
+
             Slider slider = go.AddComponent<Slider>();
             slider.minValue = 0.1f;
             slider.maxValue = 3f;
             slider.value = 1f;
+            slider.wholeNumbers = false;
 
-            // 简化了Slider的创建
+            // Background (轨道背景)
+            GameObject bgGO = new GameObject("Background", typeof(RectTransform));
+            bgGO.transform.SetParent(go.transform, false);
+            Image bgImg = bgGO.AddComponent<Image>();
+            bgImg.color = new Color(0.9f, 0.9f, 0.9f, 1);
+            RectTransform bgRT = bgGO.GetComponent<RectTransform>();
+            bgRT.anchorMin = Vector2.zero;
+            bgRT.anchorMax = Vector2.one;
+            bgRT.offsetMin = new Vector2(0, 6);
+            bgRT.offsetMax = new Vector2(0, -6);
+
+            // Fill Area (填充区域容器)
+            GameObject fillAreaGO = new GameObject("Fill Area", typeof(RectTransform));
+            fillAreaGO.transform.SetParent(go.transform, false);
+            RectTransform fillAreaRT = fillAreaGO.GetComponent<RectTransform>();
+            fillAreaRT.anchorMin = Vector2.zero;
+            fillAreaRT.anchorMax = Vector2.one;
+            fillAreaRT.offsetMin = new Vector2(5, 0);
+            fillAreaRT.offsetMax = new Vector2(-15, 0);
+
+            // Fill (填充条)
+            GameObject fillGO = new GameObject("Fill", typeof(RectTransform));
+            fillGO.transform.SetParent(fillAreaGO.transform, false);
+            Image fillImg = fillGO.AddComponent<Image>();
+            fillImg.color = new Color(0.3f, 0.7f, 0.9f, 1);
+            RectTransform fillRT = fillGO.GetComponent<RectTransform>();
+            fillRT.anchorMin = Vector2.zero;
+            fillRT.anchorMax = Vector2.one;
+            fillRT.sizeDelta = Vector2.zero;
+            fillRT.anchoredPosition = Vector2.zero;
+
+            slider.fillRect = fillRT;
+
+            // Handle Area (滑块区域容器)
+            GameObject handleAreaGO = new GameObject("Handle Area", typeof(RectTransform));
+            handleAreaGO.transform.SetParent(go.transform, false);
+            RectTransform handleAreaRT = handleAreaGO.GetComponent<RectTransform>();
+            handleAreaRT.anchorMin = Vector2.zero;
+            handleAreaRT.anchorMax = Vector2.one;
+            handleAreaRT.offsetMin = new Vector2(5, 0);
+            handleAreaRT.offsetMax = new Vector2(-15, 0);
+
+            // Handle (滑块)
+            GameObject handleGO = new GameObject("Handle", typeof(RectTransform));
+            handleGO.transform.SetParent(handleAreaGO.transform, false);
+            Image handleImg = handleGO.AddComponent<Image>();
+            handleImg.color = new Color(1, 1, 1, 1);
+            RectTransform handleRT = handleGO.GetComponent<RectTransform>();
+            handleRT.anchorMin = new Vector2(0.5f, 0.5f);
+            handleRT.anchorMax = new Vector2(0.5f, 0.5f);
+            handleRT.pivot = new Vector2(0.5f, 0.5f);
+            handleRT.sizeDelta = new Vector2(20, 20);
+            handleRT.anchoredPosition = Vector2.zero;
+
+            slider.handleRect = handleRT;
+            slider.targetGraphic = handleImg;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            // 添加CanvasGroup确保交互
+            go.AddComponent<CanvasGroup>();
+
             return go;
         }
 
@@ -252,9 +423,35 @@ namespace PetGameEditor
         {
             GameObject go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
+
+            // Background (Toggle的背景图)
+            GameObject bgGO = new GameObject("Background", typeof(RectTransform));
+            bgGO.transform.SetParent(go.transform, false);
+            Image bgImg = bgGO.AddComponent<Image>();
+            bgImg.color = new Color(0.9f, 0.9f, 0.9f, 1);
+            RectTransform bgRT = bgGO.GetComponent<RectTransform>();
+            bgRT.anchorMin = Vector2.zero;
+            bgRT.anchorMax = Vector2.one;
+            bgRT.sizeDelta = Vector2.zero;
+            bgRT.anchoredPosition = Vector2.zero;
+
             Toggle toggle = go.AddComponent<Toggle>();
             toggle.isOn = true;
+            toggle.targetGraphic = bgImg;
 
+            // Checkmark (选中标记)
+            GameObject checkGO = new GameObject("Checkmark", typeof(RectTransform));
+            checkGO.transform.SetParent(go.transform, false);
+            Image checkImg = checkGO.AddComponent<Image>();
+            checkImg.color = new Color(0.3f, 0.8f, 0.4f, 1);
+            RectTransform checkRT = checkGO.GetComponent<RectTransform>();
+            checkRT.anchorMin = new Vector2(0, 0.5f);
+            checkRT.anchorMax = new Vector2(0, 0.5f);
+            checkRT.pivot = new Vector2(0, 0.5f);
+            checkRT.anchoredPosition = new Vector2(5, 0);
+            checkRT.sizeDelta = new Vector2(24, 24);
+
+            // Label
             GameObject textGO = new GameObject("Label", typeof(RectTransform));
             textGO.transform.SetParent(go.transform, false);
             Text txt = textGO.AddComponent<Text>();
@@ -263,10 +460,10 @@ namespace PetGameEditor
             txt.color = new Color(0.2f, 0.2f, 0.2f, 1);
             txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             RectTransform textRT = textGO.GetComponent<RectTransform>();
-            textRT.anchorMin = Vector2.zero;
-            textRT.anchorMax = Vector2.one;
-            textRT.sizeDelta = new Vector2(0, 0);
-            textRT.anchoredPosition = new Vector2(30, 0);
+            textRT.anchorMin = new Vector2(0, 0);
+            textRT.anchorMax = new Vector2(1, 1);
+            textRT.offsetMin = new Vector2(34, 0);
+            textRT.offsetMax = new Vector2(0, 0);
 
             return go;
         }
