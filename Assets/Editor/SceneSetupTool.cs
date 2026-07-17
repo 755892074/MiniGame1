@@ -12,7 +12,7 @@ public class SceneSetupTool
 {
     const string SCENE_DIR = "Assets/Scenes";
 
-    [MenuItem("Tools/铲屎官疯了/创建新场景(Boot+Menu)")]
+    [MenuItem("铲屎官疯了/创建新场景(Boot+Menu)")]
     static void CreateScenes()
     {
         if (!System.IO.Directory.Exists(SCENE_DIR))
