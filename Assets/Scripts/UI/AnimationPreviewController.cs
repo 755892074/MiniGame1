@@ -61,7 +61,15 @@ namespace PetGame
             }
 
             SetupUI();
-            LoadPetAnimations();
+            // 编辑器已把真实精灵数据写入 petAnimations，仅在为空时回退到手动构建
+            if (petAnimations.Count == 0)
+            {
+                LoadPetAnimations();
+            }
+            else
+            {
+                OnPetChanged(0);
+            }
         }
 
         void SetupUI()
@@ -85,7 +93,7 @@ namespace PetGame
             pauseButton.onClick.AddListener(PauseAnimation);
             prevButton.onClick.AddListener(ShowPrevFrame);
             nextButton.onClick.AddListener(ShowNextFrame);
-            backButton.onClick.AddListener(() => SceneManager.LoadScene("MenuScene"));
+            backButton.onClick.AddListener(() => SceneManager.LoadScene(SceneManager.GetActiveScene().name));
 
             // 速度滑块
             speedSlider.onValueChanged.AddListener(OnSpeedChanged);
