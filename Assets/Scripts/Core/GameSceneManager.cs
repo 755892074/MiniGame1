@@ -3,15 +3,15 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// 场景切换管理器 — 管理三个场景的加载和跳转
-/// BootScene(0) → MenuScene(1) → GameScene(2)
+/// BootScene(0) → MenuScene(1) → PetGameScene(2)
 /// </summary>
 public static class GameSceneManager
 {
     public const string BOOT = "BootScene";
     public const string MENU = "MenuScene";
-    public const string GAME = "GameScene";
+    public const string GAME = "PetGameScene";
 
-    /// <summary>标记：GameScene 加载后要自动开始哪一关。-1=不自动开始，交给 GameManager</summary>
+    /// <summary>标记：PetGameScene 加载后要自动开始哪一关。-1=不自动开始，交给 GameManager</summary>
     public static int pendingLevelId = -1;
 
     /// <summary>加载启动场景</summary>
@@ -32,7 +32,7 @@ public static class GameSceneManager
     public static void LoadGame(int levelId = -1)
     {
         pendingLevelId = levelId;
-        Debug.Log($"[GameSceneManager] → GameScene (关卡={levelId})");
+        Debug.Log($"[GameSceneManager] → PetGameScene (关卡={levelId})");
         SceneManager.LoadScene(GAME);
     }
 
