@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// MenuScene 入口 — 管理主菜单场景中所有面板的加载和切换
@@ -13,6 +14,8 @@ public class MenuSceneController : MonoBehaviour
 
     void Start()
     {
+        EnsureCamera();
+        EnsureEventSystem();
         canvas = EnsureCanvas();
         ShowInitialPanel();
     }
@@ -30,6 +33,33 @@ public class MenuSceneController : MonoBehaviour
         sc.referenceResolution = new Vector2(750, 1334);
         sc.matchWidthOrHeight = 1f;
         return c;
+    }
+
+    // ========================================
+    // 必要的场景对象（运行时补齐，避免场景本身缺少这些导致 UI 不可见/不可交互）
+    // ========================================
+
+    /// <summary>确保场景有相机，消除 Game 视图的 "no cameras rendering" 提示</summary>
+    Camera EnsureCamera()
+    {
+        var existing = FindObjectOfType<Camera>();
+        if (existing != null) return existing;
+
+        var go = new GameObject("Main Camera", typeof(Camera));
+        go.tag = "MainCamera";
+        var cam = go.GetComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.Depth;
+        cam.cullingMask = 0;       // 不渲染世界对象；UI 由 overlay Canvas 渲染，相机仅用于消除 no-cameras 提示
+        cam.depth = -1;
+        return cam;
+    }
+
+    /// <summary>确保有 EventSystem + 输入模块，否则所有 UI 按钮点击无响应</summary>
+    void EnsureEventSystem()
+    {
+        if (FindObjectOfType<EventSystem>() != null) return;
+        var go = new GameObject("EventSystem", typeof(EventSystem));
+        go.AddComponent<StandaloneInputModule>();
     }
 
     void ShowInitialPanel()
