@@ -23,8 +23,8 @@ public class PetGamePrefabGenV2
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("<color=green>[PrefabGen] v2 预制体生成完成</color>");
-        EditorUtility.DisplayDialog("完成",
-            "已生成 4 个预制体，路径 Resources/PrefabsV2/\n\nPetItem (宠物，表情+序号)\nBowlItem (碗，含宠物主题背景)\nFoodIcon (食物图标)\nGameHUD (完整界面)\n\n双击 GameHUD.prefab 预览整体效果", "好的");
+        PetGameGenUtil.Success(
+            "已生成 4 个预制体，路径 Resources/PrefabsV2/\n\nPetItem (宠物，表情+序号)\nBowlItem (碗，含宠物主题背景)\nFoodIcon (食物图标)\nGameHUD (完整界面)\n\n双击 GameHUD.prefab 预览整体效果");
     }
 
     static Sprite LoadSprite(string subPath)
@@ -38,40 +38,45 @@ public class PetGamePrefabGenV2
     static void CreatePetItem()
     {
         var root = new GameObject("PetItem", typeof(RectTransform), typeof(LayoutElement));
-        root.GetComponent<LayoutElement>().preferredWidth = 100;
-        root.GetComponent<LayoutElement>().preferredHeight = 130;
+        root.GetComponent<LayoutElement>().preferredWidth = 140;
+        root.GetComponent<LayoutElement>().preferredHeight = 174;
 
         // 头顶的碗（最上层，初始隐藏）
         var topBowl = new GameObject("TopBowl", typeof(RectTransform), typeof(Image));
         topBowl.transform.SetParent(root.transform, false);
         var tbrt = topBowl.GetComponent<RectTransform>();
         tbrt.anchorMin = tbrt.anchorMax = new Vector2(0.5f, 1);
-        tbrt.sizeDelta = new Vector2(70, 50);
-        tbrt.anchoredPosition = new Vector2(0, -10);
+        tbrt.sizeDelta = new Vector2(92, 66);
+        tbrt.anchoredPosition = new Vector2(0, -16);
         topBowl.GetComponent<Image>().preserveAspect = true;
         topBowl.GetComponent<Image>().sprite = LoadSprite("bowls/full/bowl01.png");
         topBowl.SetActive(false);
 
-        // 宠物表情
+        // 宠物表情（放大，让排队 idle 动画更明显）
+        // 注意：PetItem 根节点没有 LayoutGroup，LayoutElement.preferredHeight 不会被消费，
+        // 必须直接设置 RectTransform.sizeDelta 才能真正改变显示尺寸。
         var face = new GameObject("PetFace", typeof(RectTransform), typeof(Image));
         face.transform.SetParent(root.transform, false);
-        face.AddComponent<LayoutElement>().preferredHeight = 80;
+        var frt = face.GetComponent<RectTransform>();
+        frt.anchorMin = frt.anchorMax = new Vector2(0.5f, 0.5f);
+        frt.anchoredPosition = new Vector2(0, 8);
+        frt.sizeDelta = new Vector2(128, 128);
         var faceImg = face.GetComponent<Image>();
         faceImg.sprite = LoadSprite("pets/cat/neutral.png");
         faceImg.preserveAspect = true;
 
-        // 动画播放器（橘猫有 Idle/Walk/Eat；其他宠物由运行时按类型决定是否启用）
-        var animPlayer = face.AddComponent<PetGame.AnimationPlayer>();
-        animPlayer.uiImage = faceImg;
-        animPlayer.petName = "cat_orange";
-        animPlayer.autoPlay = false;
+        // 注：AnimationPlayer 不在 prefab 预挂，改为运行时由 PetGameUI.BuildPets
+        // 对橘猫 AddComponent 兜底挂载，避免 prefab 序列化脚本引用失效(missing script)。
 
-        // 排队序号
+        // 排队序号（放在头像下方，避免与表情图重叠）
         var label = new GameObject("QueueLabel", typeof(RectTransform), typeof(Text));
         label.transform.SetParent(root.transform, false);
-        label.AddComponent<LayoutElement>().preferredHeight = 20;
+        var lrt = label.GetComponent<RectTransform>();
+        lrt.anchorMin = lrt.anchorMax = new Vector2(0.5f, 0f);
+        lrt.anchoredPosition = new Vector2(0, 16);
+        lrt.sizeDelta = new Vector2(130, 22);
         var t = label.GetComponent<Text>();
-        t.fontSize = 14; t.alignment = TextAnchor.MiddleCenter;
+        t.fontSize = 15; t.alignment = TextAnchor.MiddleCenter;
         t.color = new Color(0.3f, 0.2f, 0.1f);
         t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
@@ -146,14 +151,17 @@ public class PetGamePrefabGenV2
         rt.sizeDelta = new Vector2(750, 1334);
         root.GetComponent<Image>().color = new Color(0, 0, 0, 0); // 透明，露出场景背景图
 
-        // ===== 顶栏 =====
+        // ===== 顶栏（带 UI 纹理背景）=====
         var topBar = new GameObject("TopBar", typeof(RectTransform), typeof(Image));
         topBar.transform.SetParent(root.transform, false);
         var tbrt = topBar.GetComponent<RectTransform>();
         tbrt.anchorMin = new Vector2(0, 1); tbrt.anchorMax = new Vector2(1, 1);
         tbrt.pivot = new Vector2(0.5f, 1);
-        tbrt.anchoredPosition = Vector2.zero; tbrt.sizeDelta = new Vector2(0, 60);
-        topBar.GetComponent<Image>().color = new Color(0.94f, 0.92f, 0.88f, 0.95f);
+        tbrt.anchoredPosition = Vector2.zero; tbrt.sizeDelta = new Vector2(0, 64);
+        var topImg = topBar.GetComponent<Image>();
+        topImg.color = new Color(0.94f, 0.92f, 0.88f, 0.95f);
+        var topSprite = LoadSprite("UI/ui02.png");
+        if (topSprite) { topImg.sprite = topSprite; topImg.preserveAspect = false; }
         var tHL = topBar.AddComponent<HorizontalLayoutGroup>();
         tHL.childAlignment = TextAnchor.MiddleCenter; tHL.padding = new RectOffset(15, 15, 0, 0);
 
@@ -161,22 +169,22 @@ public class PetGamePrefabGenV2
         NewText(topBar.transform, "ScoreText", "得分:0/200", 18).color = new Color(0.8f, 0.4f, 0.2f);
         NewText(topBar.transform, "StepText", "步数:0", 14).color = new Color(0.5f, 0.5f, 0.5f);
 
-        // ===== 按钮行（用UI素材）=====
+        // ===== 按钮行（用UI素材图作背景）=====
         var btnRow = new GameObject("ButtonRow", typeof(RectTransform));
         btnRow.transform.SetParent(root.transform, false);
         var brrt = btnRow.GetComponent<RectTransform>();
         brrt.anchorMin = new Vector2(0, 1); brrt.anchorMax = new Vector2(1, 1);
         brrt.pivot = new Vector2(0.5f, 1);
-        brrt.anchoredPosition = new Vector2(0, -60); brrt.sizeDelta = new Vector2(0, 50);
+        brrt.anchoredPosition = new Vector2(0, -64); brrt.sizeDelta = new Vector2(0, 56);
         var bHL = btnRow.AddComponent<HorizontalLayoutGroup>();
-        bHL.childAlignment = TextAnchor.MiddleCenter; bHL.spacing = 10;
-        bHL.childForceExpandWidth = false; bHL.padding = new RectOffset(10, 10, 0, 0);
+        bHL.childAlignment = TextAnchor.MiddleCenter; bHL.spacing = 12;
+        bHL.childForceExpandWidth = false; bHL.padding = new RectOffset(12, 12, 0, 0);
 
-        // 撤回+加碗+打乱+重来：用小按钮 + 中文文字（默认字体不支持 emoji）
-        SmallIconButton(btnRow.transform, "btnUndo", "撤回");
-        SmallIconButton(btnRow.transform, "btnAddBowl", "加碗");
-        SmallIconButton(btnRow.transform, "btnShuffle", "打乱");
-        SmallIconButton(btnRow.transform, "btnRestart", "重来");
+        // 撤回+加碗+打乱+重来：用 elements/item 按钮图作背景 + 中文文字
+        SmallIconButton(btnRow.transform, "btnUndo", "撤回", LoadSprite("UI/elements/item_03.png"));
+        SmallIconButton(btnRow.transform, "btnAddBowl", "加碗", LoadSprite("UI/elements/item_04.png"));
+        SmallIconButton(btnRow.transform, "btnShuffle", "打乱", LoadSprite("UI/elements/item_05.png"));
+        SmallIconButton(btnRow.transform, "btnRestart", "重来", LoadSprite("UI/elements/item_06.png"));
 
         // ===== 宠物区域 =====
         var petArea = new GameObject("PetArea", typeof(RectTransform));
@@ -184,9 +192,9 @@ public class PetGamePrefabGenV2
         var part = petArea.GetComponent<RectTransform>();
         part.anchorMin = new Vector2(0, 1); part.anchorMax = new Vector2(1, 1);
         part.pivot = new Vector2(0.5f, 1);
-        part.anchoredPosition = new Vector2(0, -120); part.sizeDelta = new Vector2(0, 130);
+        part.anchoredPosition = new Vector2(0, -130); part.sizeDelta = new Vector2(0, 182);
         var pHL = petArea.AddComponent<HorizontalLayoutGroup>();
-        pHL.childAlignment = TextAnchor.MiddleCenter; pHL.spacing = 15;
+        pHL.childAlignment = TextAnchor.MiddleCenter; pHL.spacing = 18;
         pHL.childForceExpandWidth = false; pHL.padding = new RectOffset(20, 20, 5, 5);
 
         // ===== 碗网格 =====
@@ -257,17 +265,22 @@ public class PetGamePrefabGenV2
         return t;
     }
 
-    /// <summary>小图标按钮（带背景）</summary>
-    static GameObject SmallIconButton(Transform parent, string name, string label)
+    /// <summary>小图标按钮（用 UI 元素图作背景）</summary>
+    static GameObject SmallIconButton(Transform parent, string name, string label, Sprite bg = null)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(parent, false);
-        go.GetComponent<Image>().color = new Color(0.8f, 0.7f, 0.5f, 0.95f);
-        go.AddComponent<LayoutElement>().preferredWidth = 50;
-        go.AddComponent<LayoutElement>().preferredHeight = 40;
-        // 不用 ui05 进度条图，避免拉伸；纯色底即可
-        go.GetComponent<Image>().preserveAspect = false;
-        go.GetComponent<Image>().type = Image.Type.Simple;
+        var img = go.GetComponent<Image>();
+        if (bg != null)
+        {
+            img.sprite = bg; img.preserveAspect = true; img.type = Image.Type.Simple;
+        }
+        else
+        {
+            img.color = new Color(0.8f, 0.7f, 0.5f, 0.95f);
+        }
+        var le = go.AddComponent<LayoutElement>();
+        le.preferredWidth = 86; le.preferredHeight = 56;
 
         var txt = new GameObject("Text", typeof(RectTransform));
         txt.transform.SetParent(go.transform, false);

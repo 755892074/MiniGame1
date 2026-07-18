@@ -27,6 +27,9 @@ public class PetGameUI : MonoBehaviour
     private Dictionary<int, GameObject> bowlIdToGO = new Dictionary<int, GameObject>();
 
     private Dictionary<int, Vector2> bowlPositions = new Dictionary<int, Vector2>();
+    // 每个碗固定占一个格子 slot（按 bowlId 分配，绝不因其他碗完成/移除而变），用于稳定定位、避免重排
+    private Dictionary<int, int> bowlSlot = new Dictionary<int, int>();
+    private int nextSlot = 0;
 
     void Start()
     {
@@ -86,7 +89,14 @@ public class PetGameUI : MonoBehaviour
     }
 
     void RebuildAll() { BuildBowls(); BuildPets(); UpdateHUD(); }
-    void BuildLevel() { BuildPets(); BuildBowls(); UpdateHUD(); }
+    void BuildLevel() { ResetBowlLayout(); BuildPets(); BuildBowls(); UpdateHUD(); }
+    /// <summary>关卡开始/重开时清空碗位置缓存，重新按 bowlId 分配稳定格子</summary>
+    void ResetBowlLayout()
+    {
+        bowlPositions.Clear();
+        bowlSlot.Clear();
+        nextSlot = 0;
+    }
 
     #region 关卡选择
     GameObject levelSelectPanel;
@@ -180,15 +190,19 @@ public class PetGameUI : MonoBehaviour
     #endregion
 
     #region 碗布局
-    Vector2 BowlPos(int index, int total)
+    /// <summary>
+    /// 按固定 slot（格子序号）计算位置。随机偏移只依赖 slot，因此某只碗的位置
+    /// 完全由它自己的 bowlId 决定，其他碗完成/移除都不会让它移动 —— 实现"不重排"。
+    /// </summary>
+    Vector2 BowlPos(int slot)
     {
         var rt = bowlArea.GetComponent<RectTransform>();
         float w = rt.rect.width - 140, h = rt.rect.height - 140;
         int cols = Mathf.Clamp(Mathf.Max(1, (int)(w / 170f)), 1, 4);
-        int row = index / cols, col = index % cols;
+        int row = slot / cols, col = slot % cols;
         float x = -w / 2 + (w / cols) * (col + 0.5f);
         float y = h / 2 - 70 - row * 140;
-        var rng = new System.Random(index * 137 + total * 73);
+        var rng = new System.Random(slot * 137 + 7919);
         x += (float)(rng.NextDouble() - 0.5) * 30;
         y += (float)(rng.NextDouble() - 0.5) * 20;
         return new Vector2(x, y);
@@ -222,6 +236,8 @@ public class PetGameUI : MonoBehaviour
                     animPlayer.enabled = true;
                     animPlayer.petName = "cat_orange";
                     animPlayer.Play("Idle");
+                    animPlayer.frameRate = 8f; // 加快 idle，动作更明显
+                    StartCoroutine(CatBreath(go)); // 排队时轻微呼吸缩放，强化"在动"的观感
                 }
             }
             else
@@ -230,6 +246,20 @@ public class PetGameUI : MonoBehaviour
                 if (face) { var s = Resources.Load<Sprite>($"PetFaces/{pet.ToString().ToLower()}/neutral"); if (s) face.sprite = s; }
             }
             petGOs.Add(go);
+        }
+    }
+
+    /// <summary>排队橘猫的"呼吸"缩放，让 idle 动画更明显（petGO 销毁后自动停止）</summary>
+    IEnumerator CatBreath(GameObject catGO)
+    {
+        if (catGO == null) yield break;
+        float t = Random.Range(0f, 6.28f); // 错开相位
+        while (catGO != null)
+        {
+            t += Time.deltaTime;
+            float s = 1.08f + Mathf.Sin(t * 3f) * 0.06f; // 1.02 ~ 1.14
+            catGO.transform.localScale = new Vector3(s, s, 1);
+            yield return null;
         }
     }
 
@@ -265,6 +295,9 @@ public class PetGameUI : MonoBehaviour
         for (int i = 0; i < visible.Count; i++)
         {
             var bowl = visible[i];
+            // 给每只碗分配一个固定 slot（首次出现时分配，之后不变）
+            if (!bowlSlot.ContainsKey(bowl.bowlId)) bowlSlot[bowl.bowlId] = nextSlot++;
+
             GameObject go;
             if (!bowlIdToGO.TryGetValue(bowl.bowlId, out go) || go == null)
             {
@@ -272,7 +305,7 @@ public class PetGameUI : MonoBehaviour
                 Vector2 pos;
                 if (!bowlPositions.TryGetValue(bowl.bowlId, out pos))
                 {
-                    pos = BowlPos(i, visible.Count);
+                    pos = BowlPos(bowlSlot[bowl.bowlId]);
                     bowlPositions[bowl.bowlId] = pos;
                 }
                 go.GetComponent<RectTransform>().anchoredPosition = pos;
@@ -584,6 +617,9 @@ public class PetGameUI : MonoBehaviour
         rt.anchorMin = new Vector2(0f, 0.9f);
         rt.anchorMax = new Vector2(1f, 1f);
         rt.sizeDelta = Vector2.zero;
+        // 半透明木质底色，让称号/小鱼干文字在场景背景上更清晰
+        var chBg = cleanerHUD.AddComponent<Image>();
+        chBg.color = new Color(0.20f, 0.14f, 0.10f, 0.35f);
 
         // 称号（左上）
         var titleGO = new GameObject("CleanerTitle", typeof(RectTransform));

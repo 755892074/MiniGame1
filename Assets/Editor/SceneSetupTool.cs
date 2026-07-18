@@ -29,13 +29,13 @@ public class SceneSetupTool
         // 更新 BuildSettings
         UpdateBuildSettings();
 
-        EditorUtility.DisplayDialog("完成",
+        PetGameGenUtil.Success(
             "已创建/更新以下场景:\n\n" +
             "1. BootScene (index=0) — 启动场景\n" +
             "2. MenuScene (index=1) — 主菜单场景\n" +
             "3. PetGameScene (index=2) — 游戏场景(已有)\n\n" +
             "BuildSettings 已自动配置。\n" +
-            "请在 BootScene 中点击 Play 开始测试。", "好的");
+            "请在 BootScene 中点击 Play 开始测试。");
 
         // 打开 BootScene
         EditorSceneManager.OpenScene($"{SCENE_DIR}/BootScene.unity");

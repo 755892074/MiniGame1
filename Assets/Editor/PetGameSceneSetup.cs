@@ -65,8 +65,8 @@ public class PetGameSceneSetup
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/PetGameScene.unity");
         AssetDatabase.Refresh();
 
-        EditorUtility.DisplayDialog("完成",
-            "v2 游戏场景已创建\n包含: Camera + EventSystem + GameEntry + PetGameManager + PetGameUI\nUI 由 PetGameUI 运行时自动构建", "好的");
+        PetGameGenUtil.Success(
+            "v2 游戏场景已创建\n包含: Camera + EventSystem + GameEntry + PetGameManager + PetGameUI\nUI 由 PetGameUI 运行时自动构建");
     }
 
     static void EnsureBuildSettings(string path)

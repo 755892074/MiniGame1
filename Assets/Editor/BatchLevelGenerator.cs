@@ -28,7 +28,7 @@ public static class BatchLevelGenerator
         var configs = ParseCSV(CSV_PATH);
         if (configs.Count == 0)
         {
-            EditorUtility.DisplayDialog("错误", $"未找到配置文件: {CSV_PATH}", "确定");
+            PetGameGenUtil.Error("错误", $"未找到配置文件: {CSV_PATH}");
             return;
         }
 
@@ -41,12 +41,10 @@ public static class BatchLevelGenerator
         for (int i = 0; i < configs.Count; i++)
         {
             var cfg = configs[i];
-            bool cancel = EditorUtility.DisplayCancelableProgressBar(
+            if (PetGameGenUtil.ShowProgress(
                 "批量生成关卡",
                 $"第 {cfg.id} 关 [{cfg.label}]  {cfg.pets.Length}宠 × {cfg.capacity}容量 × {cfg.extraBowls}空碗",
-                (float)i / configs.Count);
-
-            if (cancel) break;
+                (float)i / configs.Count)) break;
 
             var result = GenerateSingleLevel(cfg);
             if (result != null)
@@ -62,12 +60,11 @@ public static class BatchLevelGenerator
             }
         }
 
-        EditorUtility.ClearProgressBar();
+        PetGameGenUtil.ClearProgress();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        EditorUtility.DisplayDialog("生成完成",
-            $"成功: {success}  失败: {fail}\n\n详细:\n{report}", "确定");
+        PetGameGenUtil.Info("生成完成", $"成功: {success}  失败: {fail}\n\n详细:\n{report}");
 
         Debug.Log($"[BatchLevelGenerator] 完成! 成功{success}失败{fail}\n{report}");
     }
@@ -86,7 +83,7 @@ public static class BatchLevelGenerator
         }
         if (selected == null)
         {
-            EditorUtility.DisplayDialog("提示", "请在 Project 窗口选中一个关卡 .asset 文件", "确定");
+            PetGameGenUtil.Info("提示", "请在 Project 窗口选中一个关卡 .asset 文件");
             return;
         }
 
@@ -94,7 +91,7 @@ public static class BatchLevelGenerator
         var cfg = configs.FirstOrDefault(c => c.id == selected.levelId);
         if (cfg == null)
         {
-            EditorUtility.DisplayDialog("错误", $"在 CSV 中未找到关卡 {selected.levelId} 的配置", "确定");
+            PetGameGenUtil.Error("错误", $"在 CSV 中未找到关卡 {selected.levelId} 的配置");
             return;
         }
 
@@ -103,12 +100,12 @@ public static class BatchLevelGenerator
         {
             SaveLevelAsset(cfg, result);
             AssetDatabase.SaveAssets();
-            EditorUtility.DisplayDialog("完成",
-                $"关卡 {cfg.id} 已重新生成\nminSteps={result.minSteps}", "确定");
+            PetGameGenUtil.Success(
+                $"关卡 {cfg.id} 已重新生成\nminSteps={result.minSteps}");
         }
         else
         {
-            EditorUtility.DisplayDialog("失败", $"关卡 {cfg.id} 生成失败", "确定");
+            PetGameGenUtil.Error("失败", $"关卡 {cfg.id} 生成失败");
         }
     }
 
@@ -121,7 +118,7 @@ public static class BatchLevelGenerator
         {
             report += $"Lv{c.id,2} [{c.label,-8}] {c.pets.Length}宠 cap={c.capacity} extra={c.extraBowls} steps={c.minStepsMin}~{c.minStepsMax}\n";
         }
-        EditorUtility.DisplayDialog("CSV 配置检查", report, "确定");
+        PetGameGenUtil.Info("CSV 配置检查", report);
     }
 
     // ===== 核心：生成单关，多 seed 尝试，筛 minSteps =====

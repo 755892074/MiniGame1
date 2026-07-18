@@ -52,14 +52,14 @@ public class UIPrefabGenV3
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("<color=green>[PrefabGenV3] 5个新界面预制体生成完成</color>");
-        EditorUtility.DisplayDialog("v3 预制体生成完成",
+        PetGameGenUtil.Success(
             "已生成 5 个新预制体:\n\n" +
             "1. SplashPanel (启动闪屏)\n" +
             "2. LoginPanel (登录/授权)\n" +
             "3. MainMenuPanel (主菜单)\n" +
             "4. SettingsPanel (设置面板)\n" +
             "5. LevelSelectPanel (选关界面)\n\n" +
-            "路径: Resources/PrefabsV2/", "好的");
+            "路径: Resources/PrefabsV2/");
     }
 
     // ========================================
