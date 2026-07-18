@@ -178,6 +178,8 @@ public class PetGameManager : MonoBehaviour
         int score = pour.score;
 
         // 奖励计算
+        // 金币：基础 50 × 星级（建造货币，见设计文档 §1.2）
+        int goldReward = 50 * stars;
         // 小鱼干：基础50 + 每星20
         int fishReward = 50 + stars * 20;
         // 救助徽章：3星通关才给1枚
@@ -187,6 +189,7 @@ public class PetGameManager : MonoBehaviour
 
         // 存档
         SaveSystem.RecordLevelComplete(currentLevelId, stars, score);
+        SaveSystem.AddGold(goldReward);
         SaveSystem.AddFish(fishReward);
         if (badgeReward > 0) SaveSystem.AddBadge(badgeReward);
         bool leveledUp = SaveSystem.AddExp(expReward);
@@ -198,6 +201,7 @@ public class PetGameManager : MonoBehaviour
             levelId = currentLevelId,
             stars = stars,
             score = score,
+            goldReward = goldReward,
             fishReward = fishReward,
             badgeReward = badgeReward,
             expReward = expReward,
@@ -205,7 +209,7 @@ public class PetGameManager : MonoBehaviour
             newTitle = leveledUp ? SaveSystem.GetCurrentTitle() : "",
         };
 
-        Debug.Log($"[结算] 关卡{currentLevelId} 通关! {stars}星 / 得分{score} / 小鱼干+{fishReward} / 徽章+{badgeReward} / 经验+{expReward}{(leveledUp ? " ★升级!" : "")}");
+        Debug.Log($"[结算] 关卡{currentLevelId} 通关! {stars}星 / 得分{score} / 金币+{goldReward} / 小鱼干+{fishReward} / 徽章+{badgeReward} / 经验+{expReward}{(leveledUp ? " ★升级!" : "")}");
 
         return lastResult;
     }

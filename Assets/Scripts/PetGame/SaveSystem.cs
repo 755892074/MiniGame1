@@ -29,6 +29,7 @@ public static class SaveSystem
         public List<LevelStarRecord> levelStars = new List<LevelStarRecord>();
 
         // --- 货币系统 ---
+        public int gold;                  // 金币（建造货币：买地/建升级建筑，通关获得）
         public int fishDiscount;          // 小鱼干（主货币，通关获得）
         public int rescueBadge;           // 救助徽章（成就货币，星级通关获得）
         public int rainbowBall;           // 彩虹毛球（稀有货币，看广告获得）
@@ -328,6 +329,20 @@ public static class SaveSystem
     public static bool IsLevelUnlocked(int levelId) => levelId <= Data.highestUnlockedLevel;
 
     // ========== 货币 ==========
+
+    public static void AddGold(int amount)
+    {
+        Data.gold += amount;
+        Save();
+    }
+
+    public static bool SpendGold(int amount)
+    {
+        if (Data.gold < amount) return false;
+        Data.gold -= amount;
+        Save();
+        return true;
+    }
 
     public static void AddFish(int amount)
     {

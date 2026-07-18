@@ -130,7 +130,7 @@ public class PetGameUI : MonoBehaviour
         irt.sizeDelta = Vector2.zero;
         var it = info.AddComponent<Text>();
         int totalStars = SaveSystem.TotalStars;
-        it.text = $"{SaveSystem.GetCurrentTitle()}  |  小鱼干:{SaveSystem.Data.fishDiscount}  徽章:{SaveSystem.Data.rescueBadge}  |  总星数:{totalStars}";
+        it.text = $"{SaveSystem.GetCurrentTitle()}  |  🪙{SaveSystem.Data.gold}  🐟{SaveSystem.Data.fishDiscount}  徽章:{SaveSystem.Data.rescueBadge}  |  总星数:{totalStars}";
         it.fontSize = 18;
         it.color = new Color(1f, 0.84f, 0f);
         it.alignment = TextAnchor.MiddleCenter;
@@ -601,7 +601,7 @@ public class PetGameUI : MonoBehaviour
     {
         if (cleanerHUD == null) BuildCleanerHUD();
         if (txtTitle) txtTitle.text = $"{SaveSystem.GetCurrentTitle()}";
-        if (txtFish) txtFish.text = $"{SaveSystem.Data.fishDiscount}";
+        if (txtFish) txtFish.text = $"🪙{SaveSystem.Data.gold}  🐟{SaveSystem.Data.fishDiscount}";
         if (txtExp)
         {
             int toNext = SaveSystem.ExpToNextLevel();
@@ -635,11 +635,11 @@ public class PetGameUI : MonoBehaviour
         txtTitle.alignment = TextAnchor.MiddleLeft;
         txtTitle.font = font;
 
-        // 小鱼干（右上）
+        // 小鱼干（右上，含金币）
         var fishGO = new GameObject("FishDisplay", typeof(RectTransform));
         fishGO.transform.SetParent(cleanerHUD.transform, false);
         var fishRT = fishGO.GetComponent<RectTransform>();
-        fishRT.anchorMin = new Vector2(0.7f, 0.5f);
+        fishRT.anchorMin = new Vector2(0.5f, 0.5f);
         fishRT.anchorMax = new Vector2(0.98f, 0.95f);
         fishRT.sizeDelta = Vector2.zero;
         txtFish = fishGO.AddComponent<Text>();
@@ -713,27 +713,32 @@ public class PetGameUI : MonoBehaviour
             st.alignment = TextAnchor.MiddleCenter; st.font = font;
         }
 
-        // 奖励行
-        float yBase = 0.50f;
-        var rewards = new (string label, int val, Color color)[]
+        // 奖励行（金币 / 小鱼干 / 徽章(三星) / 经验）
+        float yBase = 0.55f;
+        float step = 0.08f;
+        float rowH = 0.07f;
+        var rewards = new System.Collections.Generic.List<(string label, int val, Color color)>
         {
+            ("🪙 金币", lastResult.goldReward, new Color(1f, 0.84f, 0.2f)),
             ("🐟 小鱼干", lastResult.fishReward, new Color(1f, 0.8f, 0.3f)),
             ("⭐ 徽章", lastResult.badgeReward, new Color(0.9f, 0.75f, 0.3f)),
             ("📈 经验", lastResult.expReward, new Color(0.4f, 0.8f, 1f)),
         };
-        for (int i = 0; i < rewards.Length; i++)
+        int ri = 0;
+        foreach (var r in rewards)
         {
-            if (rewards[i].val <= 0 && i == 1) continue;
-            var rgo = new GameObject($"Reward{i}", typeof(RectTransform));
+            if (r.val <= 0) continue;
+            var rgo = new GameObject($"Reward{ri}", typeof(RectTransform));
             rgo.transform.SetParent(root, false);
             var rrt = rgo.GetComponent<RectTransform>();
-            rrt.anchorMin = new Vector2(0.15f, yBase - i * 0.10f);
-            rrt.anchorMax = new Vector2(0.85f, yBase - i * 0.10f + 0.08f);
+            rrt.anchorMin = new Vector2(0.15f, yBase - ri * step);
+            rrt.anchorMax = new Vector2(0.85f, yBase - ri * step + rowH);
             rrt.sizeDelta = Vector2.zero;
             var rt = rgo.AddComponent<Text>();
-            rt.text = $"{rewards[i].label}  +{rewards[i].val}";
-            rt.fontSize = 24; rt.color = rewards[i].color;
+            rt.text = $"{r.label}  +{r.val}";
+            rt.fontSize = 24; rt.color = r.color;
             rt.alignment = TextAnchor.MiddleCenter; rt.font = font;
+            ri++;
         }
 
         // 升级提示
@@ -753,7 +758,7 @@ public class PetGameUI : MonoBehaviour
         // 已翻倍提示（看完广告后重建面板时显示，放在 ad 按钮原位置）
         if (adRewardClaimed)
         {
-            float tipY = lastResult.leveledUp ? 0.08f : 0.20f;
+            float tipY = 0.07f;
             var tipGO = new GameObject("AdDone", typeof(RectTransform));
             tipGO.transform.SetParent(root, false);
             var trt = tipGO.GetComponent<RectTransform>();
@@ -761,13 +766,13 @@ public class PetGameUI : MonoBehaviour
             trt.anchorMax = new Vector2(0.85f, tipY + 0.14f);
             trt.sizeDelta = Vector2.zero;
             var t = tipGO.AddComponent<Text>();
-            t.text = $"✅ 已翻倍! 小鱼干 +{lastResult.fishReward}";
+            t.text = $"✅ 已翻倍! 金币+{lastResult.goldReward} 小鱼干+{lastResult.fishReward}";
             t.fontSize = 20; t.color = new Color(0.4f, 1f, 0.4f);
             t.alignment = TextAnchor.MiddleCenter; t.font = font;
         }
 
         // 看广告翻倍按钮
-        float btnBaseY = lastResult.leveledUp ? 0.08f : 0.20f;
+        float btnBaseY = 0.07f;
         if (lastResult.fishReward > 0 && !adRewardClaimed)
         {
             var adGO = new GameObject("BtnWatchAd", typeof(RectTransform));
@@ -784,7 +789,7 @@ public class PetGameUI : MonoBehaviour
             var adtrt = adText.GetComponent<RectTransform>();
             adtrt.anchorMin = Vector2.zero; adtrt.anchorMax = Vector2.one; adtrt.sizeDelta = Vector2.zero;
             var at = adText.AddComponent<Text>();
-            at.text = $"📺 看广告 小鱼干x{lastResult.fishReward * 2}";
+            at.text = "📺 看广告 金币+鱼干翻倍";
             at.fontSize = 20; at.color = Color.white;
             at.alignment = TextAnchor.MiddleCenter; at.font = font;
             btnWatchAd.onClick.AddListener(OnWatchAdForDouble);
@@ -792,7 +797,7 @@ public class PetGameUI : MonoBehaviour
 
         // 下一关 / 回主菜单 按钮
         {
-            float bw = 0.38f, bh = 0.08f, by = btnBaseY - 0.06f;
+            float bw = 0.38f, bh = 0.08f, by = 0.03f;
 
             MakeBtn(root, 0.05f, bw, by, bh, "▶ 下一关", new Color(0.89f, 0.48f, 0.32f), font, NextLevel);
             MakeBtn(root, 0.57f, bw, by, bh, "🏠 回主菜单", new Color(0.5f, 0.35f, 0.7f), font, BackToMenu);
@@ -826,9 +831,11 @@ public class PetGameUI : MonoBehaviour
         adRewardClaimed = true;
 
         // TODO: 接入真实广告SDK：SDK.ShowRewardedAd(() => { ... })
-        int bonus = lastResult.fishReward; // 翻倍 = 再给一份
-        SaveSystem.AddFish(bonus);
-        Debug.Log($"[结算] 看广告翻倍! 小鱼干+{bonus}");
+        int bonusFish = lastResult.fishReward;   // 小鱼干翻倍 = 再给一份
+        int bonusGold = lastResult.goldReward;   // 金币翻倍 = 再给一份
+        SaveSystem.AddFish(bonusFish);
+        SaveSystem.AddGold(bonusGold);
+        Debug.Log($"[结算] 看广告翻倍! 金币+{bonusGold} 小鱼干+{bonusFish}");
 
         // 重建面板：先清空再生成，避免重复叠加（BuildResultPanel 自身不清 root）
         if (resultOverlay != null)
