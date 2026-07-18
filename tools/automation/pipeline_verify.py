@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
+# ⚠️ 已废弃 — 请使用 unity-auto-verify 技能替代
+# 该脚本依赖 8765 HTTP MCP（codely serve unity-mcp），不稳定且截图工具不可用。
+# 新的验证流程由 WorkBuddy 直连 MCP（mcp__codely-unity__*）驱动，
+# 像素差分模块已独立为 pixel_diff.py。
 """
-一键验证闭环（手机端 AI 自动开发用）
-流程：强制静默 -> 重跑全部生成菜单 -> 等编译 -> 抓 console 错误
-      -> 进 Play 连拍 -> 像素分析 -> 输出中文结论 + 截图路径
-
-本脚本在本机运行（与团结编辑器同一台机器），通过 codely MCP(127.0.0.1:8765) 驱动编辑器。
-
-用法： python pipeline_verify.py "把碗改成圆形"
-（参数仅用于结论文案，不影响流程）
+（废弃）一键验证闭环
 """
 import json, re, subprocess, time, os, sys, shutil
 from PIL import Image
