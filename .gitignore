@@ -37,4 +37,5 @@ WORKFLOW.md
 
 # 包管理器机器差异（自动生成）
 ProjectSettings/PackageManagerSettings.asset
+Packages/packages-lock.json
 NUL
