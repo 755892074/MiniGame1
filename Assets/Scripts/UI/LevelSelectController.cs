@@ -57,7 +57,7 @@ public class LevelSelectController : MonoBehaviour
 
         Debug.Log($"[LevelSelect] 生成关卡网格: {levelCount}关, 已解锁{highest}");
 
-        var font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
+        var font = Resources.Load<Font>("Fonts/SourceHanSans");
 
         for (int i = 0; i < levelCount; i++)
         {

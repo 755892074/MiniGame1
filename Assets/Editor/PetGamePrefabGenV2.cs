@@ -78,7 +78,7 @@ public class PetGamePrefabGenV2
         var t = label.GetComponent<Text>();
         t.fontSize = 15; t.alignment = TextAnchor.MiddleCenter;
         t.color = new Color(0.3f, 0.2f, 0.1f);
-        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/AlibabaPuHuiTi-Regular.ttf");
+        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/SourceHanSans.ttf");
 
         Save(root, "PetItem");
     }
@@ -260,7 +260,7 @@ public class PetGamePrefabGenV2
         var t = go.AddComponent<Text>();
         t.text = content; t.fontSize = size; t.alignment = TextAnchor.MiddleCenter;
         t.color = new Color(0.3f, 0.2f, 0.1f);
-        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/AlibabaPuHuiTi-Regular.ttf");
+        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/SourceHanSans.ttf");
         go.AddComponent<LayoutElement>();
         return t;
     }
@@ -287,7 +287,7 @@ public class PetGamePrefabGenV2
         var t = txt.AddComponent<Text>();
         t.text = label; t.fontSize = 16; t.alignment = TextAnchor.MiddleCenter; t.color = Color.white;
         t.fontStyle = FontStyle.Bold;
-        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/AlibabaPuHuiTi-Regular.ttf");
+        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/SourceHanSans.ttf");
         var trt = txt.GetComponent<RectTransform>();
         trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
         return go;
@@ -307,7 +307,7 @@ public class PetGamePrefabGenV2
         var t = txt.AddComponent<Text>();
         t.text = label; t.fontSize = 20; t.alignment = TextAnchor.MiddleCenter; t.color = Color.white;
         t.fontStyle = FontStyle.Bold;
-        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/AlibabaPuHuiTi-Regular.ttf");
+        t.font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/SourceHanSans.ttf");
         var trt = txt.GetComponent<RectTransform>();
         trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
         return go;
