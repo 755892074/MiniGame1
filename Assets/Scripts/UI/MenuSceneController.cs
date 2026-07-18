@@ -163,6 +163,40 @@ public class MenuSceneController : MonoBehaviour
         }
     }
 
+    // ========================================
+    // 小院子弹窗（宠物详情 / 建筑升级）— P3 / P4
+    // 同一时间仅一个弹窗，叠加在小院面板之上
+    // ========================================
+
+    GameObject currentPopup;
+
+    public void ShowPetDetail(PetType type)
+    {
+        ClosePopup();
+        var go = new GameObject("PetDetailPopup", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(canvas.transform, false);
+        currentPopup = go;
+        go.AddComponent<PetDetailPopupController>().Init(this, type);
+    }
+
+    public void ShowBuilding(string buildingId)
+    {
+        ClosePopup();
+        var go = new GameObject("BuildingPopup", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(canvas.transform, false);
+        currentPopup = go;
+        go.AddComponent<BuildingPopupController>().Init(this, buildingId);
+    }
+
+    public void ClosePopup()
+    {
+        if (currentPopup != null)
+        {
+            Destroy(currentPopup);
+            currentPopup = null;
+        }
+    }
+
     public void ShowSettings()
     {
         if (settingsPanel != null) return;  // 已打开

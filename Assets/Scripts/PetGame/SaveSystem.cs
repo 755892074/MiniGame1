@@ -79,6 +79,12 @@ public static class SaveSystem
         public int stage;           // 成长阶段 1=脏兮兮 2=干净 3=幸福
         public string nickname;     // 玩家给宠物起的名字（可选）
         public long rescuedTimestamp; // 救助时间
+
+        // --- 养成（设计文档 §2.2 / §7.2）---
+        public int intimacy;        // 累计亲密度 0-1000
+        public bool isRare;         // 是否已稀有变异
+        public long lastFeedTime;   // 最后喂食时间（Unix秒）
+        public long lastInteractTime; // 最后互动时间（每日限1次）
     }
 
     [Serializable]
@@ -483,6 +489,50 @@ public static class SaveSystem
     /// <summary>已救助宠物数量</summary>
     public static int RescuedPetCount => Data.pets.Count(p => p.unlocked);
 
+    // ============================================================
+    // 喂养 / 互动（P3）
+    // ============================================================
+
+    /// <summary>喂食一次：消耗小鱼干，按食盆等级加成增加亲密度（设计 §2.2：基础 +10/次）</summary>
+    public static bool FeedPet(PetType type, int fishCost = 1)
+    {
+        var pet = Data.pets.Find(p => p.petType == type);
+        if (pet == null || !pet.unlocked) return false;
+        if (Data.fishDiscount < fishCost) return false;
+
+        Data.fishDiscount -= fishCost;
+        float mul = YardDefs.IntimacyBonusMul("foodbowl", GetBuildingLevel("foodbowl"));
+        int gain = Mathf.RoundToInt(10 * mul);
+        pet.intimacy += gain;
+        pet.lastFeedTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+        return true;
+    }
+
+    /// <summary>今日是否还能互动（每日限1次）</summary>
+    public static bool CanInteractToday(PetType type)
+    {
+        var pet = Data.pets.Find(p => p.petType == type);
+        if (pet == null || !pet.unlocked) return false;
+        if (pet.lastInteractTime <= 0) return true;
+        var last = DateTimeOffset.FromUnixTimeSeconds(pet.lastInteractTime);
+        return last.Date != DateTimeOffset.UtcNow.Date;
+    }
+
+    /// <summary>互动一次：每日限1次，按食盆等级加成增加亲密度（设计 §2.2：基础 +20/次）</summary>
+    public static bool InteractPet(PetType type)
+    {
+        if (!CanInteractToday(type)) return false;
+        var pet = Data.pets.Find(p => p.petType == type);
+        if (pet == null) return false;
+        float mul = YardDefs.IntimacyBonusMul("foodbowl", GetBuildingLevel("foodbowl"));
+        int gain = Mathf.RoundToInt(20 * mul);
+        pet.intimacy += gain;
+        pet.lastInteractTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        Save();
+        return true;
+    }
+
     // ========== 建筑 ==========
 
     /// <summary>获取建筑等级（不存在返回0）</summary>
@@ -516,6 +566,77 @@ public static class SaveSystem
         if (Data.houseLevel >= maxLevel) return false;
         Data.houseLevel++;
         Save();
+        return true;
+    }
+
+    // ============================================================
+    // 建筑升级（P4，按成本扣费）
+    // ============================================================
+
+    /// <summary>建筑升级预览信息（供 UI 展示）</summary>
+    public struct BuildingUpgradeInfo
+    {
+        public int currentLevel;
+        public int maxLevel;        // 受住所等级限制后的实际上限
+        public bool maxed;          // 是否已满级
+        public int goldCost;
+        public int fishCost;
+        public int badgeCost;
+        public bool affordable;     // 货币是否足够
+        public string effectCurrent;
+        public string effectNext;
+    }
+
+    /// <summary>获取建筑升级预览（不修改数据）</summary>
+    public static BuildingUpgradeInfo GetBuildingUpgradeInfo(string buildingId)
+    {
+        int lv = GetBuildingLevel(buildingId);
+        int cap = YardDefs.MaxLevelFor(Data.houseLevel);
+        var info = new BuildingUpgradeInfo
+        {
+            currentLevel = lv,
+            maxLevel = cap,
+            maxed = YardDefs.IsMaxLevel(buildingId, lv, Data.houseLevel),
+            effectCurrent = YardDefs.EffectValue(buildingId, lv),
+        };
+
+        if (!info.maxed && YardDefs.TryGetUpgradeCost(buildingId, lv, out var cost))
+        {
+            info.goldCost = cost.gold;
+            info.fishCost = cost.fish;
+            info.badgeCost = cost.badge;
+            info.affordable = Data.gold >= cost.gold && Data.fishDiscount >= cost.fish && Data.rescueBadge >= cost.badge;
+            info.effectNext = YardDefs.EffectValue(buildingId, lv + 1);
+        }
+        else
+        {
+            info.effectNext = info.effectCurrent;
+        }
+        return info;
+    }
+
+    /// <summary>尝试升级建筑（按成本扣费）。成功返回 true。</summary>
+    public static bool TryUpgradeBuilding(string buildingId)
+    {
+        var info = GetBuildingUpgradeInfo(buildingId);
+        if (info.maxed) return false;
+        if (!info.affordable) return false;
+
+        if (info.goldCost > 0) { if (!SpendGold(info.goldCost)) return false; }
+        if (info.fishCost > 0) { if (!SpendFish(info.fishCost)) return false; }
+        if (info.badgeCost > 0)
+        {
+            if (Data.rescueBadge < info.badgeCost) return false;
+            Data.rescueBadge -= info.badgeCost;
+        }
+
+        var b = Data.buildings.Find(x => x.buildingId == buildingId);
+        if (b == null)
+            Data.buildings.Add(new BuildingRecord { buildingId = buildingId, level = 1 });
+        else
+            b.level++;
+        Save();
+        Debug.Log($"[建筑] {buildingId} 升级 → Lv.{GetBuildingLevel(buildingId)}");
         return true;
     }
 
