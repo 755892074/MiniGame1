@@ -110,7 +110,7 @@ public class PetGameUI : MonoBehaviour
         var bg = levelSelectPanel.AddComponent<Image>();
         bg.color = new Color(0.1f, 0.08f, 0.15f, 0.95f);
 
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
 
         // --- 顶部标题 + 玩家信息 ---
         var tt = new GameObject("Title", typeof(RectTransform)).AddComponent<Text>();
@@ -610,7 +610,7 @@ public class PetGameUI : MonoBehaviour
 
     void BuildCleanerHUD()
     {
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
         cleanerHUD = new GameObject("CleanerHUD", typeof(RectTransform));
         cleanerHUD.transform.SetParent(transform, false);
         var rt = cleanerHUD.GetComponent<RectTransform>();
@@ -688,7 +688,7 @@ public class PetGameUI : MonoBehaviour
         var bg = rewardPanel.AddComponent<Image>();
         bg.color = new Color(0.15f, 0.12f, 0.2f, 0.95f);
 
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
 
         // --- 奖励行 ---
         float yPos = 0.35f;
@@ -792,7 +792,7 @@ public class PetGameUI : MonoBehaviour
             t.fontSize = 20;
             t.color = new Color(0.4f, 1f, 0.4f);
             t.alignment = TextAnchor.MiddleCenter;
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            t.font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
         }
     }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }

@@ -18,7 +18,7 @@ public class UIPrefabGenV3
         get
         {
             if (_font == null)
-                _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                _font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/AlibabaPuHuiTi-Regular.ttf");
             return _font;
         }
     }

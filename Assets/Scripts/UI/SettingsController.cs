@@ -95,7 +95,7 @@ public class SettingsController : MonoBehaviour
         var bg = confirmDialog.AddComponent<Image>();
         bg.color = new Color(0.2f, 0.15f, 0.12f, 0.98f);
 
-        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var font = Resources.Load<Font>("Fonts/AlibabaPuHuiTi-Regular");
 
         // 警告文字
         var warnGO = new GameObject("txtWarn", typeof(RectTransform), typeof(Text));
