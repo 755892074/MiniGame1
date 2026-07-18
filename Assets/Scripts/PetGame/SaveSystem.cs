@@ -155,6 +155,9 @@ public static class SaveSystem
             Debug.Log("[SaveSystem] 首次游玩，初始化新存档");
         }
 
+        // 兼容旧存档：确保初始小院数据存在（初始橘猫 + 4 个基础建筑）
+        EnsureBaseYard();
+
         // 异步尝试从云端恢复（不阻塞游戏启动）
         TryRestoreFromCloud();
     }
@@ -527,11 +530,28 @@ public static class SaveSystem
 
     private static GameSave NewSave()
     {
-        return new GameSave
+        var save = new GameSave
         {
             version = SAVE_VERSION,
             firstPlayTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
+
+        // 初始伙伴：橘猫（设计文档 §2.1 初始送 1 只）
+        save.pets.Add(new PetRecord
+        {
+            petType = PetType.Cat,
+            unlocked = true,
+            stage = 1,
+            nickname = "",
+            rescuedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        });
+        save.totalPetsRescued = 1;
+
+        // 初始小院：4 个基础建筑各 Lv.1（设计文档 §3.4 住所 Lv1 建筑等级上限=2）
+        foreach (var id in new[] { "foodbowl", "toy", "medical", "garden" })
+            save.buildings.Add(new BuildingRecord { buildingId = id, level = 1 });
+
+        return save;
     }
 
     /// <summary>存档版本迁移（后续版本升级时在这里加逻辑）</summary>
@@ -540,5 +560,35 @@ public static class SaveSystem
         old.version = SAVE_VERSION;
         Debug.Log($"[SaveSystem] 存档迁移到 v{SAVE_VERSION}");
         return old;
+    }
+
+    /// <summary>兼容旧存档：保证初始小院数据存在（初始橘猫 + 4 个基础建筑）。
+    /// 仅在列表为空时补足，不会覆盖玩家已有的宠物/建筑。</summary>
+    private static void EnsureBaseYard()
+    {
+        var data = _cache;
+        bool dirty = false;
+
+        if (data.pets.Count == 0)
+        {
+            data.pets.Add(new PetRecord
+            {
+                petType = PetType.Cat,
+                unlocked = true,
+                stage = 1,
+                rescuedTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            });
+            data.totalPetsRescued = Mathf.Max(data.totalPetsRescued, 1);
+            dirty = true;
+        }
+
+        if (data.buildings.Count == 0)
+        {
+            foreach (var id in new[] { "foodbowl", "toy", "medical", "garden" })
+                data.buildings.Add(new BuildingRecord { buildingId = id, level = 1 });
+            dirty = true;
+        }
+
+        if (dirty) Save();
     }
 }

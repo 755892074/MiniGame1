@@ -52,10 +52,10 @@ public class MainMenuController : MonoBehaviour
         if (btnQuick != null)
             btnQuick.onClick.AddListener(() => menuController.ShowSettings());
 
-        // 小院（暂未实现）
+        // 小院（P2 已接入）
         var btnYard = Find<Button>("btnYard");
         if (btnYard != null)
-            btnYard.onClick.AddListener(() => Debug.Log("[MainMenu] 小院（待实现）"));
+            btnYard.onClick.AddListener(() => menuController.ShowYard());
 
         // 成就（暂未实现）
         var btnAch = Find<Button>("btnAchievement");

@@ -135,6 +135,34 @@ public class MenuSceneController : MonoBehaviour
 
     GameObject settingsPanel;
 
+    // ========================================
+    // 小院面板（弹窗叠加，不替换当前面板）— P2
+    // ========================================
+
+    GameObject yardPanel;
+
+    /// <summary>显示小院面板（建筑+宠物只读一览）</summary>
+    public void ShowYard()
+    {
+        if (yardPanel != null) return;  // 已打开
+
+        var go = new GameObject("YardPanel", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(canvas.transform, false);
+        yardPanel = go;
+
+        var ctrl = go.AddComponent<YardPanelController>();
+        ctrl.Init(this);
+    }
+
+    public void CloseYard()
+    {
+        if (yardPanel != null)
+        {
+            Destroy(yardPanel);
+            yardPanel = null;
+        }
+    }
+
     public void ShowSettings()
     {
         if (settingsPanel != null) return;  // 已打开
