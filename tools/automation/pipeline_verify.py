@@ -61,20 +61,28 @@ _counter = [0]
 def save_shot(r):
     txt = result_text(r)
     try:
-        d = json.loads(txt) if txt.startswith("{") else {}
+        d = json.loads(txt) if txt and txt.strip().startswith("{") else {}
     except Exception:
         d = {}
     p = None
     if isinstance(d, dict):
-        if isinstance(d.get("data"), dict):
+        # 兼容多种返回格式：path 可能在顶层、data 内、或 result 内
+        for key in ("path",):
+            if key in d:
+                p = d[key]
+                break
+        if not p and isinstance(d.get("data"), dict):
             p = d["data"].get("path")
-        if not p:
-            p = d.get("path")
+        if not p and isinstance(d.get("result"), dict):
+            p = d["result"].get("path")
     if p and os.path.exists(p):
         dst = f"{OUT}/verify_f{_counter[0]}.png"
         _counter[0] += 1
         shutil.copy(p, dst)
         return dst
+    # 调试：失败时打印响应片段
+    if txt:
+        print(f"  [save_shot] 未找到path, 响应前200字: {txt[:200]}")
     return None
 
 
@@ -129,7 +137,7 @@ if compile_ok or missing:
     mcp("tools/call", {"name": "unity_editor", "arguments": {"action": "play"}}, sid=sid, timeout=30)
     time.sleep(3)
     for i in range(4):
-        rr = mcp("tools/call", {"name": "unity_screenshot", "arguments": {"action": "capture", "target": "GameView"}}, sid=sid, timeout=30)
+        rr = mcp("tools/call", {"name": "unity_screenshot", "arguments": {"action": "capture_game_view"}}, sid=sid, timeout=30)
         f = save_shot(rr[0])
         if f:
             frames.append(f)
@@ -147,21 +155,27 @@ if compile_ok or missing:
     rt_missing = [e for e in ent3 if "missing" in e.get("message", "").lower()]
     print(f"\n[6.5] 运行时日志 {len(ent3)} 条，其中 missing {len(rt_missing)} 条")
 
-    print("\n[7] Pixel-diff")
-    imgs = [np.asarray(Image.open(f).convert("L")) for f in frames]
-    max_diff = 0
-    acc = np.zeros_like(imgs[0], dtype=int)
-    for i in range(len(imgs) - 1):
-        diff = np.abs(imgs[i].astype(int) - imgs[i + 1].astype(int))
-        cnt = int((diff > 25).sum())
-        max_diff = max(max_diff, cnt)
-        acc += (diff > 25).astype(int)
-    ys, xs = np.where(acc > 0)
-    if len(xs):
-        bbox = f"{xs.max()-xs.min()+1}x{ys.max()-ys.min()+1} @ ({xs.min()},{ys.min()})"
+    if frames:
+        print("\n[7] Pixel-diff")
+        imgs = [np.asarray(Image.open(f).convert("L")) for f in frames]
+        max_diff = 0
+        acc = np.zeros_like(imgs[0], dtype=int)
+        for i in range(len(imgs) - 1):
+            diff = np.abs(imgs[i].astype(int) - imgs[i + 1].astype(int))
+            cnt = int((diff > 25).sum())
+            max_diff = max(max_diff, cnt)
+            acc += (diff > 25).astype(int)
+        ys, xs = np.where(acc > 0)
+        if len(xs):
+            bbox = f"{xs.max()-xs.min()+1}x{ys.max()-ys.min()+1} @ ({xs.min()},{ys.min()})"
+        else:
+            bbox = "无变化"
+        anim_ok = max_diff > 2000
     else:
-        bbox = "无变化"
-    anim_ok = max_diff > 2000
+        print("\n[7] Pixel-diff 跳过（8765 MCP 截图工具未注册或不可用，建议用 codely MCP 直连补拍）")
+        max_diff = 0
+        anim_ok = False
+        bbox = "未捕获"
 else:
     print("\n[7] CS 编译错误，跳过 Play 验证")
 
