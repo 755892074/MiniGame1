@@ -5,7 +5,8 @@ Build/
 Builds/
 Logs/
 UserSettings/
-LocalPackages/
+# LocalPackages/ 不再忽略：manifest.json 用 file: 引用 com.bytedance.starksdk 等本地包，
+# 必须随工程一起提交，否则其他机器 pull 后缺包会报「package.json cannot be found」。
 .vscode/
 .vs/
 *.csproj
