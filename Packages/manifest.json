@@ -5,6 +5,7 @@
     "com.bytedance.starksdk": "file:../Assets/../LocalPackages/com.bytedance.starksdk@6.7.9",
     "com.qq.weixin.minigame": "https://gitee.com/wechat-minigame/minigame-tuanjie-transform-sdk.git#v0.1.32",
     "com.tippinggame.f8framework": "https://github.com/TippingGame/F8Framework.git#main",
+    "com.unity.autostreaming": "3.0.1-pre.1",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.feature.2d": "2.0.1",
     "com.unity.ide.rider": "3.0.36",
