@@ -20,7 +20,7 @@ MonoBehaviour:
   difficulty: 1
   minSteps: 13
   seed: 15000
-  version: 20260713
+  version: 20260718
   petQueue: 01000000030000000500000000000000
   bowlInits:
   - gridPos: {x: 0, y: 0}
