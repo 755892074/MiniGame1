@@ -18,7 +18,7 @@ public class UIPrefabGenV3
         get
         {
             if (_font == null)
-                _font = AssetDatabase.LoadAssetAtPath<Font>("Assets/Resources/Fonts/SourceHanSans.ttf");
+                _font = Font.CreateDynamicFontFromOSFont("Microsoft YaHei", 24);
             return _font;
         }
     }

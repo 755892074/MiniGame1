@@ -49,6 +49,7 @@ public class PetGameUI : MonoBehaviour
         var hudPf = Resources.Load<GameObject>("PrefabsV2/GameHUD");
         if (hudPf == null) return;
         gameHUD = Instantiate(hudPf, transform);
+        GameFont.ApplyAll(gameHUD);
         gameHUD.name = "GameHUD";
 
         FindRefs();
@@ -111,13 +112,11 @@ public class PetGameUI : MonoBehaviour
         var bg = levelSelectPanel.AddComponent<Image>();
         bg.color = new Color(0.1f, 0.08f, 0.15f, 0.95f);
 
-        var font = Resources.Load<Font>("Fonts/SourceHanSans");
-
         // --- 顶部标题 + 玩家信息 ---
-        var tt = new GameObject("Title", typeof(RectTransform)).AddComponent<Text>();
+        var tt = new GameObject("Title", typeof(RectTransform)).AddComponent<SystemFontText>();
         tt.transform.SetParent(levelSelectPanel.transform, false);
         tt.text = "疯狂铲屎官"; tt.fontSize = 40; tt.color = Color.white;
-        tt.alignment = TextAnchor.MiddleCenter; tt.font = font;
+        tt.alignment = TextAnchor.MiddleCenter; GameFont.Apply(tt);
         var trt = tt.GetComponent<RectTransform>();
         trt.anchorMin = new Vector2(0.1f, 0.85f); trt.anchorMax = new Vector2(0.9f, 0.93f);
         trt.sizeDelta = Vector2.zero;
@@ -128,13 +127,13 @@ public class PetGameUI : MonoBehaviour
         var irt = info.GetComponent<RectTransform>();
         irt.anchorMin = new Vector2(0.05f, 0.78f); irt.anchorMax = new Vector2(0.95f, 0.84f);
         irt.sizeDelta = Vector2.zero;
-        var it = info.AddComponent<Text>();
+        var it = info.AddComponent<SystemFontText>();
         int totalStars = SaveSystem.TotalStars;
         it.text = $"{SaveSystem.GetCurrentTitle()}  |  🪙{SaveSystem.Data.gold}  🐟{SaveSystem.Data.fishDiscount}  徽章:{SaveSystem.Data.rescueBadge}  |  总星数:{totalStars}";
         it.fontSize = 18;
         it.color = new Color(1f, 0.84f, 0f);
         it.alignment = TextAnchor.MiddleCenter;
-        it.font = font;
+        GameFont.Apply(it);
 
         // --- 关卡按钮 ---
         int cols = 4; float bw = 150, bh = 90, gap = 15;
@@ -169,12 +168,12 @@ public class PetGameUI : MonoBehaviour
             // 关卡号 + 名称
             var tgo = new GameObject("T", typeof(RectTransform));
             tgo.transform.SetParent(bgo.transform, false);
-            var t = tgo.AddComponent<Text>();
+            var t = tgo.AddComponent<SystemFontText>();
             string lockIcon = unlocked ? "" : "\n[锁定]";
             string starStr = stars > 0 ? "\n" + new string((char)9733, stars) : "";
             t.text = $"{lid}\n{gm.GetLevelName(lid)}{starStr}{lockIcon}";
             t.fontSize = 13; t.color = unlocked ? Color.white : new Color(0.5f, 0.5f, 0.5f);
-            t.alignment = TextAnchor.MiddleCenter; t.font = font;
+            t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
             var trt2 = tgo.GetComponent<RectTransform>();
             trt2.anchorMin = Vector2.zero; trt2.anchorMax = Vector2.one; trt2.sizeDelta = Vector2.zero;
 
@@ -217,6 +216,7 @@ public class PetGameUI : MonoBehaviour
         foreach (var pet in gm.GetPetQueue())
         {
             var go = Instantiate(petItemPf, petArea);
+            GameFont.ApplyAll(go);
             var label = FindC<Text>(go, "QueueLabel");
             if (label) label.text = PetCN(pet);
             var face = FindC<Image>(go, "PetFace");
@@ -303,6 +303,7 @@ public class PetGameUI : MonoBehaviour
             if (!bowlIdToGO.TryGetValue(bowl.bowlId, out go) || go == null)
             {
                 go = Instantiate(bowlItemPf, bowlArea);
+                GameFont.ApplyAll(go);
                 Vector2 pos;
                 if (!bowlPositions.TryGetValue(bowl.bowlId, out pos))
                 {
@@ -343,6 +344,7 @@ public class PetGameUI : MonoBehaviour
         for (int j = 0; j < bowl.foods.Count; j++)
         {
             var icon = Instantiate(foodIconPf, stack);
+            GameFont.ApplyAll(icon);
             var irt = icon.GetComponent<RectTransform>();
             irt.anchoredPosition = new Vector2(0, startY + j * overlap);
             irt.sizeDelta = new Vector2(sz, sz);
@@ -495,6 +497,7 @@ public class PetGameUI : MonoBehaviour
 
         // 2. 宠物头顶复制碗（含食物）
         var headBowl = Instantiate(bowlItemPf, petGO.transform);
+        GameFont.ApplyAll(headBowl);
         headBowl.name = "HeadBowl";
         var hrt = headBowl.GetComponent<RectTransform>();
         hrt.anchoredPosition = new Vector2(0, 80);
@@ -611,7 +614,6 @@ public class PetGameUI : MonoBehaviour
 
     void BuildCleanerHUD()
     {
-        var font = Resources.Load<Font>("Fonts/SourceHanSans");
         cleanerHUD = new GameObject("CleanerHUD", typeof(RectTransform));
         cleanerHUD.transform.SetParent(transform, false);
         var rt = cleanerHUD.GetComponent<RectTransform>();
@@ -629,11 +631,11 @@ public class PetGameUI : MonoBehaviour
         titleRT.anchorMin = new Vector2(0.02f, 0.5f);
         titleRT.anchorMax = new Vector2(0.3f, 0.95f);
         titleRT.sizeDelta = Vector2.zero;
-        txtTitle = titleGO.AddComponent<Text>();
+        txtTitle = titleGO.AddComponent<SystemFontText>();
         txtTitle.fontSize = 16;
         txtTitle.color = new Color(1f, 0.84f, 0f);
         txtTitle.alignment = TextAnchor.MiddleLeft;
-        txtTitle.font = font;
+        GameFont.Apply(txtTitle);
 
         // 小鱼干（右上，含金币）
         var fishGO = new GameObject("FishDisplay", typeof(RectTransform));
@@ -642,11 +644,11 @@ public class PetGameUI : MonoBehaviour
         fishRT.anchorMin = new Vector2(0.5f, 0.5f);
         fishRT.anchorMax = new Vector2(0.98f, 0.95f);
         fishRT.sizeDelta = Vector2.zero;
-        txtFish = fishGO.AddComponent<Text>();
+        txtFish = fishGO.AddComponent<SystemFontText>();
         txtFish.fontSize = 16;
         txtFish.color = new Color(1f, 0.8f, 0.3f);
         txtFish.alignment = TextAnchor.MiddleRight;
-        txtFish.font = font;
+        GameFont.Apply(txtFish);
 
         // 经验（右上下方）
         var expGO = new GameObject("ExpDisplay", typeof(RectTransform));
@@ -655,11 +657,11 @@ public class PetGameUI : MonoBehaviour
         expRT.anchorMin = new Vector2(0.7f, 0.05f);
         expRT.anchorMax = new Vector2(0.98f, 0.45f);
         expRT.sizeDelta = Vector2.zero;
-        txtExp = expGO.AddComponent<Text>();
+        txtExp = expGO.AddComponent<SystemFontText>();
         txtExp.fontSize = 12;
         txtExp.color = new Color(0.7f, 0.7f, 0.7f);
         txtExp.alignment = TextAnchor.MiddleRight;
-        txtExp.font = font;
+        GameFont.Apply(txtExp);
     }
 
     void OnWin(int stars)
@@ -684,9 +686,6 @@ public class PetGameUI : MonoBehaviour
         var root = resultOverlay?.transform;
         if (root == null) return;
 
-        var font = Resources.Load<Font>("Fonts/SourceHanSans");
-        if (font == null) font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
         // 标题
         {
             var tgo = new GameObject("ResultTitle", typeof(RectTransform));
@@ -694,10 +693,10 @@ public class PetGameUI : MonoBehaviour
             var trt = tgo.GetComponent<RectTransform>();
             trt.anchorMin = new Vector2(0.1f, 0.75f); trt.anchorMax = new Vector2(0.9f, 0.88f);
             trt.sizeDelta = Vector2.zero;
-            var t = tgo.AddComponent<Text>();
+            var t = tgo.AddComponent<SystemFontText>();
             t.text = $"🎉 第{lastResult.levelId}关 通关!";
             t.fontSize = 32; t.color = new Color(1f, 0.92f, 0.4f);
-            t.alignment = TextAnchor.MiddleCenter; t.font = font;
+            t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
         }
 
         // 星级
@@ -707,10 +706,10 @@ public class PetGameUI : MonoBehaviour
             var srt = sgo.GetComponent<RectTransform>();
             srt.anchorMin = new Vector2(0.1f, 0.62f); srt.anchorMax = new Vector2(0.9f, 0.74f);
             srt.sizeDelta = Vector2.zero;
-            var st = sgo.AddComponent<Text>();
+            var st = sgo.AddComponent<SystemFontText>();
             st.text = new string((char)9733, stars) + new string((char)9734, 3 - stars);
             st.fontSize = 48; st.color = new Color(1f, 0.84f, 0f);
-            st.alignment = TextAnchor.MiddleCenter; st.font = font;
+            st.alignment = TextAnchor.MiddleCenter; GameFont.Apply(st);
         }
 
         // 奖励行（金币 / 小鱼干 / 徽章(三星) / 经验）
@@ -734,10 +733,10 @@ public class PetGameUI : MonoBehaviour
             rrt.anchorMin = new Vector2(0.15f, yBase - ri * step);
             rrt.anchorMax = new Vector2(0.85f, yBase - ri * step + rowH);
             rrt.sizeDelta = Vector2.zero;
-            var rt = rgo.AddComponent<Text>();
+            var rt = rgo.AddComponent<SystemFontText>();
             rt.text = $"{r.label}  +{r.val}";
             rt.fontSize = 24; rt.color = r.color;
-            rt.alignment = TextAnchor.MiddleCenter; rt.font = font;
+            rt.alignment = TextAnchor.MiddleCenter; GameFont.Apply(rt);
             ri++;
         }
 
@@ -749,10 +748,10 @@ public class PetGameUI : MonoBehaviour
             var urt = upGO.GetComponent<RectTransform>();
             urt.anchorMin = new Vector2(0.05f, 0.20f); urt.anchorMax = new Vector2(0.95f, 0.28f);
             urt.sizeDelta = Vector2.zero;
-            var ut = upGO.AddComponent<Text>();
+            var ut = upGO.AddComponent<SystemFontText>();
             ut.text = $"🎉 恭喜晋升 → {lastResult.newTitle}!";
             ut.fontSize = 24; ut.color = new Color(1f, 0.84f, 0f);
-            ut.alignment = TextAnchor.MiddleCenter; ut.font = font;
+            ut.alignment = TextAnchor.MiddleCenter; GameFont.Apply(ut);
         }
 
         // 已翻倍提示（看完广告后重建面板时显示，放在 ad 按钮原位置）
@@ -765,10 +764,10 @@ public class PetGameUI : MonoBehaviour
             trt.anchorMin = new Vector2(0.15f, tipY + 0.06f);
             trt.anchorMax = new Vector2(0.85f, tipY + 0.14f);
             trt.sizeDelta = Vector2.zero;
-            var t = tipGO.AddComponent<Text>();
+            var t = tipGO.AddComponent<SystemFontText>();
             t.text = $"✅ 已翻倍! 金币+{lastResult.goldReward} 小鱼干+{lastResult.fishReward}";
             t.fontSize = 20; t.color = new Color(0.4f, 1f, 0.4f);
-            t.alignment = TextAnchor.MiddleCenter; t.font = font;
+            t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
         }
 
         // 看广告翻倍按钮
@@ -788,10 +787,10 @@ public class PetGameUI : MonoBehaviour
             adText.transform.SetParent(adGO.transform, false);
             var adtrt = adText.GetComponent<RectTransform>();
             adtrt.anchorMin = Vector2.zero; adtrt.anchorMax = Vector2.one; adtrt.sizeDelta = Vector2.zero;
-            var at = adText.AddComponent<Text>();
+            var at = adText.AddComponent<SystemFontText>();
             at.text = "📺 看广告 金币+鱼干翻倍";
             at.fontSize = 20; at.color = Color.white;
-            at.alignment = TextAnchor.MiddleCenter; at.font = font;
+            at.alignment = TextAnchor.MiddleCenter; GameFont.Apply(at);
             btnWatchAd.onClick.AddListener(OnWatchAdForDouble);
         }
 
@@ -799,12 +798,12 @@ public class PetGameUI : MonoBehaviour
         {
             float bw = 0.38f, bh = 0.08f, by = 0.03f;
 
-            MakeBtn(root, 0.05f, bw, by, bh, "▶ 下一关", new Color(0.89f, 0.48f, 0.32f), font, NextLevel);
-            MakeBtn(root, 0.57f, bw, by, bh, "🏠 回主菜单", new Color(0.5f, 0.35f, 0.7f), font, BackToMenu);
+            MakeBtn(root, 0.05f, bw, by, bh, "▶ 下一关", new Color(0.89f, 0.48f, 0.32f), NextLevel);
+            MakeBtn(root, 0.57f, bw, by, bh, "🏠 回主菜单", new Color(0.5f, 0.35f, 0.7f), BackToMenu);
         }
     }
 
-    void MakeBtn(Transform parent, float x, float w, float y, float h, string label, Color color, Font font, UnityEngine.Events.UnityAction cb)
+    void MakeBtn(Transform parent, float x, float w, float y, float h, string label, Color color, UnityEngine.Events.UnityAction cb)
     {
         var bgo = new GameObject("Btn_" + label, typeof(RectTransform));
         bgo.transform.SetParent(parent, false);
@@ -818,9 +817,9 @@ public class PetGameUI : MonoBehaviour
         btgo.transform.SetParent(bgo.transform, false);
         var btrt = btgo.GetComponent<RectTransform>();
         btrt.anchorMin = Vector2.zero; btrt.anchorMax = Vector2.one; btrt.sizeDelta = Vector2.zero;
-        var bt = btgo.AddComponent<Text>();
+        var bt = btgo.AddComponent<SystemFontText>();
         bt.text = label; bt.fontSize = 22; bt.color = Color.white;
-        bt.alignment = TextAnchor.MiddleCenter; bt.font = font;
+        bt.alignment = TextAnchor.MiddleCenter; GameFont.Apply(bt);
         bb.onClick.AddListener(cb);
     }
 

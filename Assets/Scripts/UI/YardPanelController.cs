@@ -11,12 +11,10 @@ using UnityEngine.UI;
 public class YardPanelController : MonoBehaviour
 {
     private MenuSceneController menuController;
-    private Font font;
 
     public void Init(MenuSceneController controller)
     {
         menuController = controller;
-        font = Resources.Load<Font>("Fonts/SourceHanSans");
         Build();
     }
 
@@ -175,13 +173,13 @@ public class YardPanelController : MonoBehaviour
     // ===== 通用 UI 辅助 =====
     void MakeText(Transform parent, string name, Vector2 min, Vector2 max, string text, int size, Color color, TextAnchor anchor)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+        var go = new GameObject(name, typeof(RectTransform), typeof(SystemFontText));
         go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = min; rt.anchorMax = max; rt.sizeDelta = Vector2.zero;
         var t = go.GetComponent<Text>();
         t.text = text; t.fontSize = size; t.color = color;
-        t.alignment = anchor; t.font = font;
+        t.alignment = anchor; GameFont.Apply(t);
     }
 
     void MakeLine(Transform parent, float y)
@@ -205,13 +203,13 @@ public class YardPanelController : MonoBehaviour
         var btn = go.GetComponent<Button>();
         btn.onClick.AddListener(() => onClick?.Invoke());
 
-        var tg = new GameObject("T", typeof(RectTransform), typeof(Text));
+        var tg = new GameObject("T", typeof(RectTransform), typeof(SystemFontText));
         tg.transform.SetParent(go.transform, false);
         var trt = tg.GetComponent<RectTransform>();
         trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
         var t = tg.GetComponent<Text>();
         t.text = text; t.fontSize = 22; t.color = Color.white;
-        t.alignment = TextAnchor.MiddleCenter; t.font = font;
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
     }
 
     void Close()

@@ -11,7 +11,6 @@ public class BuildingPopupController : MonoBehaviour
 {
     private MenuSceneController menuController;
     private string buildingId;
-    private Font font;
 
     private Text txtInfo;
     private Text txtCost;
@@ -22,7 +21,6 @@ public class BuildingPopupController : MonoBehaviour
     {
         menuController = controller;
         buildingId = id;
-        font = Resources.Load<Font>("Fonts/SourceHanSans");
         Build();
     }
 
@@ -123,13 +121,13 @@ public class BuildingPopupController : MonoBehaviour
     // ===== 通用辅助 =====
     Text MakeText(Transform parent, string name, Vector2 min, Vector2 max, string text, int size, Color color, TextAnchor anchor)
     {
-        var go = new GameObject(name, typeof(RectTransform), typeof(Text));
+        var go = new GameObject(name, typeof(RectTransform), typeof(SystemFontText));
         go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = min; rt.anchorMax = max; rt.sizeDelta = Vector2.zero;
         var t = go.GetComponent<Text>();
         t.text = text; t.fontSize = size; t.color = color;
-        t.alignment = anchor; t.font = font;
+        t.alignment = anchor; GameFont.Apply(t);
         return t;
     }
 
@@ -142,13 +140,13 @@ public class BuildingPopupController : MonoBehaviour
         go.GetComponent<Image>().color = bg;
         var btn = go.GetComponent<Button>();
         btn.onClick.AddListener(() => onClick?.Invoke());
-        var tg = new GameObject("T", typeof(RectTransform), typeof(Text));
+        var tg = new GameObject("T", typeof(RectTransform), typeof(SystemFontText));
         tg.transform.SetParent(go.transform, false);
         var trt = tg.GetComponent<RectTransform>();
         trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
         var t = tg.GetComponent<Text>();
         t.text = text; t.fontSize = 18; t.color = Color.white;
-        t.alignment = TextAnchor.MiddleCenter; t.font = font;
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
         return btn;
     }
 }

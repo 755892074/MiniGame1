@@ -57,8 +57,6 @@ public class LevelSelectController : MonoBehaviour
 
         Debug.Log($"[LevelSelect] 生成关卡网格: {levelCount}关, 已解锁{highest}");
 
-        var font = Resources.Load<Font>("Fonts/SourceHanSans");
-
         for (int i = 0; i < levelCount; i++)
         {
             int lid = i + 1;
@@ -86,7 +84,7 @@ public class LevelSelectController : MonoBehaviour
             });
 
             // 关卡文字
-            var txtGO = new GameObject("txtLabel", typeof(RectTransform), typeof(Text));
+            var txtGO = new GameObject("txtLabel", typeof(RectTransform), typeof(SystemFontText));
             txtGO.transform.SetParent(btnGO.transform, false);
             var trt = txtGO.GetComponent<RectTransform>();
             trt.anchorMin = Vector2.zero;
@@ -104,7 +102,7 @@ public class LevelSelectController : MonoBehaviour
             t.fontSize = 13;
             t.color = unlocked ? Color.white : new Color(0.5f, 0.5f, 0.5f);
             t.alignment = TextAnchor.MiddleCenter;
-            t.font = font;
+            GameFont.Apply(t);
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
         }
     }

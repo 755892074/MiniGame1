@@ -101,6 +101,7 @@ public class MenuSceneController : MonoBehaviour
             return;
         }
         var go = Instantiate(pf, canvas.transform);
+        GameFont.ApplyAll(go);
         go.name = "LoginPanel";
         SwitchTo(go);
 
@@ -122,6 +123,7 @@ public class MenuSceneController : MonoBehaviour
             return;
         }
         var go = Instantiate(pf, canvas.transform);
+        GameFont.ApplyAll(go);
         go.name = "MainMenuPanel";
         SwitchTo(go);
 
@@ -208,6 +210,7 @@ public class MenuSceneController : MonoBehaviour
             return;
         }
         settingsPanel = Instantiate(pf, canvas.transform);
+        GameFont.ApplyAll(settingsPanel);
         settingsPanel.name = "SettingsPanel";
 
         var ctrl = settingsPanel.AddComponent<SettingsController>();
@@ -236,6 +239,7 @@ public class MenuSceneController : MonoBehaviour
             return;
         }
         var go = Instantiate(pf, canvas.transform);
+        GameFont.ApplyAll(go);
         go.name = "LevelSelectPanel";
         SwitchTo(go);
 

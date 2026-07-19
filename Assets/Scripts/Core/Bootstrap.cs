@@ -43,6 +43,7 @@ public class Bootstrap : MonoBehaviour
             // 需要 Canvas
             var canvas = EnsureCanvas();
             var splashGO = Object.Instantiate(splashPf, canvas.transform);
+            GameFont.ApplyAll(splashGO);
             splashGO.name = "SplashPanel";
 
             // 找进度条

@@ -95,10 +95,8 @@ public class SettingsController : MonoBehaviour
         var bg = confirmDialog.AddComponent<Image>();
         bg.color = new Color(0.2f, 0.15f, 0.12f, 0.98f);
 
-        var font = Resources.Load<Font>("Fonts/SourceHanSans");
-
         // 警告文字
-        var warnGO = new GameObject("txtWarn", typeof(RectTransform), typeof(Text));
+        var warnGO = new GameObject("txtWarn", typeof(RectTransform), typeof(SystemFontText));
         warnGO.transform.SetParent(confirmDialog.transform, false);
         var warnRT = warnGO.GetComponent<RectTransform>();
         warnRT.anchorMin = new Vector2(0.1f, 0.6f);
@@ -109,7 +107,7 @@ public class SettingsController : MonoBehaviour
         wt.fontSize = 18;
         wt.color = Color.white;
         wt.alignment = TextAnchor.MiddleCenter;
-        wt.font = font;
+        GameFont.Apply(wt);
 
         // 确认按钮
         var btnConfirmGO = new GameObject("btnConfirm", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -121,7 +119,7 @@ public class SettingsController : MonoBehaviour
         btnConfirmGO.GetComponent<Image>().color = new Color(0.79f, 0.24f, 0.24f);
         btnConfirmGO.GetComponent<Button>().onClick.AddListener(OnConfirmReset);
 
-        var ctGO = new GameObject("txt", typeof(RectTransform), typeof(Text));
+        var ctGO = new GameObject("txt", typeof(RectTransform), typeof(SystemFontText));
         ctGO.transform.SetParent(btnConfirmGO.transform, false);
         var ctrt = ctGO.GetComponent<RectTransform>();
         ctrt.anchorMin = Vector2.zero; ctrt.anchorMax = Vector2.one; ctrt.sizeDelta = Vector2.zero;
@@ -129,7 +127,7 @@ public class SettingsController : MonoBehaviour
         ct.text = "确认重置";
         ct.fontSize = 18; ct.color = Color.white;
         ct.alignment = TextAnchor.MiddleCenter;
-        ct.font = font; ct.fontStyle = FontStyle.Bold;
+        GameFont.Apply(ct); ct.fontStyle = FontStyle.Bold;
 
         // 取消按钮
         var btnCancelGO = new GameObject("btnCancel", typeof(RectTransform), typeof(Image), typeof(Button));
@@ -144,7 +142,7 @@ public class SettingsController : MonoBehaviour
             if (confirmDialog != null) Destroy(confirmDialog);
         });
 
-        var xtGO = new GameObject("txt", typeof(RectTransform), typeof(Text));
+        var xtGO = new GameObject("txt", typeof(RectTransform), typeof(SystemFontText));
         xtGO.transform.SetParent(btnCancelGO.transform, false);
         var xtrt = xtGO.GetComponent<RectTransform>();
         xtrt.anchorMin = Vector2.zero; xtrt.anchorMax = Vector2.one; xtrt.sizeDelta = Vector2.zero;
@@ -152,7 +150,7 @@ public class SettingsController : MonoBehaviour
         xt.text = "取消";
         xt.fontSize = 18; xt.color = Color.white;
         xt.alignment = TextAnchor.MiddleCenter;
-        xt.font = font; xt.fontStyle = FontStyle.Bold;
+        GameFont.Apply(xt); xt.fontStyle = FontStyle.Bold;
     }
 
     void OnConfirmReset()
