@@ -1,0 +1,187 @@
+# F8 接入HybridCLR
+
+[![license](http://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) 
+[![Unity Version](https://img.shields.io/badge/unity-2021|2022|2023|6000-blue)](https://unity.com) 
+[![Platform](https://img.shields.io/badge/platform-Win%20%7C%20Android%20%7C%20iOS%20%7C%20Mac%20%7C%20Linux%20%7C%20WebGL-orange)]() 
+
+## 导入插件（需要首先导入HybridCLR）
+注意！HybridCLR：https://github.com/focus-creative-games/hybridclr_unity.git  
+方式一：直接下载文件，放入Unity  
+方式二：Unity->点击菜单栏->Window->Package Manager->点击+号->Add Package from git URL->输入：https://github.com/focus-creative-games/hybridclr_unity.git
+
+### 视频教程：[【Unity框架】（21）接入HybridCLR](https://www.bilibili.com/video/BV1wpXCYaEAd)
+
+## 简介（希望自己点击F8，就能开始制作游戏，不想多余的事）
+接入HybridCLR热更新代码组件。
+1. 使用这个[ 官方教程（快速上手） ](https://www.hybridclr.cn/docs/beginner/quickstart)创建HotUpdate程序集后。  
+2. 找到代码[ F8Helper.cs ](https://github.com/TippingGame/F8Framework/blob/main/Editor/F8Helper/F8Helper.cs)  
+	* 解除注释状态，如下代码  
+3. 补充元数据，具体看[ 官方教程（使用泛型） ](https://www.hybridclr.cn/docs/beginner/generic)
+
+```C#
+// 补充元数据，不会热更新此处的dll，一般在{project}/HybridCLRData/AssembliesPostIl2CppStrip/{target}目录下
+public static List<string> AOTDllList = new List<string>
+{
+    "mscorlib.dll",
+    "System.dll",
+    "System.Core.dll", // 如果使用了Linq，需要这个
+    // "Newtonsoft.Json.dll", 
+    // "protobuf-net.dll",
+    "F8Framework.Core.dll", // 为了能使用框架中的泛型
+};
+
+[MenuItem("开发工具/3: 生成并复制热更新Dll-F8", false, 210)]
+public static void GenerateCopyHotUpdateDll()
+{
+    // SessionState.SetBool("compilationFinishedHotUpdateDll", false);
+    //
+    // // 只使用HybridCLR执行的命令（二选一）
+    // HybridCLR.Editor.Commands.PrebuildCommand.GenerateAll();
+    // // 使用HybridCLR的同时也使用Obfuz执行的命令（二选一）
+    // // Obfuz4HybridCLR.PrebuildCommandExt.GenerateAll();
+    //
+    // string outpath = Application.dataPath + "/AssetBundles/Code/";
+    //
+    // FileTools.SafeClearDir(outpath);
+    // FileTools.CheckDirAndCreateWhenNeeded(outpath);
+    // foreach (var dll in HybridCLR.Editor.SettingsUtil.HotUpdateAssemblyNamesIncludePreserved) // 获取HybridCLR设置面板的dll名称
+    // {
+    //     var path = HybridCLR.Editor.SettingsUtil.GetHotUpdateDllsOutputDirByTarget(
+    //         EditorUserBuildSettings.activeBuildTarget) + "/" + dll + ".dll";
+    //
+    //     // 使用HybridCLR的同时也使用Obfuz解除注释
+    //     // if (Obfuz.Settings.ObfuzSettings.Instance.assemblySettings.GetObfuscationRelativeAssemblyNames().Contains(dll))
+    //     // {
+    //     //     path = Obfuz4HybridCLR.PrebuildCommandExt.GetObfuscatedHotUpdateAssemblyOutputPath(
+    //     //         EditorUserBuildSettings.activeBuildTarget) + "/" + dll + ".dll";
+    //     // }
+    //     
+    //     FileTools.SafeCopyFile(path, outpath + dll + ".bytes");
+    //     LogF8.LogAsset("生成并复制热更新dll：" + dll);
+    // }
+    //
+    // foreach (var aotDllName in F8Helper.AOTDllList)
+    // {
+    //     var mscorlibsouPath = HybridCLR.Editor.SettingsUtil.GetAssembliesPostIl2CppStripDir(
+    //         EditorUserBuildSettings.activeBuildTarget) + "/" + aotDllName;
+    //     
+    //     FileTools.SafeCopyFile(
+    //         mscorlibsouPath,
+    //         outpath + aotDllName + "by.bytes");
+    //     LogF8.LogAsset("生成并复制补充元数据dll：" + aotDllName);
+    // }
+    //
+    // AssetDatabase.Refresh();
+}
+```
+3. 代码已拆分程序集（注意：AOT代码不能引用热更代码）  
+   * AOT程序集：（`F8Framework.Core`）、（注意：散落在工程中的其他代码也会当作AOT打包）  
+   * 热更新程序集：（`F8Framework.F8ExcelDataClass`）、（`F8Framework.Launcher`）  
+4. 将这两个热更新程序集拖进 HybridCLR 设置面板中  
+![image](https://tippinggame-1257018413.cos.ap-guangzhou.myqcloud.com/TippingGame/HybridCLR/ui_20241128235509.png)  
+5. Assembly-CSharp是Unity的默认全局程序集，它也可以像普通dll一样当作热更新程序集[（官方配置）](https://www.hybridclr.cn/docs/basic/projectsettings)，只需添加`Assembly-CSharp`到下方`Hot Update Assemblies`里，`LoadDll.cs`脚本则需拆分程序集作为AOT代码
+6. 注意：主工程不能直接引用热更新代码，这里通过反射来调用热更新代码。  
+   * 在启动场景挂在一个加载dll脚本，先补充元数据（可选），加载热更新程序集
+```C#
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using F8Framework.Core;
+using HybridCLR;
+using UnityEngine;
+
+public class LoadDll : MonoBehaviour
+{
+    public IEnumerator Start()
+    {
+        ModuleCenter.Initialize(this);
+        // 在这里可以启动热更新
+        HotUpdateManager HotUpdate = ModuleCenter.CreateModule<HotUpdateManager>();
+        DownloadManager DownloadManager = ModuleCenter.CreateModule<DownloadManager>();
+        AssetManager AssetManager = ModuleCenter.CreateModule<AssetManager>();
+        yield return AssetBundleManager.Instance.LoadAssetBundleManifest();
+        
+        // 初始化本地版本
+        HotUpdate.InitLocalVersion();
+
+        // 初始化远程版本
+        yield return HotUpdate.InitRemoteVersion();
+            
+        // 初始化资源版本
+        yield return HotUpdate.InitAssetVersion();
+            
+        // 检查需要热更的资源，总大小
+        var (downloadInfos, allSize) = HotUpdate.CheckHotUpdate();
+        
+        // 资源热更新
+        HotUpdate.StartHotUpdate(downloadInfos, () =>
+        {
+            LogF8.Log("完成");
+            // 先补充元数据（可选）
+            List<string> aotDllList = new List<string>
+            {
+                "mscorlib.dll",
+                "System.dll",
+                "System.Core.dll", // 如果使用了Linq，需要这个
+                // "Newtonsoft.Json.dll", 
+                // "protobuf-net.dll",
+                "F8Framework.Core.dll", // 为了能使用框架中的泛型
+            };
+
+            foreach (var aotDllName in aotDllList)
+            {
+                byte[] dllBytes = AssetManager.Instance.Load<TextAsset>(aotDllName + "by").bytes;
+                LoadImageErrorCode err = HybridCLR.RuntimeApi.LoadMetadataForAOTAssembly(dllBytes, HomologousImageMode.SuperSet);
+                LogF8.Log($"LoadMetadataForAOTAssembly:{aotDllName}. ret:{err}");
+            }
+            
+            // Editor环境下，HotUpdate.dll.bytes已经被自动加载，不需要加载，重复加载反而会出问题。
+#if !UNITY_EDITOR
+            TextAsset asset1 = AssetManager.Instance.Load<TextAsset>("F8Framework.F8ExcelDataClass");
+            Assembly hotUpdateAss1 = Assembly.Load(asset1.bytes);
+            TextAsset asset2 = AssetManager.Instance.Load<TextAsset>("F8Framework.Launcher");
+            Assembly hotUpdateAss2 = Assembly.Load(asset2.bytes);
+#else
+            // Editor下无需加载，直接查找获得HotUpdate程序集
+            Assembly hotUpdateAss = System.AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "F8Framework.F8ExcelDataClass");
+            Assembly hotUpdateAss2 = System.AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "F8Framework.Launcher");
+#endif
+            Type type = hotUpdateAss2.GetType("F8Framework.Launcher.GameLauncher");
+            // 添加组件
+            gameObject.AddComponent(type);
+        }, () =>
+        {
+            LogF8.Log("失败");
+        }, eventArgs =>
+        {
+            long downloadedBytes = eventArgs.TotalDownloadedLength;
+            double speedBytesPerSecond = eventArgs.DownloadInfo.DownloadedLength / eventArgs.DownloadInfo.DownloadTimeSpan.TotalSeconds;
+            LogF8.Log($"进度：{downloadedBytes}B/{allSize}B, 速度：{speedBytesPerSecond}B/s");
+        });
+    }
+    void Update()
+    {
+        // 更新模块，切勿多处调用
+        ModuleCenter.Update();
+    }
+
+    void LateUpdate()
+    {
+        // 更新模块，切勿多处调用
+        ModuleCenter.LateUpdate();
+    }
+
+    void FixedUpdate()
+    {
+        // 更新模块，切勿多处调用
+        ModuleCenter.FixedUpdate();
+    }
+}
+```
+### 常见问题：
+1. 打包报错，区分不出AOT和热更新代码，就只把`LoadDll.cs`当作AOT代码，参考上面第5点。
+2. 打包HybridCLR，用时很久，可在第一次执行后，把`HybridCLR.Editor.Commands.PrebuildCommand.GenerateAll();`，改为这个API：`HybridCLR.Editor.Commands.CompileDllCommand.CompileDll(EditorUserBuildSettings.activeBuildTarget);`
+    * 启用了Obfuz，可以把`Obfuz4HybridCLR.PrebuildCommandExt.GenerateAll();`，改为这个API：`Obfuz4HybridCLR.PrebuildCommandExt.CompileAndObfuscateDll();`
+    * [参考文档（与HybridCLR协同工作）](https://www.obfuz.com/docs/manual/hybridclr/work-with-hybridclr)

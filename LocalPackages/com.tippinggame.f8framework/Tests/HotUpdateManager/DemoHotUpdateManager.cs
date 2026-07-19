@@ -1,0 +1,86 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using F8Framework.Core;
+using UnityEngine;
+
+namespace F8Framework.Tests
+{
+    public class DemoHotUpdateManager : MonoBehaviour
+    {
+        private static string GetHotfixUrl()
+        {
+#if TEST_VERSION
+            return "https://cdn-test.xxx.com/hotfix/";
+#else
+            return "https://cdn-prod.xxx.com/hotfix/";
+#endif
+        }
+
+        IEnumerator Start()
+        {
+            // 启动必须要的模块，热更新版本管理-->使用了资产模块-->使用了下载模块
+            FF8.HotUpdate = ModuleCenter.CreateModule<HotUpdateManager>();
+            FF8.Asset = ModuleCenter.CreateModule<AssetManager>();
+            FF8.Download = ModuleCenter.CreateModule<DownloadManager>();
+            yield return AssetBundleManager.Instance.LoadAssetBundleManifest();
+            
+            // 初始化本地版本
+            FF8.HotUpdate.InitLocalVersion();
+
+            // 可选：用代码动态获取远程资产基础地址，框架会自动追加 Remote/平台
+            GameConfig.SetAssetRemoteBaseAddressGetter(GetHotfixUrl);
+
+            // 初始化远程版本
+            yield return FF8.HotUpdate.InitRemoteVersion();
+            
+            // 初始化资源版本
+            yield return FF8.HotUpdate.InitAssetVersion();
+            
+            // 检查需要热更的资源，总大小
+            var (downloadInfos, allSize) = FF8.HotUpdate.CheckHotUpdate();
+            
+            // 资源热更新
+            FF8.HotUpdate.StartHotUpdate(downloadInfos, () =>
+            {
+                LogF8.Log("完成");
+            }, () =>
+            {
+                LogF8.Log("失败");
+            }, eventArgs =>
+            {
+                // 已下载大小（字节）
+                long downloadedBytes = eventArgs.TotalDownloadedLength;
+    
+                // 总大小（字节）- 需要累加之前已完成的任务大小
+                long totalBytes = allSize;
+    
+                // 下载速度计算（字节/秒）
+                double speedBytesPerSecond = eventArgs.DownloadInfo.DownloadedLength / eventArgs.DownloadInfo.DownloadTimeSpan.TotalSeconds;
+    
+                // 单位转换：字节 -> MB
+                double downloadedMB = downloadedBytes / (1024.0 * 1024.0);
+                double totalMB = totalBytes / (1024.0 * 1024.0);
+                double speedMBPerSecond = speedBytesPerSecond / (1024.0 * 1024.0);
+    
+                // 日志输出：进度，速度
+                LogF8.Log($"进度：{downloadedMB:F2}MB/{totalMB:F2}MB, 速度：{speedMBPerSecond:F2}MB/s");
+            });
+
+            // 检查未加载的分包
+            var (packageDownloadTasks, packageAllSize) = FF8.HotUpdate.CheckPackageUpdate(GameConfig.LocalGameVersion.SubPackage);
+            
+            // 分包下载并解压
+            FF8.HotUpdate.StartPackageUpdate(packageDownloadTasks, () =>
+            {
+                LogF8.Log("完成");
+            }, () =>
+            {
+                LogF8.Log("失败");
+            }, eventArgs =>
+            {
+                // 同上，可使用 packageAllSize 作为剩余总下载量
+            });
+        }
+    }
+}

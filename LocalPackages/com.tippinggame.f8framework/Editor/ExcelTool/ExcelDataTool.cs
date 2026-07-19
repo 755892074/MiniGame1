@@ -1,0 +1,635 @@
+using System.Collections.Generic;
+using System.Reflection;
+using Microsoft.CSharp;
+using System.CodeDom.Compiler;
+using System.IO;
+using System;
+using System.Linq;
+using System.Text;
+using UnityEngine;
+using UnityEditor;
+using Excel;
+using UnityEditor.Compilation;
+using Assembly = System.Reflection.Assembly;
+
+namespace F8Framework.Core.Editor
+{
+    public class ExcelDataTool : ScriptableObject
+    {
+        public const string CODE_NAMESPACE = "F8Framework.F8ExcelDataClass"; //由表生成的数据类型均在此命名空间内
+
+        public const string BinDataFolder = "/AssetBundles/Config/BinConfigData"; //序列化的数据文件默认目录，可在F5打包界面修改
+        public const string DataManagerFolder = "/F8Framework/ConfigData/F8DataManager"; //Data代码路径
+        public const string DataManagerName = "F8DataManager.cs"; //Data代码脚本名
+        public const string ExcelPath = "/StreamingAssets/config"; //需要导表的目录
+        public const string DLLFolder = "/F8Framework/ConfigData"; //存放dll目录
+        public const string FileIndexFile = "config/fileindex.txt"; //fileindex文件目录
+        private static Dictionary<string, ScriptGenerator> codeList; //存放所有生成的类的代码
+
+        private static Dictionary<string, List<ReadExcel.ConfigData[]>> dataDict; //存放所有数据表内的数据，key：类名  value：数据
+
+        // 使用StringBuilder来优化字符串的重复构造
+        private static StringBuilder FileIndex = new StringBuilder();
+        
+        private static string GetScriptPath()
+        {
+            MonoScript monoScript = MonoScript.FromScriptableObject(CreateInstance<ExcelDataTool>());
+
+            // 获取脚本在 Assets 中的相对路径
+            string scriptRelativePath = AssetDatabase.GetAssetPath(monoScript);
+
+            // 获取绝对路径并规范化
+            string scriptPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", scriptRelativePath));
+
+            return scriptPath;
+        }
+        
+        private static void CreateAsmdefFile()
+        {
+            // 创建.asmdef文件的路径
+            string asmrefPath = Application.dataPath + DLLFolder + "/" + CODE_NAMESPACE + ".asmdef";
+            
+            FileTools.CheckFileAndCreateDirWhenNeeded(asmrefPath);
+            // 创建一个新的.asmdef文件
+            string asmdefContent = @"{
+    ""name"": ""F8Framework.F8ExcelDataClass"",
+    ""references"": [
+        ""F8Framework.Core"",
+        ""LitJson""
+    ],
+    ""includePlatforms"": [],
+    ""excludePlatforms"": [],
+    ""allowUnsafeCode"": false,
+    ""overrideReferences"": false,
+    ""precompiledReferences"": [],
+    ""autoReferenced"": true,
+    ""defineConstraints"": [],
+    ""versionDefines"": [],
+    ""noEngineReferences"": false
+}";
+
+            // 将内容写入.asmdef文件
+            FileTools.SafeWriteAllText(asmrefPath, asmdefContent);
+            LogF8.LogConfig("创建.asmdef文件 " + Application.dataPath + DLLFolder + "/<color=#FF9E59>" + CODE_NAMESPACE + ".asmdef" + "</color>");
+        }
+
+        // Jenkins导表专用
+        public static void JenkinsLoadAllExcelData()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            string ExcelPath = BuildPkgTool.GetArgValue(args, "ExcelPath-");
+            string ConvertExcelToOtherFormats = BuildPkgTool.GetArgValue(args, "ConvertExcelToOtherFormats-");
+            string ExcelBinDataFolder = BuildPkgTool.GetArgValue(args, "ExcelBinDataFolder-");
+            F8EditorPrefs.SetString(BuildPkgTool.ExcelPathKey, URLSetting.RemoveRootPath(ExcelPath));
+            F8EditorPrefs.SetString(BuildPkgTool.ConvertExcelToOtherFormatsKey, ConvertExcelToOtherFormats);
+            F8EditorPrefs.SetString(BuildPkgTool.ExcelBinDataFolderKey, URLSetting.RemoveRootPath(ExcelBinDataFolder));
+            LoadAllExcelData();
+        }
+        
+        public static void LoadAllExcelData()
+        {
+            if (F8EditorPrefs.GetString(BuildPkgTool.ExcelPathKey, null).IsNullOrEmpty())
+            {
+                FileTools.CheckDirAndCreateWhenNeeded(Application.dataPath + ExcelPath);
+                string tempExcelPath = Application.dataPath + ExcelPath;
+                F8EditorPrefs.SetString(BuildPkgTool.ExcelPathKey, URLSetting.RemoveRootPath(tempExcelPath));
+                LogF8.LogConfig("首次启动，设置Excel存放目录：" + tempExcelPath + " （如要更改请到----上方菜单栏->开发工具->设置Excel存放目录）");
+            }
+            string lastExcelPath = URLSetting.AddRootPath(F8EditorPrefs.GetString(BuildPkgTool.ExcelPathKey, null)) ?? Application.dataPath + ExcelPath;
+            
+            string INPUT_PATH = lastExcelPath;
+
+            FileTools.CheckDirAndCreateWhenNeeded(INPUT_PATH);
+            
+            var files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
+                .Where(s => (s.EndsWith(".xls") || s.EndsWith(".xlsx")) && !Path.GetFileName(s).StartsWith("~$"))
+                .ToArray();
+            if (files == null || files.Length == 0)
+            {
+                FileTools.SafeCopyFile(
+                    FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
+                    "/Runtime/ExcelTool/StreamingAssets_config/DemoWorkSheet.xlsx",
+                    lastExcelPath + "/DemoWorkSheet.xlsx");
+                FileTools.SafeCopyFile(
+                    FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) +
+                    "/Runtime/Localization/StreamingAssets_config/Localization.xlsx",
+                    lastExcelPath + "/Localization.xlsx");
+                files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
+                    .Where(s => (s.EndsWith(".xls") || s.EndsWith(".xlsx")) && !Path.GetFileName(s).StartsWith("~$"))
+                    .ToArray();
+                LogF8.LogError("暂无可以导入的数据表！自动为你创建：【DemoWorkSheet.xlsx / Localization.xlsx】两个表格！" + lastExcelPath + " 目录");
+            }
+            
+            if (codeList == null)
+            {
+                codeList = new Dictionary<string, ScriptGenerator>();
+            }
+            else
+            {
+                codeList.Clear();
+            }
+
+            if (dataDict == null)
+            {
+                dataDict = new Dictionary<string, List<ReadExcel.ConfigData[]>>();
+            }
+            else
+            {
+                dataDict.Clear();
+            }
+            
+            FileIndex.Clear();
+            FileTools.SafeDeleteFile(URLSetting.CS_STREAMINGASSETS_URL + FileIndexFile);
+            FileTools.SafeDeleteFile(URLSetting.CS_STREAMINGASSETS_URL + FileIndexFile + ".meta");
+            
+            FileTools.CheckFileAndCreateDirWhenNeeded(URLSetting.CS_STREAMINGASSETS_URL + FileIndexFile);
+            
+            foreach (string item in files)
+            {
+                GetExcelData(item);
+                OnLogCallBack(item.Substring(item.LastIndexOf('\\') + 1));
+            }
+
+            if (codeList.Count == 0)
+            {
+                EditorUtility.DisplayDialog("注意！！！", "\n暂无可以导入的数据表！", "确定");
+                throw new Exception("暂无可以导入的数据表！");
+            }
+            
+            string F8ExcelDataClassPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8ExcelDataClass";
+            FileTools.SafeClearDir(F8ExcelDataClassPath);
+            LogF8.LogConfig("清空目录：" + F8ExcelDataClassPath);
+            FileTools.CheckDirAndCreateWhenNeeded(F8ExcelDataClassPath);
+            
+            // 编译代码,生成包含所有数据表内数据类型的dll
+            GenerateCodeFiles(codeList);
+            
+            string F8DataManagerPath = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/F8DataManager";
+            FileTools.SafeClearDir(F8DataManagerPath);
+            LogF8.LogConfig("清空目录：" + F8DataManagerPath);
+            FileTools.CheckDirAndCreateWhenNeeded(F8DataManagerPath);
+            
+            // 生成F8DataManager.cs
+            ScriptGenerator.CreateDataManager(codeList);
+            
+            string F8ExcelDataClassPathDLL = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 3)) + "/ConfigData/" + CODE_NAMESPACE + ".asmdef";
+            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL);
+            LogF8.LogConfig("删除文件：" + F8ExcelDataClassPathDLL);
+            FileTools.SafeDeleteFile(F8ExcelDataClassPathDLL + ".meta");
+            FileTools.SafeDeleteFile(Application.dataPath + DataManagerFolder + "/F8DataManager.asmref");
+            CreateAsmdefFile();
+            
+            AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+            // 等待脚本编译完成
+            CompilationPipeline.compilationFinished -= OnCompilationFinished;
+            CompilationPipeline.compilationFinished += OnCompilationFinished;
+        }
+
+        // Jenkins导表专用
+        public static void JenkinsAllScriptsReloaded()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            string ExcelPath = BuildPkgTool.GetArgValue(args, "ExcelPath-");
+            string ConvertExcelToOtherFormats = BuildPkgTool.GetArgValue(args, "ConvertExcelToOtherFormats-");
+            string ExcelBinDataFolder = BuildPkgTool.GetArgValue(args, "ExcelBinDataFolder-");
+            F8EditorPrefs.SetString(BuildPkgTool.ExcelPathKey, URLSetting.RemoveRootPath(ExcelPath));
+            F8EditorPrefs.SetString(BuildPkgTool.ConvertExcelToOtherFormatsKey, ConvertExcelToOtherFormats);
+            F8EditorPrefs.SetString(BuildPkgTool.ExcelBinDataFolderKey, URLSetting.RemoveRootPath(ExcelBinDataFolder));
+            SessionState.SetBool("compilationFinished", true);
+            AllScriptsReloaded();
+        }
+
+        private static void OnCompilationFinished(object obj)
+        {
+            CompilationPipeline.compilationFinished -= OnCompilationFinished;
+            SessionState.SetBool("compilationFinished", true);
+        }
+
+        // 等待脚本编译完成
+        [UnityEditor.Callbacks.DidReloadScripts]
+        private static void AllScriptsReloaded()
+        {
+            if (SessionState.GetBool("compilationFinished", false) == false)
+            {
+                return;
+            }
+            SessionState.SetBool("compilationFinished", false);
+            LogF8.LogConfig("<color=#FF9E59>导表后脚本编译完成!</color>");
+            Assembly assembly = Util.Assembly.GetAssembly(CODE_NAMESPACE);
+            //准备序列化数据
+            string BinDataPath = URLSetting.AddRootPath(F8EditorPrefs.GetString(BuildPkgTool.ExcelBinDataFolderKey, null)) ?? Application.dataPath + BinDataFolder;
+            if (Directory.Exists(BinDataPath)) Directory.Delete(BinDataPath, true); //删除旧的数据文件
+            Directory.CreateDirectory(BinDataPath);
+            
+            string lastExcelPath = URLSetting.AddRootPath(F8EditorPrefs.GetString(BuildPkgTool.ExcelPathKey, null)) ?? Application.dataPath + ExcelPath;
+            
+            string INPUT_PATH = lastExcelPath;
+            var files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
+                .Where(s => (s.EndsWith(".xls") || s.EndsWith(".xlsx")) && !Path.GetFileName(s).StartsWith("~$"))
+                .ToArray();
+            if (codeList == null)
+            {
+                codeList = new Dictionary<string, ScriptGenerator>();
+            }
+            else
+            {
+                codeList.Clear();
+            }
+            if (dataDict == null)
+            {
+                dataDict = new Dictionary<string, List<ReadExcel.ConfigData[]>>();
+            }
+            else
+            {
+                dataDict.Clear();
+            }
+            foreach (string item in files)
+            {
+                GetExcelData(item);
+            }
+            
+            foreach (KeyValuePair<string, List<ReadExcel.ConfigData[]>> each in dataDict)
+            {
+                //Assembly.CreateInstance 方法 (String) 使用区分大小写的搜索，从此程序集中查找指定的类型，然后使用系统激活器创建它的实例化对象
+                object container = assembly.CreateInstance(CODE_NAMESPACE + "." + each.Key);
+                Type temp = assembly.GetType(CODE_NAMESPACE + "." + each.Key + "Item");
+                //序列化数据
+                Serialize(container, temp, each.Value, BinDataPath);
+            }
+            
+            LogF8.LogConfig("<color=yellow>导表成功!</color>");
+            
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                AssetDatabase.Refresh();
+                if (SessionState.GetBool("compilationFinishedHotUpdateDll", false) == true)
+                {
+                    SessionState.SetBool("compilationFinishedHotUpdateDll", false);
+                    F8Helper.GenerateCopyHotUpdateDll();
+                }
+            };
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (SessionState.GetBool("compilationFinishedBuildAB", false) == true)
+                {
+                    SessionState.SetBool("compilationFinishedBuildAB", false);
+                    ABBuildTool.BuildAllAB();
+                }
+            };
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (SessionState.GetBool("compilationFinishedBuildPkg", false) == true)
+                {
+                    SessionState.SetBool("compilationFinishedBuildPkg", false);
+                    BuildPkgTool.Build();
+                    BuildPkgTool.WriteAssetVersion();
+                }
+            };
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (SessionState.GetBool("compilationFinishedBuildRun", false) == true)
+                {
+                    SessionState.SetBool("compilationFinishedBuildRun", false);
+                    BuildPkgTool.RunExportedGame();
+                }
+            };
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                if (SessionState.GetBool("compilationFinishedBuildUpdate", false) == true)
+                {
+                    SessionState.SetBool("compilationFinishedBuildUpdate", false);
+                    BuildPkgTool.BuildUpdate();
+                }
+            };
+        }
+        
+        [UnityEditor.MenuItem("开发工具/运行时读取Excel _F7", false, 101)]
+        public static void ReLoadExcelData()
+        {
+            ReadExcel.Instance.LoadAllExcelData();
+        }
+
+        private static void OnLogCallBack(string condition)
+        {
+            FileIndex.Append(condition);
+            if (FileIndex.Length <= 0) return;
+            using (var sw = File.AppendText(URLSetting.CS_STREAMINGASSETS_URL + FileIndexFile))
+            {
+                sw.WriteLine(FileIndex.ToString());
+            }
+
+            FileIndex.Remove(0, FileIndex.Length);
+        }
+        
+        private static void GetExcelData(string inputPath)
+        {
+            FileStream stream = null;
+            IExcelDataReader excelReader = null;
+            try
+            {
+                stream = File.Open(inputPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                
+                if (inputPath.EndsWith(".xls")) excelReader = ExcelReaderFactory.CreateBinaryReader(stream);
+                else if (inputPath.EndsWith(".xlsx")) excelReader = ExcelReaderFactory.CreateOpenXmlReader(stream);
+                if (!excelReader.IsValid)
+                {
+                    throw new Exception("无法读取的文件:  " + inputPath);
+                }
+                do // 读取所有的sheet
+                {
+                    // sheet name
+                    string className = excelReader.Name;
+                    string[] types = null; //数据类型
+                    string[] names = null; //字段名
+                    List<ReadExcel.ConfigData[]> dataList = new List<ReadExcel.ConfigData[]>();
+                    int index = 1;
+                    //把读取的数据和数据类型,名称保存起来,后面用来动态生成类
+                    List<ReadExcel.ConfigData> configDataList = new List<ReadExcel.ConfigData>();
+                    //开始读取
+                    while (excelReader.Read())
+                    {
+                        //这里读取的是每一行的数据
+                        string[] datas = new string[excelReader.FieldCount];
+                        for (int j = 0; j < excelReader.FieldCount; ++j)
+                        {
+                            datas[j] = excelReader.GetString(j);
+                        }
+
+                        //空行不处理
+                        if (datas.Length == 0 || string.IsNullOrEmpty(datas[0]))
+                        {
+                            ++index;
+                            continue;
+                        }
+
+                        //第1行表示类型
+                        if (index == 1) types = datas;
+                        //第2行表示变量名
+                        else if (index == 2) names = datas;
+                        //后面的表示数据
+                        else if (index > 2)
+                        {
+                            if (types == null || names == null || datas == null)
+                            {
+                                throw new Exception("数据错误！[" + className + "]配置表！第" + index + "行" + inputPath);
+                            }
+                            
+                            configDataList.Clear();
+                            for (int j = 0; j < datas.Length; ++j)
+                            {
+                                if (string.IsNullOrEmpty(types[j]))
+                                    continue; //空的数据不处理
+                                
+                                ReadExcel.ConfigData data = new ReadExcel.ConfigData();
+                                data.Type = types[j];
+                                data.Name = names[j];
+                                data.Data = datas[j];
+                                
+                                configDataList.Add(data);
+                            }
+
+                            ReadExcel.VariantInfoDict(ref configDataList);
+                            
+                            dataList.Add(configDataList.ToArray());
+                        }
+
+                        ++index;
+                    }
+
+                    if (string.IsNullOrEmpty(className))
+                    {
+                        throw new Exception("空的类名（excel页签名）, 路径:  " + inputPath);
+                    }
+
+                    if (names != null && types != null)
+                    {
+                        List<ReadExcel.ConfigData> scriptConfigDataList = configDataList.Count > 0
+                            ? configDataList
+                            : CreateConfigDataList(types, names);
+                        //根据刚才的数据来生成C#脚本
+                        ScriptGenerator generator = new ScriptGenerator(inputPath, className, scriptConfigDataList);
+                        //所有生成的类的代码最终保存在这
+                        if (codeList.ContainsKey(className))
+                        {
+                            throw new Exception("类名重复: " + className + " ,路径:  " + inputPath);
+                        }
+
+                        codeList.Add(className, generator);
+                        if (dataDict.ContainsKey(className))
+                        {
+                            throw new Exception("类名重复: " + className + " ,路径:  " + inputPath);
+                        }
+
+                        dataDict.Add(className, dataList);
+                    }
+                } while (excelReader.NextResult()); //excelReader.NextResult() Excel表下一个sheet页有没有数据
+            }
+            catch (IOException)
+            {
+                EditorUtility.DisplayDialog("注意！！！", "\n请关闭 " + inputPath + " 后再导表！", "确定");
+                throw new Exception("请关闭 " + inputPath + " 后再导表！");
+            }
+            catch (Exception ex)
+            {
+                LogF8.LogError($"处理Excel文件失败: {inputPath}, 错误: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                excelReader?.Dispose();
+                stream?.Dispose();
+            }
+        }
+
+        private static List<ReadExcel.ConfigData> CreateConfigDataList(string[] types, string[] names)
+        {
+            List<ReadExcel.ConfigData> configDataList = new List<ReadExcel.ConfigData>();
+            int count = Math.Min(types.Length, names.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (string.IsNullOrEmpty(types[i]))
+                    continue;
+
+                configDataList.Add(new ReadExcel.ConfigData
+                {
+                    Type = types[i],
+                    Name = names[i],
+                    Data = string.Empty
+                });
+            }
+
+            ReadExcel.VariantInfoDict(ref configDataList);
+            return configDataList;
+        }
+
+        //编译代码
+        private static Assembly CompileCode(string[] scripts)
+        {
+            string path = Application.dataPath + DLLFolder + "/F8ExcelDataClass";
+            if (Directory.Exists(path)) Directory.Delete(path, true); //删除旧dll
+            Directory.CreateDirectory(path);
+            //编译器实例对象
+            CSharpCodeProvider codeProvider = new CSharpCodeProvider();
+            //编译器参数实例对象
+            CompilerParameters objCompilerParameters = new CompilerParameters();
+            objCompilerParameters.ReferencedAssemblies.AddRange(new string[] { "System.dll" }); //添加程序集引用
+            objCompilerParameters.OutputAssembly = path + "/" + CODE_NAMESPACE + ".dll"; //设置输出的程序集名
+            objCompilerParameters.GenerateExecutable = false;
+            objCompilerParameters.GenerateInMemory = true;
+            //开始编译脚本
+            CompilerResults cr = codeProvider.CompileAssemblyFromSource(objCompilerParameters, scripts);
+            if (cr.Errors.HasErrors)
+            {
+                foreach (CompilerError err in cr.Errors)
+                {
+                    LogF8.LogError("编译dll出错：" + err.ErrorText);
+                }
+
+                throw new Exception("编译dll出错！请检查配置表格式！");
+            }
+
+            LogF8.LogConfig("已编译 " + path + "/<color=#FFFF00>" + CODE_NAMESPACE + ".dll</color>");
+            return cr.CompiledAssembly;
+        }
+
+        // 生成代码文件
+        public static void GenerateCodeFiles(Dictionary<string, ScriptGenerator> codeList)
+        {
+            string path = Application.dataPath + DLLFolder + "/F8ExcelDataClass";
+            FileTools.SafeClearDir(path);// 删除旧文件
+
+            // 将每个脚本写入独立的 .cs 文件
+            foreach (var kvp in codeList)
+            {
+                string filePath = $"{path}/{kvp.Key}.cs";
+                try
+                {
+                    File.WriteAllText(filePath, kvp.Value.Generate());
+                }
+                catch (Exception e)
+                {
+                    LogF8.LogException(e);
+                    throw new Exception("表格生成错误，修改后重试F8：" + kvp.Key + ".cs" + "\n");
+                }
+                
+                LogF8.LogConfig($"已生成代码 " + path + "/<color=#FF9E59>" + kvp.Key + ".cs</color>");
+            }
+        }
+        
+        //序列化对象
+        private static void Serialize(object container, Type temp, List<ReadExcel.ConfigData[]> dataList, string BinDataPath)
+        {
+            //设置数据
+            foreach (ReadExcel.ConfigData[] datas in dataList)
+            {
+                //Type.FullName 获取该类型的完全限定名称，包括其命名空间，但不包括程序集。
+                object t = Util.Assembly.GetTypeInstance(temp.FullName);
+
+                foreach (ReadExcel.ConfigData data in datas)
+                {
+                    if (data.VariantInfo != null)
+                    {
+                        string name = data.VariantInfo is { HasVariant: true }
+                            ? "_" + data.Name + "Variants"
+                            : data.Name;
+                        FieldInfo variantDictField = temp.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        
+                        if (variantDictField == null) continue;
+                        
+                        object variantDict = variantDictField.GetValue(t);
+
+                        foreach (var variantData in data.VariantInfo.Variants)
+                        {
+                            object variantValue = ReadExcel.ParseValue(data.Type, variantData.Value, temp.Name);
+                            variantDict.GetType().GetMethod("Add").Invoke(variantDict, new object[] { variantData.Key, variantValue });
+                        }
+                        
+                        variantDictField.SetValue(t, variantDict);
+                    }
+                    else
+                    {
+                        if (data.Name.IsNullOrEmpty())
+                        {
+                            continue;
+                        }
+                        FieldInfo info = temp.GetField(data.Name);
+                        // FieldInfo.SetValue 设置对象内指定名称的字段的值
+                        if (info != null)
+                        {
+                            info.SetValue(t, ReadExcel.ParseValue(data.Type, data.Data, temp.Name));
+                        }
+                    }
+                }
+
+                // FieldInfo.GetValue 获取对象内指定名称的字段的值
+                FieldInfo fieldInfoId = null;
+                PropertyInfo propertyInfoId = null;
+                foreach (var field in temp.GetFields())
+                {
+                    if (!string.Equals(field.Name, "id", StringComparison.OrdinalIgnoreCase)) continue;
+                    fieldInfoId = field;
+                    break;
+                }
+                // 如果没有找到字段，再检查属性
+                if (fieldInfoId == null)
+                {
+                    foreach (var property in temp.GetProperties())
+                    {
+                        if (!string.Equals(property.Name, "id", StringComparison.OrdinalIgnoreCase)) continue;
+                        propertyInfoId = property;
+                        break;
+                    }
+                }
+
+                object id = null;
+                if (fieldInfoId != null)
+                {
+                    id = fieldInfoId.GetValue(t);
+                }
+                else if (propertyInfoId != null)
+                {
+                    id = propertyInfoId.GetValue(t);
+                }
+                FieldInfo dictInfo = container.GetType().GetField("Dict");
+                object dict = dictInfo.GetValue(container);
+
+                bool isExist = (bool)dict.GetType().GetMethod("ContainsKey").Invoke(dict, new System.Object[] { id });
+                if (isExist)
+                {
+                    EditorUtility.DisplayDialog("注意！！！", "ID重复：" + id + "，类型： " + container.GetType().Name, "确定");
+                    throw new Exception("ID重复：" + id + "，类型： " + container.GetType().Name);
+                }
+
+                dict.GetType().GetMethod("Add").Invoke(dict, new System.Object[] { id, t });
+            }
+
+            string exportFormat = F8EditorPrefs.GetString(BuildPkgTool.ConvertExcelToOtherFormatsKey, BuildPkgTool.ExcelToOtherFormats[1]);
+            if (exportFormat == BuildPkgTool.ExcelToOtherFormats[1])
+            {
+                try
+                {
+                    string filePath = BinDataPath + "/" + container.GetType().Name + ".bytes";
+                    Util.BinarySerializer.SerializeToFile(container, filePath);
+                    LogF8.LogConfig("已序列化 " + BinDataPath + "/<color=#FFFF00>" + container.GetType().Name + ".bytes</color>");
+                }
+                catch (Exception e)
+                {
+                    LogF8.LogError($"序列化失败: {e}");
+                }
+            }else
+            {
+                try
+                {
+                    string json = Util.LitJson.ToJson(container);
+                    string filePath = BinDataPath + "/" + container.GetType().Name + ".json";
+                    FileTools.SafeWriteAllText(filePath, json);
+                    LogF8.LogConfig("已序列化 " + BinDataPath + "/<color=#FFFF00>" + container.GetType().Name + ".json</color>");
+                }
+                catch (Exception e)
+                {
+                    LogF8.LogError($"序列化失败: {e}");
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,1382 @@
+﻿using System.Collections.Generic;
+using System.IO;
+using System;
+using System.Collections;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using Excel;
+using LitJson;
+using UnityEngine;
+using Assembly = System.Reflection.Assembly;
+
+namespace F8Framework.Core
+{
+    public class SupportType
+    {
+        // 基础类型
+        public const string CHAR = "char";
+        public const string BOOL = "bool";
+        public const string BYTE = "byte";
+        public const string SHORT = "short";
+        public const string INT = "int";
+        public const string LONG = "long";
+        public const string FLOAT = "float";
+        public const string DOUBLE = "double";
+        public const string DECIMAL = "decimal";
+        public const string JSON = "json";
+        public const string STRING = "str";
+        public const string STRINGFULL = "string";
+        public const string OBJ = "obj";
+        public const string OBJFULL = "object";
+        public const string VECTOR2 = "vec2";
+        public const string VECTOR3 = "vec3";
+        public const string VECTOR4 = "vec4";
+        public const string VECTOR2FULL = "vector2";
+        public const string VECTOR3FULL = "vector3";
+        public const string VECTOR4FULL = "vector4";
+        public const string VECTOR2INT = "vec2int";
+        public const string VECTOR3INT = "vec3int";
+        public const string VECTOR2INTFULL = "vector2int";
+        public const string VECTOR3INTFULL = "vector3int";
+        public const string QUATERNION = "quat";
+        public const string QUATERNIONFULL = "quaternion";
+        public const string COLOR = "color";
+        public const string COLOR32 = "color32";
+        public const string DATETIME = "datetime";
+        public const string SBYTE = "sbyte";
+        public const string USHORT = "ushort";
+        public const string UINT = "uint";
+        public const string ULONG = "ulong";
+        public const string MATRIX4X4 = "matrix4x4";
+        
+        // 容器类型
+        public const string ARRAY = "[]";
+        public const string LIST = "list<";
+        public const string DICTIONARY = "dict<";
+        public const string DICTIONARYFULL = "dictionary<";
+        public const string VALUETUPLE = "valuetuple<";
+        public const string HASHSET = "hashset<";
+        
+        // 特殊类型
+        public const string ENUM = "enum<";
+        public const string VARIANT = "variant<";
+    }
+
+    public class ReadExcel : Singleton<ReadExcel>
+    {
+        private const string CODE_NAMESPACE = "F8Framework.F8ExcelDataClass"; //由表生成的数据类型均在此命名空间内
+        private string ExcelPath = "config"; //需要导表的目录
+        private Dictionary<string, List<ConfigData[]>> dataDict; //存放所有数据表内的数据，key：类名  value：数据
+        
+        public void LoadAllExcelData(Dictionary<string, object> excelData = null)
+        {
+#if UNITY_EDITOR
+        string INPUT_PATH = URLSetting.AddRootPath(F8EditorPrefs.GetString("ExcelPath", null)) ?? URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+#elif UNITY_STANDALONE
+        string INPUT_PATH = URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+#elif UNITY_ANDROID
+        string INPUT_PATH = URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+#elif UNITY_IPHONE || UNITY_IOS
+        string INPUT_PATH = URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+#elif UNITY_WEBGL
+        string INPUT_PATH = URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+        LogF8.LogError("WebGL导出后暂不支持实时读取Excel");
+#else
+        string INPUT_PATH = URLSetting.CS_STREAMINGASSETS_URL + ExcelPath;
+#endif
+            LogF8.LogConfig(INPUT_PATH);
+            if (string.IsNullOrEmpty(INPUT_PATH))
+            {
+                throw new Exception("请先设置数据表路径！");
+            }
+            
+#if !UNITY_EDITOR && UNITY_ANDROID
+            var files = SyncStreamingAssetsLoader.Instance.ReadAllLines(INPUT_PATH + "/fileindex.txt");
+#else
+            var files = Directory.GetFiles(INPUT_PATH, "*.*", SearchOption.AllDirectories)
+                .Where(s => (s.EndsWith(".xls") || s.EndsWith(".xlsx")) && !Path.GetFileName(s).StartsWith("~$"))
+                .ToArray();
+#endif
+            if (files == null || files.Length == 0)
+            {
+                throw new Exception("暂无可以导入的数据表！首次F8请手动导入，【DemoWorkSheet.xlsx / Localization.xlsx】两个表格！" + INPUT_PATH + " 目录");
+            }
+
+            if (dataDict == null)
+            {
+                dataDict = new Dictionary<string, List<ConfigData[]>>();
+            }
+            else
+            {
+                dataDict.Clear();
+            }
+
+            float step = 1f;
+            foreach (string item in files)
+            {
+                step++;
+                GetExcelData(item);
+            }
+            
+#if !UNITY_EDITOR && UNITY_ANDROID
+            SyncStreamingAssetsLoader.Instance.Close();
+#endif
+
+            var assembly = Assembly.Load(CODE_NAMESPACE);
+            step = 1;
+            Dictionary<String, System.Object> objs = new Dictionary<string, object>();
+            foreach (KeyValuePair<string, List<ConfigData[]>> each in dataDict)
+            {
+                step++;
+                Type temp = assembly.GetType(CODE_NAMESPACE + "." + each.Key + "Item");
+                object container = assembly.CreateInstance(CODE_NAMESPACE + "." + each.Key);
+                //序列化数据
+                Serialize(container, temp, each.Value);
+                if (excelData == null)
+                {
+                    objs.Add(each.Key, container);
+                }
+                else
+                {
+                    excelData.Add(each.Key, container);
+                }
+            }
+            if (excelData == null)
+            {
+                string _class = "F8DataManager";
+                string method= "RuntimeLoadAll";
+                object[] parameters = new object[] { objs };
+                Util.Assembly.InvokeMethod(_class, method, "EditorInstance", parameters);
+            }
+            LogF8.LogConfig("<color=green>运行时导表成功！</color>");
+        }
+
+        //数据表内每一格数据
+        public class ConfigData
+        {
+            public string Type; //数据类型
+            public string Name; //字段名
+            public string Data; //数据值
+            public VariantData VariantInfo; //变体信息
+        }
+
+        public class VariantData
+        {
+            public bool HasVariant;
+            public Dictionary<string, string> Variants;
+        }
+
+        private void GetExcelData(string inputPath)
+        {
+            FileStream stream = null;
+            IExcelDataReader excelReader = null;
+            try
+            {
+#if !UNITY_EDITOR && UNITY_ANDROID
+                inputPath = ExcelPath + "/" + inputPath;
+                if (inputPath.EndsWith(".xls"))
+                {
+                    byte[] excelData = SyncStreamingAssetsLoader.Instance.LoadBytes(inputPath);
+                    excelReader = ExcelReaderFactory.CreateBinaryReader(excelData);
+                }
+                else if (inputPath.EndsWith(".xlsx"))
+                {
+                    byte[] excelData = SyncStreamingAssetsLoader.Instance.LoadBytes(inputPath);
+                    excelReader = ExcelReaderFactory.CreateOpenXmlReader(excelData);
+                }
+#else
+                stream = File.Open(inputPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+                if (inputPath.EndsWith(".xls")) excelReader = ExcelReaderFactory.CreateBinaryReader(stream);
+                else if (inputPath.EndsWith(".xlsx")) excelReader = ExcelReaderFactory.CreateOpenXmlReader(stream);
+#endif
+                if (!excelReader.IsValid)
+                {
+                    throw new Exception("无法读取的文件:  " + inputPath);
+                }
+
+                do // 读取所有的sheet
+                {
+                    // sheet name
+                    string className = excelReader.Name;
+                    string[] types = null; //数据类型
+                    string[] names = null; //字段名
+                    List<ConfigData[]> dataList = new List<ConfigData[]>();
+                    int index = 1;
+                    //把读取的数据和数据类型,名称保存起来,后面用来动态生成类
+                    List<ConfigData> configDataList = new List<ConfigData>();
+                    //开始读取
+                    while (excelReader.Read())
+                    {
+                        //这里读取的是每一行的数据
+                        string[] datas = new string[excelReader.FieldCount];
+                        for (int j = 0; j < excelReader.FieldCount; ++j)
+                        {
+                            datas[j] = excelReader.GetString(j);
+                        }
+
+                        //空行不处理
+                        if (datas.Length == 0 || string.IsNullOrEmpty(datas[0]))
+                        {
+                            ++index;
+                            continue;
+                        }
+
+                        //第1行表示类型
+                        if (index == 1) types = datas;
+                        //第2行表示变量名
+                        else if (index == 2) names = datas;
+                        //后面的表示数据
+                        else if (index > 2)
+                        {
+                            if (types == null || names == null || datas == null)
+                            {
+                                throw new Exception("数据错误！[" + className + "]配置表！第" + index + "行" + inputPath);
+                            }
+
+                            configDataList.Clear();
+                            
+                            for (int j = 0; j < datas.Length; ++j)
+                            {
+                                if (string.IsNullOrEmpty(types[j]))
+                                    continue; //空的数据不处理
+                                
+                                ConfigData data = new ConfigData();
+                                data.Type = types[j];
+                                data.Name = names[j];
+                                data.Data = datas[j];
+                                
+                                configDataList.Add(data);
+                            }
+                            
+                            VariantInfoDict(ref configDataList);
+
+                            dataList.Add(configDataList.ToArray());
+                        }
+
+                        ++index;
+                    }
+
+                    if (string.IsNullOrEmpty(className))
+                    {
+                        throw new Exception("空的类名（excel页签名）, 路径:  " + inputPath);
+                    }
+
+                    if (names != null && types != null)
+                    {
+                        if (dataDict.ContainsKey(className))
+                        {
+                            throw new Exception("类名重复: " + className + " ,路径:  " + inputPath);
+                        }
+
+                        dataDict.Add(className, dataList);
+                        LogF8.LogConfig(className);
+                    }
+                } while (excelReader.NextResult()); //excelReader.NextResult() Excel表下一个sheet页有没有数据
+            }
+            catch (IOException)
+            {
+                throw new Exception("请关闭 " + inputPath + " 后再导表！");
+            }
+            catch (Exception ex)
+            {
+                LogF8.LogError($"处理Excel文件失败: {inputPath}, 错误: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                excelReader?.Dispose();
+                stream?.Dispose();
+            }
+        }
+
+        public static void VariantInfoDict(ref List<ConfigData> configDatas)
+        {
+            for (int i = 0; i < configDatas.Count; i++)
+            {
+                if (string.IsNullOrEmpty(configDatas[i].Type) ||
+                    !configDatas[i].Type.StartsWith(SupportType.VARIANT) ||
+                    !configDatas[i].Type.EndsWith(">")) continue;
+                
+                // 解析变体类型，如 variant<name,english>
+                string innerContent = configDatas[i].Type.Substring(
+                    SupportType.VARIANT.Length,
+                    configDatas[i].Type.Length - SupportType.VARIANT.Length - 1);
+                string[] variantParts = innerContent.Split(',');
+
+                if (variantParts.Length < 2) continue;
+                    
+                string variantName = variantParts[1].Trim();
+                string baseFieldName = variantParts[0].Trim();
+
+                configDatas[i].Name = configDatas[i].Type;
+                configDatas[i].VariantInfo = new VariantData
+                {
+                    HasVariant = false
+                };
+
+                // 为其他同名字段创建变体信息（基础字段）
+                for (int j = 0; j < configDatas.Count; j++)
+                {
+                    if (i == j || configDatas[j].Name != baseFieldName) continue;
+                    
+                    configDatas[j].VariantInfo ??= new VariantData
+                    {
+                        HasVariant = true,
+                        Variants = new Dictionary<string, string>()
+                    };
+                                
+                    configDatas[j].VariantInfo.Variants ??= new Dictionary<string, string>();
+
+                    configDatas[j].VariantInfo.Variants.TryAdd("", configDatas[j].Data);
+                    configDatas[j].VariantInfo.Variants.TryAdd(variantName, configDatas[i].Data);
+
+                    break;
+                }
+            }
+        }
+
+        //序列化对象
+        private void Serialize(object container, Type temp, List<ConfigData[]> dataList)
+        {
+            //设置数据
+            foreach (ConfigData[] datas in dataList)
+            {
+                //Type.FullName 获取该类型的完全限定名称，包括其命名空间，但不包括程序集。
+                object t = temp.Assembly.CreateInstance(temp.FullName);
+                
+                foreach (ConfigData data in datas)
+                {
+                    if (data.VariantInfo != null)
+                    {
+                        string name = data.VariantInfo is { HasVariant: true }
+                            ? "_" + data.Name + "Variants"
+                            : data.Name;
+                        FieldInfo variantDictField = temp.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        
+                        if (variantDictField == null) continue;
+                        
+                        object variantDict = variantDictField.GetValue(t);
+
+                        foreach (var variantData in data.VariantInfo.Variants)
+                        {
+                            object variantValue = ParseValue(data.Type, variantData.Value, temp.Name);
+                            variantDict.GetType().GetMethod("Add").Invoke(variantDict, new object[] { variantData.Key, variantValue });
+                        }
+                        
+                        variantDictField.SetValue(t, variantDict);
+                    }
+                    else
+                    {
+                        if (data.Name.IsNullOrEmpty())
+                        {
+                            continue;
+                        }
+                        FieldInfo info = temp.GetField(data.Name);
+                        // FieldInfo.SetValue 设置对象内指定名称的字段的值
+                        if (info != null)
+                        {
+                            info.SetValue(t, ParseValue(data.Type, data.Data, temp.Name));
+                        }
+                    }
+                }
+                
+                // FieldInfo.GetValue 获取对象内指定名称的字段的值
+                FieldInfo fieldInfoId = null;
+                PropertyInfo propertyInfoId = null;
+                foreach (var field in temp.GetFields())
+                {
+                    if (!string.Equals(field.Name, "id", StringComparison.OrdinalIgnoreCase)) continue;
+                    fieldInfoId = field;
+                    break;
+                }
+                // 如果没有找到字段，再检查属性
+                if (fieldInfoId == null)
+                {
+                    foreach (var property in temp.GetProperties())
+                    {
+                        if (!string.Equals(property.Name, "id", StringComparison.OrdinalIgnoreCase)) continue;
+                        propertyInfoId = property;
+                        break;
+                    }
+                }
+
+                object id = null;
+                if (fieldInfoId != null)
+                {
+                    id = fieldInfoId.GetValue(t);
+                }
+                else if (propertyInfoId != null)
+                {
+                    id = propertyInfoId.GetValue(t);
+                }
+                FieldInfo dictInfo = container.GetType().GetField("Dict");
+                object dict = dictInfo.GetValue(container);
+
+                bool isExist = (bool)dict.GetType().GetMethod("ContainsKey").Invoke(dict, new System.Object[] { id });
+                if (isExist)
+                {
+                    throw new Exception("ID重复：" + id + "，类型： " + container.GetType().Name);
+                }
+
+                dict.GetType().GetMethod("Add").Invoke(dict, new System.Object[] { id, t });
+            }
+        }
+
+        private static void DebugError(string type, string data, string classname)
+        {
+            LogF8.LogError(string.Format("数据类型错误，类型：{0}  数据：{1}  类名：{2}", type, data, classname));
+        }
+        
+        public static object ParseValue(string type, string data, string classname)
+        {
+            object o = null;
+            if (data.IsNullOrEmpty())
+                return o;
+            try
+            {
+                if (type.EndsWith(SupportType.ARRAY))
+                {
+                    string innerType = type.Substring(0, type.Length - 2);
+                    data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                    var elements = ParseElements(data).ToArray();
+                    int elementsLength = elements.Length;
+                    var array = Array.CreateInstance(SystemGetType(GetTrueType(innerType, classname, "", false)), elementsLength);
+                    for (int i = 0; i < elementsLength; i++)
+                    {
+                        // 递归解析内层元素
+                        array.SetValue(ParseValue(innerType, elements[i], classname), i);
+                    }
+
+                    o = array;
+                }
+                else if (type.StartsWith(SupportType.LIST) && type.EndsWith(">"))
+                {
+                    string innerType = type.Substring(5, type.Length - 6);
+                    data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                    var elements = ParseElements(data).ToArray();
+                    int elementsLength = elements.Length;
+                    Type elementType = SystemGetType(GetTrueType(innerType, classname, "", false));
+                    var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType), elementsLength);
+                    for (int i = 0; i < elementsLength; i++)
+                    {
+                        list.Add(ParseValue(innerType, elements[i], classname));
+                    }
+                    
+                    o = list;
+                }
+                else if ((type.StartsWith(SupportType.DICTIONARY) || type.StartsWith(SupportType.DICTIONARYFULL)) && type.EndsWith(">"))
+                {
+                    data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                    int commaIndex = type.IndexOf(',');
+                    if (commaIndex == -1)
+                    {
+                        throw new Exception("Dictionary 类型必须包含两个用逗号分隔的类型");
+                    }
+                    string keyType = null;
+                    if (type.StartsWith(SupportType.DICTIONARY))
+                    {
+                        keyType = type.Substring(5, commaIndex - 5);
+                    }
+                    else if(type.StartsWith(SupportType.DICTIONARYFULL))
+                    {
+                        keyType = type.Substring(11, commaIndex - 11);
+                    }
+                    string valueType = type.Substring(commaIndex + 1, type.Length - commaIndex - 2);
+                    var elements = ParseElements(data).ToArray();
+                    int elementsLength = elements.Length;
+                    Type keyElementType = SystemGetType(GetTrueType(keyType, classname, "", false));
+                    Type valueElementType = SystemGetType(GetTrueType(valueType, classname, "", false));
+                    var dictionary = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(keyElementType, valueElementType));
+                    for (int i = 0; i < elementsLength; i += 2)
+                    {
+                        object key = ParseValue(keyType, elementsLength >= i + 1 ? elements[i] : null, classname);
+                        object value = ParseValue(valueType, elementsLength >= i + 2 ? elements[i + 1] : null, classname);
+                        if (dictionary.Contains(key))
+                        {
+                            LogF8.LogError("Dictionary 重复Key值：{0}  Value值：{1}  类型：{2}  数据：{3}  类名：{4}",key, value, type, data, classname);
+                        }
+                        else
+                        {
+                            dictionary.Add(key, value);
+                        }
+                    }
+                    
+                    o = dictionary;
+                }
+                else if (type.StartsWith(SupportType.HASHSET) && type.EndsWith(">"))
+                {
+                    string innerType = type.Substring(8, type.Length - 9);
+                    data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                    var elements = ParseElements(data).ToArray();
+                    int elementsLength = elements.Length;
+                    Type elementType = SystemGetType(GetTrueType(innerType, classname, "", false));
+                    object set = Activator.CreateInstance(typeof(HashSet<>).MakeGenericType(elementType), elementsLength);
+                    MethodInfo addMethod = set.GetType().GetMethod("Add");
+    
+                    for (int i = 0; i < elementsLength; i++)
+                    {
+                        addMethod.Invoke(set, new[] { ParseValue(innerType, elements[i], classname) });
+                    }
+    
+                    o = set;
+                }
+                else if (type.StartsWith(SupportType.ENUM) && (type.EndsWith(">") || type.EndsWith("}")))
+                {
+                    data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                    
+                    string innerContent = type
+                        .Split('<', '>')[1]  // 取 <...> 之间的部分
+                        .Split(',')[0]       // 取第一个参数
+                        .Trim();             // 移除前后空格
+                    
+                    string fullEnumTypeName;
+                    if (innerContent.Contains('.'))
+                    {
+                        string[] parts = innerContent.Split('.');
+                        fullEnumTypeName = $"{CODE_NAMESPACE}.{parts[0]}+{parts[1]},{CODE_NAMESPACE}";
+                    }
+                    else
+                    {
+                        fullEnumTypeName = $"{CODE_NAMESPACE}.{classname.Substring(0, classname.Length - 4)}+{innerContent},{CODE_NAMESPACE}";
+                    }
+                    
+                    Type enumType = Type.GetType(fullEnumTypeName);
+                    
+                    if (enumType == null || !enumType.IsEnum)
+                    {
+                        throw new Exception($"枚举类型不存在，请检查定义！尝试加载的类型名: {fullEnumTypeName}");
+                    }
+
+                    try
+                    {
+                        o = Enum.Parse(enumType, data);
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            if (int.TryParse(data, out int enumValue))
+                            {
+                                o = Enum.ToObject(enumType, enumValue);
+                            }
+                            else
+                            {
+                                DebugError(type, data, classname);
+                                o = Activator.CreateInstance(enumType);
+                            }
+                        }
+                        catch
+                        {
+                            DebugError(type, data, classname);
+                            o = Activator.CreateInstance(enumType);
+                        }
+                    }
+                }
+                else if (type.StartsWith(SupportType.VALUETUPLE) && type.EndsWith(">"))
+                {
+                    data = RemoveOuterBracketsIfPaired(data);
+                    
+                    string tupleTypeString = type.Substring(SupportType.VALUETUPLE.Length, type.Length - SupportType.VALUETUPLE.Length - 1);
+                    string[] typeArgs = ParseElements(tupleTypeString, '<', '>').ToArray();
+                    
+                    if (typeArgs.Length < 1 || typeArgs.Length > 7)
+                        throw new NotSupportedException($"限制值元组长度最大为7: {typeArgs.Length}");
+                    
+                    var elements = ParseElements(data).ToArray();
+                    
+                    Type[] genericTypes = typeArgs.Select(t => SystemGetType(GetTrueType(t, classname, "", false))).ToArray();
+                    object[] values = new object[typeArgs.Length];
+                    
+                    for (int i = 0; i < typeArgs.Length; i++)
+                    {
+                        values[i] = ParseValue(typeArgs[i], elements.Length > i ? elements[i] : "", classname);
+                    }
+                    
+                    Type tupleType = Type.GetType($"System.ValueTuple`{typeArgs.Length}")?.MakeGenericType(genericTypes);
+    
+                    if (tupleType == null)
+                        throw new InvalidOperationException("无法创建值元组类型");
+                    
+                    o = Activator.CreateInstance(tupleType, values);
+                }
+                else
+                {
+                    switch (type)
+                    {
+                        case SupportType.CHAR:
+                            if (data.StartsWith("\'") && data.EndsWith("\'"))
+                            {
+                                o = data.Trim('\'')[0];
+                            }
+                            else
+                            {
+                                o = data[0];
+                            }
+                            break;
+                        case SupportType.BOOL:
+                            string trueString = "true";
+                            string trueString2 = "1";
+                            bool BOOL_bool = trueString.Equals(data, StringComparison.OrdinalIgnoreCase) || trueString2.Equals(data, StringComparison.OrdinalIgnoreCase);
+                            
+                            o = BOOL_bool;
+                            break;
+                        case SupportType.BYTE:
+                            byte BYTE_byte;
+                            if (byte.TryParse(data, out BYTE_byte) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0;
+                                break;
+                            }
+
+                            o = BYTE_byte;
+                            break;
+                        case SupportType.SHORT:
+                            short SHORT_short;
+                            if (short.TryParse(data, out SHORT_short) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0;
+                                break;
+                            }
+
+                            o = SHORT_short;
+                            break;
+                        case SupportType.INT:
+                            int INT_int;
+                            if (int.TryParse(data, out INT_int) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0;
+                                break;
+                            }
+
+                            o = INT_int;
+                            break;
+                        case SupportType.LONG:
+                            long LONG_long;
+                            if (long.TryParse(data, out LONG_long) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0L;
+                                break;
+                            }
+
+                            o = LONG_long;
+                            break;
+                        case SupportType.FLOAT:
+                            float FLOAT_float;
+                            if (float.TryParse(data, out FLOAT_float) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0f;
+                                break;
+                            }
+
+                            o = FLOAT_float;
+                            break;
+                        case SupportType.DOUBLE:
+                            double DOUBLE_double;
+                            if (double.TryParse(data, out DOUBLE_double) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0d;
+                                break;
+                            }
+
+                            o = DOUBLE_double;
+                            break;
+                        case SupportType.DECIMAL:
+                            decimal DECIMAL_decimal;
+                            if (decimal.TryParse(data, out DECIMAL_decimal) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0m;
+                                break;
+                            }
+
+                            o = DECIMAL_decimal;
+                            break;
+                        case SupportType.JSON:
+                            o = Util.LitJson.ToObject(data);
+                            break;
+                        case SupportType.STRING or SupportType.STRINGFULL:
+                            if (data.StartsWith("\"") && data.EndsWith("\""))
+                            {
+                                o = data.Trim('"');
+                            }
+                            else
+                            {
+                                o = data;
+                            }
+                            break;
+                        case SupportType.OBJ or SupportType.OBJFULL:
+                            // 检查是否为带引号的字符串
+                            if (data.StartsWith("\"") && data.EndsWith("\""))
+                            {
+                                o = data.Trim('"');
+                            }
+                            // 使用正则表达式检查是否为浮点数字符串
+                            else if (Regex.IsMatch(data, @"[.\eE]"))
+                            {
+                                // 尝试解析为 float，检查是否存在精度丢失
+                                if (float.TryParse(data, NumberStyles.Float, CultureInfo.InvariantCulture, out float floatValue) 
+                                    && floatValue.ToString(NumberFormatInfo.InvariantInfo) == data)
+                                {
+                                    o = floatValue;
+                                }
+                                // 尝试解析为 double
+                                else if (double.TryParse(data, NumberStyles.Float, CultureInfo.InvariantCulture, out double doubleValue) 
+                                         && doubleValue.ToString(NumberFormatInfo.InvariantInfo) == data)
+                                {
+                                    o = doubleValue;
+                                }
+                                // 尝试解析为 decimal
+                                else if (decimal.TryParse(data, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal decimalValue))
+                                {
+                                    o = decimalValue;
+                                }
+                                // 无法解析，保留原始字符串
+                                else
+                                {
+                                    o = data;
+                                }
+                            }
+                            // 尝试转换为 int 类型
+                            else if (int.TryParse(data, out int intValue))
+                            {
+                                o = intValue;
+                            }
+                            // 尝试转换为 long 类型
+                            else if (long.TryParse(data, out long longValue))
+                            {
+                                o = longValue;
+                            }
+                            else if (DateTime.TryParse(data, out DateTime dateTimeValue))
+                            {
+                                o = dateTimeValue;
+                            }
+                            else
+                            {
+                                o = data;
+                            }
+
+                            break;
+                        case SupportType.VECTOR2 or SupportType.VECTOR2FULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var vector2 = ParseElements(data).ToArray();
+                            var vector22 = new Vector2();
+                            vector22.x = (float)ParseValue(SupportType.FLOAT, vector2.Length >= 1 ? vector2[0] : "0",
+                                classname);
+                            vector22.y = (float)ParseValue(SupportType.FLOAT, vector2.Length >= 2 ? vector2[1] : "0",
+                                classname);
+                            o = vector22;
+                            break;
+                        case SupportType.VECTOR3 or SupportType.VECTOR3FULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var vector3 = ParseElements(data).ToArray();
+                            var vector33 = new Vector3();
+                            vector33.x = (float)ParseValue(SupportType.FLOAT, vector3.Length >= 1 ? vector3[0] : "0",
+                                classname);
+                            vector33.y = (float)ParseValue(SupportType.FLOAT, vector3.Length >= 2 ? vector3[1] : "0",
+                                classname);
+                            vector33.z = (float)ParseValue(SupportType.FLOAT, vector3.Length >= 3 ? vector3[2] : "0",
+                                classname);
+                            o = vector33;
+                            break;
+                        case SupportType.VECTOR4 or SupportType.VECTOR4FULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var vector4 = ParseElements(data).ToArray();
+                            var vector44 = new Vector4();
+                            vector44.x = (float)ParseValue(SupportType.FLOAT, vector4.Length >= 1 ? vector4[0] : "0",
+                                classname);
+                            vector44.y = (float)ParseValue(SupportType.FLOAT, vector4.Length >= 2 ? vector4[1] : "0",
+                                classname);
+                            vector44.z = (float)ParseValue(SupportType.FLOAT, vector4.Length >= 3 ? vector4[2] : "0",
+                                classname);
+                            vector44.w = (float)ParseValue(SupportType.FLOAT, vector4.Length >= 4 ? vector4[3] : "0",
+                                classname);
+                            o = vector44;
+                            break;
+                        case SupportType.VECTOR2INT or SupportType.VECTOR2INTFULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var vector2int = ParseElements(data).ToArray();
+                            var vector22int = new Vector2Int();
+                            vector22int.x = (int)ParseValue(SupportType.INT,
+                                vector2int.Length >= 1 ? vector2int[0] : "0", classname);
+                            vector22int.y = (int)ParseValue(SupportType.INT,
+                                vector2int.Length >= 2 ? vector2int[1] : "0", classname);
+                            o = vector22int;
+                            break;
+                        case SupportType.VECTOR3INT or SupportType.VECTOR3INTFULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var vector3int = ParseElements(data).ToArray();
+                            var vector33int = new Vector3Int();
+                            vector33int.x = (int)ParseValue(SupportType.INT,
+                                vector3int.Length >= 1 ? vector3int[0] : "0", classname);
+                            vector33int.y = (int)ParseValue(SupportType.INT,
+                                vector3int.Length >= 2 ? vector3int[1] : "0", classname);
+                            vector33int.z = (int)ParseValue(SupportType.INT,
+                                vector3int.Length >= 3 ? vector3int[2] : "0", classname);
+                            o = vector33int;
+                            break;
+                        case SupportType.QUATERNION or SupportType.QUATERNIONFULL:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var quaternion = ParseElements(data).ToArray();
+                            var quaternion1 = new Quaternion();
+                            quaternion1.x = (float)ParseValue(SupportType.FLOAT,
+                                quaternion.Length >= 1 ? quaternion[0] : "0", classname);
+                            quaternion1.y = (float)ParseValue(SupportType.FLOAT,
+                                quaternion.Length >= 2 ? quaternion[1] : "0", classname);
+                            quaternion1.z = (float)ParseValue(SupportType.FLOAT,
+                                quaternion.Length >= 3 ? quaternion[2] : "0", classname);
+                            quaternion1.w = (float)ParseValue(SupportType.FLOAT,
+                                quaternion.Length >= 4 ? quaternion[3] : "0", classname);
+                            o = quaternion1;
+                            break;
+                        case SupportType.COLOR:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var color = ParseElements(data).ToArray();
+                            var color1 = new Color();
+                            color1.r = (float)ParseValue(SupportType.FLOAT, color.Length >= 1 ? color[0] : "0",
+                                classname);
+                            color1.g = (float)ParseValue(SupportType.FLOAT, color.Length >= 2 ? color[1] : "0",
+                                classname);
+                            color1.b = (float)ParseValue(SupportType.FLOAT, color.Length >= 3 ? color[2] : "0",
+                                classname);
+                            color1.a = (float)ParseValue(SupportType.FLOAT, color.Length >= 4 ? color[3] : "0",
+                                classname);
+                            o = color1;
+                            break;
+                        case SupportType.COLOR32:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var color32 = ParseElements(data).ToArray();
+                            var color2 = new Color32();
+                            color2.r = (byte)ParseValue(SupportType.BYTE, color32.Length >= 1 ? color32[0] : "0",
+                                classname);
+                            color2.g = (byte)ParseValue(SupportType.BYTE, color32.Length >= 2 ? color32[1] : "0",
+                                classname);
+                            color2.b = (byte)ParseValue(SupportType.BYTE, color32.Length >= 3 ? color32[2] : "0",
+                                classname);
+                            color2.a = (byte)ParseValue(SupportType.BYTE, color32.Length >= 4 ? color32[3] : "0",
+                                classname);
+                            o = color2;
+                            break;
+                        case SupportType.DATETIME:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            if (string.IsNullOrEmpty(data))
+                            {
+                                o = DateTime.MinValue;
+                                break;
+                            }
+                            
+                            if (long.TryParse(data, out long timestamp))
+                            {
+                                int length = data.Length;
+                                
+                                if (length >= 19) // 19位纳秒级时间戳
+                                {
+                                    var epoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
+                                    o = epoch.AddTicks(timestamp / 100).DateTime;
+                                    break;
+                                }
+                                else if (length >= 16) // 16位微秒级时间戳
+                                {
+                                    var epoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
+                                    o = epoch.AddTicks(timestamp * 10).DateTime;
+                                    break;
+                                }
+                                else if (length >= 13) // 13位毫秒级时间戳
+                                {
+                                    o = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).DateTime;
+                                    break;
+                                }
+                                else if (length >= 10) // 10位秒级时间戳
+                                {
+                                    o = DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime;
+                                    break;
+                                }
+                            }
+                            
+                            if (DateTime.TryParse(data, out DateTime defaultResult))
+                            {
+                                o = defaultResult;
+                                break;
+                            }
+                            
+                            LogF8.LogError($"无法解析时间字符串: {data}");
+                            o = DateTime.MinValue;
+                            break;
+                        case SupportType.SBYTE:
+                            sbyte SBYTE_sbyte;
+                            if (sbyte.TryParse(data, out SBYTE_sbyte) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0;
+                                break;
+                            }
+
+                            o = SBYTE_sbyte;
+                            break;
+                        case SupportType.USHORT:
+                            ushort USHORT_ushort;
+                            if (ushort.TryParse(data, out USHORT_ushort) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0;
+                                break;
+                            }
+
+                            o = USHORT_ushort;
+                            break;
+                        case SupportType.UINT:
+                            uint UINT_uint;
+                            if (uint.TryParse(data, out UINT_uint) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0U;
+                                break;
+                            }
+
+                            o = UINT_uint;
+                            break;
+                        case SupportType.ULONG:
+                            ulong ULONG_ulong;
+                            if (ulong.TryParse(data, out ULONG_ulong) == false)
+                            {
+                                DebugError(type, data, classname);
+                                o = 0UL;
+                                break;
+                            }
+
+                            o = ULONG_ulong;
+                            break;
+                        case SupportType.MATRIX4X4:
+                            data = RemoveOuterBracketsIfPaired(data); // 移除最外层的 '[' 和 ']' '{' 和 '}'
+                            var matrix4x4 = ParseElements(data).ToArray();
+                            var matrix = new Matrix4x4();
+                            matrix.m00 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 1 ? matrix4x4[0] : "0", classname);
+                            matrix.m10 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 2 ? matrix4x4[1] : "0", classname);
+                            matrix.m20 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 3 ? matrix4x4[2] : "0", classname);
+                            matrix.m30 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 4 ? matrix4x4[3] : "0", classname);
+                            matrix.m01 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 5 ? matrix4x4[4] : "0", classname);
+                            matrix.m11 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 6 ? matrix4x4[5] : "0", classname);
+                            matrix.m21 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 7 ? matrix4x4[6] : "0", classname);
+                            matrix.m31 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 8 ? matrix4x4[7] : "0", classname);
+                            matrix.m02 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 9 ? matrix4x4[8] : "0", classname);
+                            matrix.m12 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 10 ? matrix4x4[9] : "0", classname);
+                            matrix.m22 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 11 ? matrix4x4[10] : "0", classname);
+                            matrix.m32 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 12 ? matrix4x4[11] : "0", classname);
+                            matrix.m03 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 13 ? matrix4x4[12] : "0", classname);
+                            matrix.m13 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 14 ? matrix4x4[13] : "0", classname);
+                            matrix.m23 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 15 ? matrix4x4[14] : "0", classname);
+                            matrix.m33 = (float)ParseValue(SupportType.FLOAT, matrix4x4.Length >= 16 ? matrix4x4[15] : "0", classname);
+                            o = matrix;
+                            break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("\n错误的数据值:" + data + "\n位于:" + classname, ex);
+            }
+
+            return o;
+        }
+
+        public static Type SystemGetType(string type)
+        {
+            if (type.StartsWith("UnityEngine.Vector2Int"))
+            {
+                return Type.GetType(type + ",UnityEngine.CoreModule");
+            }
+            else if (type.StartsWith("UnityEngine.Vector3Int"))
+            {
+                return Type.GetType(type + ",UnityEngine.CoreModule");
+            }
+            else if (type.StartsWith("UnityEngine."))
+            {
+                return Type.GetType(type + ",UnityEngine");
+            }
+            else if (type.StartsWith("System."))
+            {
+                return Type.GetType(type + ",mscorlib");
+            }
+            else if (type.StartsWith("LitJson."))
+            {
+                return Type.GetType(type + ",LitJson");
+            }
+            else if (type.StartsWith(CODE_NAMESPACE))
+            {
+                return Type.GetType(type + "," + CODE_NAMESPACE);
+            }
+            else
+            {
+                return Type.GetType(type);
+            }
+        }
+        
+        public static string GetTrueType(string type, string className = "", string inputPath = "", bool writtenForm = true, Dictionary<string, string> collectedTypes = null)
+        {
+            string result;
+            
+            if (type.EndsWith(SupportType.ARRAY))
+            {
+                string innerType = type.Substring(0, type.Length - 2);
+                string trueInnerType = GetTrueType(innerType, className, inputPath, writtenForm, collectedTypes);
+                if (writtenForm)
+                {
+                    result = trueInnerType + "[]";
+                }
+                else
+                {
+                    var elementType = SystemGetType(trueInnerType);
+                    result = elementType.FullName + "[]";
+                }
+                collectedTypes?.TryAdd(result, SupportType.ARRAY);
+                return result;
+            }
+            else if (type.StartsWith(SupportType.LIST) && type.EndsWith(">"))
+            {
+                string innerType = type.Substring(5, type.Length - 6);
+                if (writtenForm)
+                {
+                    result = "System.Collections.Generic.List<" + GetTrueType(innerType, className, inputPath, writtenForm, collectedTypes) + ">";
+                }
+                else
+                {
+                    var assemblyQualifiedName = SystemGetType(GetTrueType(innerType, className, inputPath, writtenForm, collectedTypes)).AssemblyQualifiedName;
+                    result = "System.Collections.Generic.List`1[[" + assemblyQualifiedName + "]]";
+                }
+                collectedTypes?.TryAdd(result, SupportType.LIST);
+                return result;
+            }
+            else if ((type.StartsWith(SupportType.DICTIONARY) || type.StartsWith(SupportType.DICTIONARYFULL)) && type.EndsWith(">"))
+            {
+                int commaIndex = type.IndexOf(',');
+                if (commaIndex == -1)
+                {
+                    throw new Exception("Dictionary 类型必须包含两个用逗号分隔的类型");
+                }
+                string keyType = null;
+                if (type.StartsWith(SupportType.DICTIONARY))
+                {
+                    keyType = type.Substring(5, commaIndex - 5);
+                }
+                else if(type.StartsWith(SupportType.DICTIONARYFULL))
+                {
+                    keyType = type.Substring(11, commaIndex - 11);
+                }
+                string valueType = type.Substring(commaIndex + 1, type.Length - commaIndex - 2);
+                if (writtenForm)
+                {
+                    result = "System.Collections.Generic.Dictionary<" + GetTrueType(keyType, className, inputPath, writtenForm, collectedTypes) + "," + GetTrueType(valueType, className, inputPath, writtenForm, collectedTypes) + ">";
+                }
+                else
+                {
+                    var keyTypeName = SystemGetType(GetTrueType(keyType, className, inputPath, writtenForm, collectedTypes)).AssemblyQualifiedName;
+                    var valueTypeName = SystemGetType(GetTrueType(valueType, className, inputPath, writtenForm, collectedTypes)).AssemblyQualifiedName;
+                    result = "System.Collections.Generic.Dictionary`2[[" + keyTypeName + "],[" + valueTypeName + "]]";
+                }
+                collectedTypes?.TryAdd(result, SupportType.DICTIONARY);
+                return result;
+            }
+            else if (type.StartsWith(SupportType.HASHSET) && type.EndsWith(">"))
+            {
+                string innerType = type.Substring(8, type.Length - 9);
+                if (writtenForm)
+                {
+                    result = "System.Collections.Generic.HashSet<" + GetTrueType(innerType, className, inputPath, writtenForm, collectedTypes) + ">";
+                }
+                else
+                {
+                    var assemblyQualifiedName = SystemGetType(GetTrueType(innerType, className, inputPath, writtenForm, collectedTypes)).AssemblyQualifiedName;
+                    result = "System.Collections.Generic.HashSet`1[[" + assemblyQualifiedName + "]]";
+                }
+                collectedTypes?.TryAdd(result, SupportType.HASHSET);
+                return result;
+            }
+            else if (type.StartsWith(SupportType.ENUM) && (type.EndsWith(">") || type.EndsWith("}")))
+            {
+                string innerContent = type
+                    .Split('<', '>')[1]  // 取 <...> 之间的部分
+                    .Split(',')[0]       // 取第一个参数
+                    .Trim();             // 移除前后空格
+                if (writtenForm)
+                {
+                    if (innerContent.Contains('.'))
+                    {
+                        innerContent = $"{CODE_NAMESPACE}.{innerContent}";
+                    }
+                    else
+                    {
+                        innerContent = $"{CODE_NAMESPACE}.{className}.{innerContent}";
+                    }
+                }
+                else
+                {
+                    if (innerContent.Contains('.'))
+                    {
+                        string[] parts = innerContent.Split('.');
+                        innerContent = $"{CODE_NAMESPACE}.{parts[0]}+{parts[1]}";
+                        innerContent = SystemGetType(innerContent).AssemblyQualifiedName;
+                    }
+                    else
+                    {
+                        innerContent = $"{CODE_NAMESPACE}.{className.Substring(0, className.Length - 4)}+{innerContent}";
+                        innerContent = SystemGetType(innerContent).AssemblyQualifiedName;
+                    }
+                }
+                result = innerContent;
+                collectedTypes?.TryAdd(result, SupportType.ENUM);
+                return result;
+            }
+            else if (type.StartsWith(SupportType.VALUETUPLE) && type.EndsWith(">"))
+            {
+                string tupleTypeString = type.Substring(SupportType.VALUETUPLE.Length, type.Length - SupportType.VALUETUPLE.Length - 1);
+                string[] typeArgs = ParseElements(tupleTypeString, '<', '>').ToArray();
+                
+                if (writtenForm)
+                {
+                    string processedTypeArgs = string.Join(",", typeArgs.Select(t => GetTrueType(t, className, inputPath, writtenForm, collectedTypes)));
+                    result = $"System.ValueTuple<{processedTypeArgs}>";
+                }
+                else
+                {
+                    string processedTypeArgs = string.Join(",", 
+                        typeArgs.Select(t => 
+                            $"[{SystemGetType(GetTrueType(t, className, inputPath, writtenForm, collectedTypes)).AssemblyQualifiedName}]"
+                        )
+                    );
+                    result = $"System.ValueTuple`{typeArgs.Length}[{processedTypeArgs}]";
+                }
+                collectedTypes?.TryAdd(result, SupportType.VALUETUPLE);
+                return result;
+            }
+            else
+            {
+                return ParseType(type, className, inputPath);
+            }
+        }
+        
+        private static string ParseType(string type, string className, string inputPath)
+        {
+            switch (type)
+            {
+                case SupportType.CHAR:
+                    type = "System.Char";
+                    break;
+                case SupportType.BOOL:
+                    type = "System.Boolean";
+                    break;
+                case SupportType.BYTE:
+                    type = "System.Byte";
+                    break;
+                case SupportType.SHORT:
+                    type = "System.Int16";
+                    break;
+                case SupportType.INT:
+                    type = "System.Int32";
+                    break;
+                case SupportType.LONG:
+                    type = "System.Int64";
+                    break;
+                case SupportType.FLOAT:
+                    type = "System.Single";
+                    break;
+                case SupportType.DOUBLE:
+                    type = "System.Double";
+                    break;
+                case SupportType.DECIMAL:
+                    type = "System.Decimal";
+                    break;
+                case SupportType.JSON:
+                    type = "LitJson.JsonData";
+                    break;
+                case SupportType.STRING or SupportType.STRINGFULL:
+                    type = "System.String";
+                    break;
+                case SupportType.OBJ or SupportType.OBJFULL:
+                    type = "System.Object";
+                    break;
+                case SupportType.VECTOR2 or SupportType.VECTOR2FULL:
+                    type = "UnityEngine.Vector2";
+                    break;
+                case SupportType.VECTOR3 or SupportType.VECTOR3FULL:
+                    type = "UnityEngine.Vector3";
+                    break;
+                case SupportType.VECTOR4 or SupportType.VECTOR4FULL:
+                    type = "UnityEngine.Vector4";
+                    break;
+                case SupportType.VECTOR2INT or SupportType.VECTOR2INTFULL:
+                    type = "UnityEngine.Vector2Int";
+                    break;
+                case SupportType.VECTOR3INT or SupportType.VECTOR3INTFULL:
+                    type = "UnityEngine.Vector3Int";
+                    break;
+                case SupportType.QUATERNION or SupportType.QUATERNIONFULL:
+                    type = "UnityEngine.Quaternion";
+                    break;
+                case SupportType.COLOR:
+                    type = "UnityEngine.Color";
+                    break;
+                case SupportType.COLOR32:
+                    type = "UnityEngine.Color32";
+                    break;
+                case SupportType.DATETIME:
+                    type = "System.DateTime";
+                    break;
+                case SupportType.SBYTE:
+                    type = "System.SByte";
+                    break;
+                case SupportType.USHORT:
+                    type = "System.UInt16";
+                    break;
+                case SupportType.UINT:
+                    type = "System.UInt32";
+                    break;
+                case SupportType.ULONG:
+                    type = "System.UInt64";
+                    break;
+                case SupportType.MATRIX4X4:
+                    type = "UnityEngine.Matrix4x4";
+                    break;
+                default:
+                    throw new Exception("输入了错误的数据类型:  " + type + ", 类名:  " + className + ", 位于:  " + inputPath);
+            }
+
+            return type;
+        }
+        
+        private static string RemoveOuterBracketsIfPaired(string data)
+        {
+            if (string.IsNullOrEmpty(data))
+                return data;
+
+            if ((data.StartsWith("[") && data.EndsWith("]")) || (data.StartsWith("{") && data.EndsWith("}")))
+            {
+                Stack<char> stack = new Stack<char>();
+                char openingBracket = data[0];
+                char closingBracket = openingBracket == '[' ? ']' : '}';
+
+                // 先假设最外层括号可删除
+                bool canRemoveOuter = true;
+
+                // 从第二个字符开始遍历，到倒数第二个字符结束
+                for (int i = 1; i < data.Length - 1; i++)
+                {
+                    char c = data[i];
+                    if (c == openingBracket)
+                    {
+                        stack.Push(c);
+                    }
+                    else if (c == closingBracket)
+                    {
+                        if (stack.Count == 0)
+                        {
+                            // 遇到右括号但栈为空，说明括号不匹配，不能删除最外层括号
+                            canRemoveOuter = false;
+                            break;
+                        }
+                        stack.Pop();
+                    }
+                }
+
+                // 遍历结束后，若栈不为空，也不能删除最外层括号
+                if (stack.Count > 0)
+                {
+                    canRemoveOuter = false;
+                }
+
+                if (canRemoveOuter)
+                {
+                    return data.Substring(1, data.Length - 2);
+                }
+            }
+
+            return data;
+        }
+        
+        private static List<string> ParseElements(string data, char leftBracket = '[', char rightBracket = ']')
+        {
+            List<string> elements = new List<string>();
+            string currentElement = "";
+            int bracketDepth = 0;
+            int squareBracketDepth = 0;
+            int curlyBracketDepth = 0;
+            int angleBracketDepth = 0;
+            bool inQuotes = false;
+
+            foreach (char c in data)
+            {
+                if (c == '"')
+                {
+                    // 遇到引号，切换引号状态
+                    inQuotes = !inQuotes;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == leftBracket)
+                {
+                    bracketDepth++;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == rightBracket)
+                {
+                    bracketDepth--;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == '[')
+                {
+                    squareBracketDepth++;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == ']')
+                {
+                    squareBracketDepth--;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == '{')
+                {
+                    curlyBracketDepth++;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == '}')
+                {
+                    curlyBracketDepth--;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == '<')
+                {
+                    angleBracketDepth++;
+                    currentElement += c;
+                }
+                else if (!inQuotes && c == '>')
+                {
+                    angleBracketDepth--;
+                    currentElement += c;
+                }
+                else if (c == ',' && !inQuotes && bracketDepth == 0 && squareBracketDepth == 0 && curlyBracketDepth == 0 && angleBracketDepth == 0)
+                {
+                    elements.Add(currentElement);
+                    currentElement = "";
+                }
+                else
+                {
+                    // 其他字符直接添加到当前元素
+                    currentElement += c;
+                }
+            }
+
+            // 添加最后一个元素
+            if (!string.IsNullOrEmpty(currentElement))
+            {
+                elements.Add(currentElement);
+            }
+
+            return elements;
+        }
+    }
+}

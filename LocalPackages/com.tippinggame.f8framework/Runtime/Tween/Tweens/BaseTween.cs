@@ -1,0 +1,451 @@
+﻿using UnityEngine;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+
+namespace F8Framework.Core
+{
+    public enum UpdateMode : byte
+    {
+        Update,
+        LateUpdate,
+        FixedUpdate
+    }
+    
+    public enum LoopType : byte
+    {
+        None = 0,
+        // 到达结束值后，回到起始值并重新播放
+        Restart = 1,
+        // 到达结束值后，起始值和结束值互换并重新播放
+        Flip = 2,
+        // 到达结束值后，给结束值增加(结束值-起始值)后继续播放
+        Incremental = 4,
+        // 到达结束值后，将反向播放以返回起始值并重新播放（往返一次是完整的动画周期）
+        Yoyo = 3
+    }
+    
+    /// <summary>
+    /// Base tween class
+    /// </summary>
+    public abstract class BaseTween : IEnumerator
+    {
+        #region PROTECTED
+        protected int id = 0;
+        protected object customId = null;
+        protected float delay = 0.0f;
+        protected float tempDelay = 0.0f;
+        protected float duration = 0.0f;
+        protected float currentTime = 0.0f;
+        protected Ease ease = Ease.EaseOutQuad;
+        protected bool isPause = false;
+        protected bool isComplete = false;
+        protected UpdateMode updateMode = UpdateMode.Update;
+        protected GameObject owner = null;
+        private float timeSinceStart = 0.0f;
+        protected LoopType loopType = LoopType.None;
+        protected int loopCount = 0;
+        protected int tempLoopCount = 0;
+        protected bool ignoreTimeScale = false;
+        protected bool useSmoothDeltaTime = false;
+        #endregion
+        
+        #region EVENTS
+        protected Action onComplete = null;
+        protected Action onCompleteSequence = null;
+        protected Action onUpdate = null;
+        protected Action<string> onUpdateString = null;
+        protected Action<Vector3> onUpdateVector3 = null;
+        protected Action<float> onUpdateFloat = null;
+        protected Action<Color> onUpdateColor = null;
+        protected Action<Vector2> onUpdateVector2 = null;
+        protected Action<Quaternion> onUpdateQuaternion = null;
+        protected List<TimeEvent> events = new List<TimeEvent>();
+        protected Action PauseReset = null;
+        #endregion
+
+        internal bool CanRecycle = true;
+        internal bool IsRecycle = false;
+        
+        public float CurrentTime 
+        { 
+            get => currentTime;
+            set => SetCurrentTime(value);
+        }
+        public float Progress
+        {
+            get => currentTime >= duration ? 1.0f : currentTime / duration;
+            set => SetProgress(value);
+        }
+        public object CustomId
+        {
+            get => customId;
+            set => customId = value;
+        }
+        public int ID
+        {
+            get => id;
+            set => id = value;
+        }
+        public bool IsComplete
+        {
+            get => isComplete;
+            set => isComplete = value;
+        }
+        public GameObject Owner => owner;
+        public UpdateMode UpdateMode => updateMode;
+        public bool IgnoreTimeScale => ignoreTimeScale;
+        public bool UseSmoothDeltaTime => useSmoothDeltaTime;
+        public bool IsAutoKill => CanRecycle;
+
+        public BaseTween()
+        {
+            onComplete = FinishTween;
+        }
+        
+        private void FinishTween()
+        {
+            IsComplete = true;
+            // 可以回收
+            if (CanRecycle)
+            {
+                IsRecycle = true;
+            }
+            else
+            {
+                this.tempLoopCount = this.loopCount;
+                onCompleteSequence?.Invoke();
+            }
+        }
+        
+        /// <summary>
+        /// Called to update this tween
+        /// </summary>
+        internal virtual void Update(float deltaTime)
+        {
+            timeSinceStart += deltaTime;
+
+            for (int i = 0; i < events.Count; i++)
+            {
+                if (!events[i].IsComplete && timeSinceStart >= events[i].Time)
+                {
+                    events[i].IsComplete = true;
+                    events[i].Action();
+                }
+            }
+
+            if(onUpdate != null)
+                onUpdate();
+        }
+        
+        public BaseTween Complete()
+        {
+            UpdateValue(true);
+            onComplete();
+            return this;
+        }
+        
+        public BaseTween SetProgress(float progress)
+        {
+            float clampedValue = Mathf.Clamp01(progress);
+            currentTime = clampedValue * duration;
+            UpdateValue(false);
+            return this;
+        }
+        
+        public BaseTween SetCurrentTime(float time)
+        {
+            currentTime = time;
+            UpdateValue(false);
+            return this;
+        }
+        
+        public BaseTween SetAutoKill(bool autoKill)
+        {
+            CanRecycle = autoKill;
+            return this;
+        }
+        
+        public BaseTween SetCustomId(object customId)
+        {
+            CustomId = customId;
+            return this;
+        }
+        
+        public BaseTween SetIgnoreTimeScale(bool value)
+        {
+            ignoreTimeScale = value;
+            return this;
+        }
+
+        public BaseTween SetUseSmoothDeltaTime(bool value)
+        {
+            useSmoothDeltaTime = value;
+            return this;
+        }
+        
+        public BaseTween SetIsPause(bool value)
+        {
+            if (isPause && !value)
+            {
+                if(PauseReset != null)
+                    PauseReset.Invoke();
+            }
+
+            isPause = value;
+            return this;
+        }
+
+        public virtual BaseTween ReplayReset()
+        {
+            IsComplete = false;
+            isPause = false;
+            currentTime = 0.0f;
+            timeSinceStart = 0.0f;
+            tempLoopCount = loopCount;
+            tempDelay = delay;
+            for (int i = 0; i < events.Count; i++)
+            {
+                events[i].IsComplete = false;
+            }
+            return this;
+        }
+
+        public virtual BaseTween LoopReset()
+        {
+            IsComplete = false;
+            isPause = false;
+            currentTime = 0.0f;
+            timeSinceStart = 0.0f;
+            tempDelay = delay;
+            for (int i = 0; i < events.Count; i++)
+            {
+                events[i].IsComplete = false;
+            }
+            return this;
+        }
+        
+        internal virtual void UpdateValue(bool isEnd = false)
+        {
+        }
+
+        internal void ClearOnCompleteSequence()
+        {
+            onCompleteSequence = null;
+        }
+        
+        /// <summary>
+        /// Set ease type
+        /// </summary>
+        /// <param name="ease"></param>
+        public BaseTween SetEase(Ease ease)
+        {
+            this.ease = ease;
+            return this;
+        }
+
+        public BaseTween SetEvent(Action action, float t)
+        {
+            events.Add(new TimeEvent(action, t));
+            
+            return this;
+        }
+
+        /// <summary>
+        /// Set callback for onComplete
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public BaseTween SetOnComplete(Action action)
+        {
+            onComplete += action;
+            return this;
+        }
+
+        public BaseTween SetOnCompleteSequence(Action action)
+        {
+            onCompleteSequence += action;
+            return this;
+        }
+        
+        /// <summary>
+        /// set a delay
+        /// </summary>
+        /// <param name="t">delay in seconds </param>
+        /// <returns></returns>
+        public BaseTween SetDelay(float t)
+        {
+            delay = t;
+            tempDelay = t;
+            return this;
+        }
+
+        public BaseTween SetOnUpdate(Action action)
+        {
+            onUpdate += action;
+            return this;
+        }
+
+        public BaseTween SetOnUpdateString(Action<string> action)
+        {
+            onUpdateString += action;
+            return this;
+        }
+        
+        public BaseTween SetOnUpdateVector2(Action<Vector2> action)
+        {
+            onUpdateVector2 += action;
+            return this;
+        }
+
+        /// <summary>
+        /// Set Callback for OnUpdate
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public BaseTween SetOnUpdateVector3(Action<Vector3> action)
+        {
+            onUpdateVector3 += action;
+            return this;
+        }
+
+        public BaseTween SetOnUpdateColor(Action<Color> action)
+        {
+            onUpdateColor += action;
+            return this;
+        }
+
+        /// <summary>
+        /// Set Callback for OnUpdate
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public BaseTween SetOnUpdateFloat(Action<float> action)
+        {
+            onUpdateFloat += action;
+            return this;
+        }
+
+        /// <summary>
+        /// Set Callback for OnUpdate
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public BaseTween SetOnUpdateQuaternion(Action<Quaternion> action)
+        {
+            onUpdateQuaternion += action;
+            return this;
+        }
+
+        public BaseTween SetOwner(GameObject owner)
+        {
+            this.owner = owner;
+            Tween.Instance.ProcessConnection(this);
+            return this;
+        }
+
+        public BaseTween SetUpdateMode(UpdateMode updateMode)
+        {
+            this.updateMode = updateMode;
+            return this;
+        }
+
+        public BaseTween SetLoopType(LoopType loopType, int loopCount = -1)
+        {
+            this.loopType = loopType;
+            this.loopCount = loopCount;
+            this.tempLoopCount = loopCount;
+            CanRecycle = false;
+            return this;
+        }
+        
+        /// <summary>
+        /// Restore all fields to default
+        /// </summary>
+        internal virtual void Reset()
+        {
+            id = 0;
+            CustomId = null;
+            delay = 0.0f;
+            tempDelay = 0.0f;
+            duration = 0.0f;
+            currentTime = 0.0f;
+            ease = Ease.EaseOutQuad;
+            updateMode = UpdateMode.Update;
+            owner = null;
+            timeSinceStart = 0.0f;
+            loopType = LoopType.None;
+            loopCount = 0;
+            tempLoopCount = 0;
+            IsComplete = false;
+            isPause = false;
+            CanRecycle = true;
+            ignoreTimeScale = false;
+            useSmoothDeltaTime = false;
+
+            onUpdateString = null;
+            onUpdate = null;
+            onUpdateVector3 = null;
+            onUpdateFloat = null;
+            onUpdateColor = null;
+            onUpdateVector2 = null;
+            onUpdateQuaternion = null;
+            PauseReset = null;
+            events.Clear();
+            IsRecycle = false;
+            onCompleteSequence = null;
+            
+            onComplete = FinishTween;
+        }
+        
+        /// <summary>使用此方法在协程中等待Tween。</summary>
+        /// <example><code>
+        /// IEnumerator Coroutine() {
+        ///     yield return gameObject.Move(Vector3.one, 1f);
+        /// }
+        /// </code></example>
+        bool IEnumerator.MoveNext() {
+            return !IsRecycle;
+        }
+
+        object IEnumerator.Current {
+            get {
+                if (IsRecycle)
+                {
+                    LogF8.LogError("已回收的Tween无法访问当前值");
+                }
+                return null;
+            }
+        }
+
+        void IEnumerator.Reset() => throw new NotSupportedException();
+        
+        /// <summary>此方法是异步/等待支持所必需的。不要直接使用它。</summary>
+        /// <example><code>
+        /// async void Coroutine() {
+        ///     await gameObject.Move(Vector3.one, 1f);
+        /// }
+        /// </code></example>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public TweenAwaiter GetAwaiter() {
+            return new TweenAwaiter(this);
+        }
+    }
+
+    public class TimeEvent
+    {
+        public Action Action;
+        public float Time;
+        public bool IsComplete;
+
+        public TimeEvent(Action action, float t)
+        {
+            Action = action;
+            Time = t;
+            IsComplete = false;
+        }
+    }
+
+}
+

@@ -1,0 +1,130 @@
+﻿using System.Linq;
+using UnityEditor;
+using UnityEngine;
+
+namespace F8Framework.Core.Editor
+{
+	public class LocalizerEditorSettingsWindow : EditorWindow
+	{
+		public static int index = 0;
+		readonly string[] languageOptions = Language.BuiltinLanguages.Select(lang => lang.ToString()).ToArray();
+		
+		[UnityEditor.MenuItem("开发工具/本地化工具 _F6", false, 100)]
+		static void Open()
+		{
+			if (HasOpenInstances<LocalizerEditorSettingsWindow>())
+			{
+				GetWindow<LocalizerEditorSettingsWindow>("本地化工具 F6").Close();
+			}
+			else
+			{
+				LocalizationEditorSettings.LoadEditorSettings();
+				Localization.EditorInstance.LoadInEditor();
+
+				for (int i = 0; i < Language.BuiltinLanguages.Length; i++)
+				{
+					if (Language.BuiltinLanguages[i].Name == LocalizationSettings.LoadLanguageSettings())
+					{
+						index = i;
+					}
+				}
+				
+				GetWindow<LocalizerEditorSettingsWindow>("本地化工具 F6");
+			}
+		}
+
+		void OnGUI()
+		{
+			Localization.EditorInstance.LoadInEditor();
+			var prevSettings = LocalizationEditorSettings.current.Clone();
+			var displayOptions = GetDisplayOptions();
+			EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
+			for (int i = 0; i < Language.BuiltinLanguages.Length; i++)
+			{
+				if (Language.BuiltinLanguages[i].Name == LocalizationSettings.LoadLanguageSettings())
+				{
+					index = i;
+				}
+			}
+			index = EditorGUILayout.Popup(index, displayOptions);
+			if (languageOptions[index] != LocalizationSettings.LoadLanguageSettings())
+			{
+				Localization.EditorInstance.CurrentLanguageName = languageOptions[index];
+				LocalizationSettings.SaveLanguageSettings();
+				if (Application.isPlaying)
+				{
+					Localization.EditorInstance.InjectAll();
+				}
+			}
+
+			DrawSettingsPanel(ref LocalizationEditorSettings.current);
+			if (prevSettings.enableTMP != LocalizationEditorSettings.current.enableTMP)
+			{
+				if (LocalizationEditorSettings.current.enableTMP)
+				{
+					var enableTMP = AskToEnableTMP();
+					LocalizationEditorSettings.current.enableTMP = enableTMP;
+					if (enableTMP) TMPIntegrationSwitcher.Enable();
+				}
+				else
+				{
+					TMPIntegrationSwitcher.Disable();
+				}
+			}
+
+			if (prevSettings.enableTimeline != LocalizationEditorSettings.current.enableTimeline)
+			{
+				if (LocalizationEditorSettings.current.enableTimeline)
+				{
+					var enableTimeline = AskToEnableTimeline();
+					LocalizationEditorSettings.current.enableTimeline = enableTimeline;
+					if (enableTimeline) TimelineIntegrationSwitcher.Enable();
+				}
+				else
+				{
+					TimelineIntegrationSwitcher.Disable();
+				}
+			}
+
+			if (LocalizationEditorSettings.current != prevSettings) LocalizationEditorSettings.SaveEditorSettings();
+		}
+
+		string[] GetDisplayOptions()
+		{
+			var configuredLanguages = Localization.EditorInstance.LanguageList;
+			return languageOptions
+				.Select(language => configuredLanguages.Contains(language) ? $"{language}（已配置）" : language)
+				.ToArray();
+		}
+
+		static void DrawSettingsPanel(ref LocalizationEditorSettings.SettingsDefinition settings)
+		{
+			EditorGUILayout.Space();
+			settings.DefaultLanguage = EditorGUILayout.TextField("当前语言（只读）", LocalizationSettings.LoadLanguageSettings());
+			settings.maxSuggestion = EditorGUILayout.IntField("最大显示ID个数", settings.maxSuggestion);
+			settings.enableTMP = EditorGUILayout.Toggle("项目使用 TextMesh Pro", settings.enableTMP);
+			settings.enableTimeline = EditorGUILayout.Toggle("项目使用 Timeline", settings.enableTimeline);
+			EditorGUILayout.Space();
+			if (GUILayout.Button("Reset All")) ResetAllSettings();
+		}
+
+		static bool AskToEnableTMP()
+		{
+			const string message = "如果您的项目没有 TextMesh Pro，这将导致编译错误。是否继续开启？";
+			return EditorUtility.DisplayDialog("启用 TextMesh Pro 集成", message, "确定", "取消");
+		}
+
+		static bool AskToEnableTimeline()
+		{
+			const string message = "如果您的项目没有 Timeline，这将导致编译错误。是否继续开启？";
+			return EditorUtility.DisplayDialog("启用 Timeline 集成", message, "确定", "取消");
+		}
+
+		static void ResetAllSettings()
+		{
+			LocalizationEditorSettings.ResetAll();
+			TMPIntegrationSwitcher.Disable();
+			TimelineIntegrationSwitcher.Disable();
+		}
+	}
+}

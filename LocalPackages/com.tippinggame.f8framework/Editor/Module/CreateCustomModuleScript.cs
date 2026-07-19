@@ -1,0 +1,54 @@
+using UnityEditor;
+using UnityEngine;
+
+namespace F8Framework.Core.Editor
+{
+    public class CreateCustomModuleScript : ScriptableObject
+    {
+        [MenuItem("Assets/（F8模块中心功能）/（Module.cs）", false, 1030)]
+        static void CreateModuleScript()
+        {
+            string path = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 1)) +
+                          "/ModuleTemplate.cs.txt";
+            
+            ProjectWindowUtil.CreateScriptAssetFromTemplateFile(path, "Module.cs");
+        }
+        
+        [MenuItem("Assets/（F8模块中心功能）/（ModuleMono.cs）", false, 1031)]
+        static void CreateModuleMonoScript()
+        {
+            string path = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 1)) +
+                          "/ModuleMonoTemplate.cs.txt";
+            
+            ProjectWindowUtil.CreateScriptAssetFromTemplateFile(path, "ModuleMono.cs");
+        }
+        
+        [MenuItem("Assets/（F8模块中心功能）/（StaticModule.cs）", false, 1032)]
+        static void CreateStaticModuleScript()
+        {
+            string path = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 1)) +
+                          "/StaticModuleTemplate.cs.txt";
+            
+            ProjectWindowUtil.CreateScriptAssetFromTemplateFile(path, "StaticModule.cs");
+        }
+
+        [MenuItem("Assets/（F8模块中心功能）/（ActivityModule.cs）", false, 1033)]
+        static void CreateActivityModuleScript()
+        {
+            string path = FileTools.FormatToUnityPath(FileTools.TruncatePath(GetScriptPath(), 1)) +
+                          "/ActivityModuleTemplate.cs.txt";
+
+            ProjectWindowUtil.CreateScriptAssetFromTemplateFile(path, "ActivityModule.cs");
+        }
+        
+        private static string GetScriptPath()
+        {
+            MonoScript monoScript = MonoScript.FromScriptableObject(CreateInstance<CreateCustomModuleScript>());
+
+            // 获取脚本在 Assets 中的相对路径
+            string scriptRelativePath = AssetDatabase.GetAssetPath(monoScript);
+            
+            return scriptRelativePath;
+        }
+    }
+}

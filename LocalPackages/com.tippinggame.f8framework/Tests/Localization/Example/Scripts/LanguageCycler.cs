@@ -1,0 +1,83 @@
+﻿using System.Collections;
+using F8Framework.Core;
+using UnityEngine;
+
+namespace F8Framework.Tests
+{
+	public class LanguageCycler : MonoBehaviour
+	{
+		public GameObject StoryCanvas;
+		public GameObject UICanvas;
+		IEnumerator Start()
+		{
+			// 初始化模块中心
+			ModuleCenter.Initialize(this);
+			
+			// 初始化版本
+			FF8.HotUpdate = ModuleCenter.CreateModule<HotUpdateManager>();
+        
+			// 按顺序创建模块，可按需添加
+			FF8.Message = ModuleCenter.CreateModule<MessageManager>();
+			FF8.Input = ModuleCenter.CreateModule<InputManager>(new DefaultInputHelper());
+			FF8.Storage = ModuleCenter.CreateModule<StorageManager>();
+			FF8.Timer = ModuleCenter.CreateModule<TimerManager>();
+			FF8.Procedure = ModuleCenter.CreateModule<ProcedureManager>();
+			FF8.Network = ModuleCenter.CreateModule<NetworkManager>();
+			FF8.FSM = ModuleCenter.CreateModule<FSMManager>();
+			FF8.GameObjectPool = ModuleCenter.CreateModule<GameObjectPool>();
+			FF8.Asset = ModuleCenter.CreateModule<AssetManager>();
+			yield return AssetBundleManager.Instance.LoadAssetBundleManifest(); // 加载 AssetBundleManifest，必须在 AssetManager 模块下面
+			FF8.Config = ModuleCenter.CreateModule<DemoF8DataManager>();
+			FF8.Audio = ModuleCenter.CreateModule<AudioManager>();
+			FF8.Tween = ModuleCenter.CreateModule<Tween>();
+			FF8.UI = ModuleCenter.CreateModule<UIManager>();
+			yield return DemoF8DataManager.Instance.LoadLocalizedStringsIEnumerator(); // 加载 LocalizedStrings 配置表，必须在 Localization 模块上面
+			FF8.Local = ModuleCenter.CreateModule<Localization>(DemoF8DataManager.Instance.GetLocalizedStrings());
+			FF8.SDK = ModuleCenter.CreateModule<SDKManager>();
+			FF8.Download = ModuleCenter.CreateModule<DownloadManager>();
+			FF8.LogWriter = ModuleCenter.CreateModule<F8LogWriter>();
+			
+			yield return new WaitForEndOfFrame();
+			
+			StoryCanvas.SetActive(true);
+			UICanvas.SetActive(true);
+			yield break;
+		}
+
+		void Update()
+		{
+			// 更新框架
+			ModuleCenter.Update();
+#if ENABLE_INPUT_SYSTEM
+			if (UnityEngine.InputSystem.Keyboard.current != null &&
+			    (UnityEngine.InputSystem.Keyboard.current.enterKey.wasPressedThisFrame ||
+			     UnityEngine.InputSystem.Keyboard.current.numpadEnterKey.wasPressedThisFrame))
+			{
+				Cycle();
+			}
+#elif ENABLE_LEGACY_INPUT_MANAGER
+			if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+			{
+				Cycle();
+			}
+#endif
+		}
+
+		void LateUpdate()
+		{
+			// 更新模块，切勿多处调用
+			ModuleCenter.LateUpdate();
+		}
+
+		private void FixedUpdate()
+		{
+			ModuleCenter.FixedUpdate();
+		}
+
+		public void Cycle()
+		{
+			Localization.Instance?.ActivateNextLanguage();
+		}
+	}
+}
+

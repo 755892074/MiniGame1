@@ -1,0 +1,1865 @@
+﻿using UnityEngine;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System;
+
+namespace F8Framework.Core
+{
+    /// <summary>
+    /// Tween engine
+    /// </summary>
+    [UpdateRefresh]
+    [LateUpdateRefresh]
+    [FixedUpdateRefresh]
+    public class Tween : ModuleSingleton<Tween>, IModule
+    {
+        #region PRIVATE
+        private Stack<Sequence> sequencePool = new Stack<Sequence>();
+        private HashSet<Sequence> activeSequences = new HashSet<Sequence>();
+        public List<BaseTween> tweens = new List<BaseTween>();
+        private Dictionary<GameObject, List<int>> tweenConnections = new Dictionary<GameObject, List<int>>();
+        #endregion
+
+        public Action OnUpdateAction;
+
+        public Sequence GetSequence()
+        {
+            if (sequencePool.Count <= 0)
+            {
+                return ProcessSequence(new Sequence(), false);
+            }
+
+            return ProcessSequence(sequencePool.Pop());
+        }
+
+        private Sequence ProcessSequence(Sequence sequence, bool reset = true)
+        {
+            if (reset)
+            {
+                sequence.Reset();
+            }
+
+            activeSequences.Add(sequence);
+            sequence.Recycle = delegate { KillSequence(sequence); };
+            OnUpdateAction += sequence.Update;
+            return sequence;
+        }
+
+        public void KillSequence(Sequence sequence)
+        {
+            if (sequence == null)
+            {
+                return;
+            }
+
+            OnUpdateAction -= sequence.Update;
+            sequence.Reset();
+            if (activeSequences.Remove(sequence))
+            {
+                sequencePool.Push(sequence);
+            }
+        }
+
+        public void KillAllSequences()
+        {
+            if (activeSequences.Count <= 0)
+            {
+                return;
+            }
+
+            var sequences = new List<Sequence>(activeSequences);
+            for (int i = 0; i < sequences.Count; i++)
+            {
+                KillSequence(sequences[i]);
+            }
+        }
+        
+        #region UNITY_EVENTS
+        
+        public void OnInit(object createParam)
+        {
+            
+        }
+
+        public void OnUpdate()
+        {
+            if(OnUpdateAction != null)
+                OnUpdateAction.Invoke();
+            
+            for (int i = 0; i < tweens.Count; i++)
+            {
+                if (tweens[i].IsRecycle)
+                {
+                    TweenPool.AddTweenToPool(tweens[i]);
+                    tweens.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+                
+                if (tweens[i].UpdateMode == UpdateMode.Update)
+                    tweens[i].Update(GetDeltaTime(tweens[i]));
+            }
+        }
+
+        public void OnLateUpdate()
+        {
+            for (int i = 0; i < tweens.Count; i++)
+            {
+                if (tweens[i].UpdateMode != UpdateMode.LateUpdate)
+                {
+                    continue;
+                }
+                if (tweens[i].IsRecycle == true)
+                {
+                    TweenPool.AddTweenToPool(tweens[i]);
+                    tweens.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+                tweens[i].Update(GetDeltaTime(tweens[i]));
+            }
+        }
+
+        public void OnFixedUpdate()
+        {
+            for (int i = 0; i < tweens.Count; i++)
+            {
+                if (tweens[i].UpdateMode != UpdateMode.FixedUpdate)
+                {
+                    continue;
+                }
+                if (tweens[i].IsRecycle == true)
+                {
+                    TweenPool.AddTweenToPool(tweens[i]);
+                    tweens.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+                tweens[i].Update(tweens[i].IgnoreTimeScale ? Time.fixedUnscaledDeltaTime : Time.fixedDeltaTime);
+            }
+        }
+
+        private float GetDeltaTime(BaseTween tween)
+        {
+            if (tween.IgnoreTimeScale)
+            {
+                return Time.unscaledDeltaTime;
+            }
+
+            return tween.UseSmoothDeltaTime ? Time.smoothDeltaTime : Time.deltaTime;
+        }
+
+        public void OnTermination()
+        {
+            KillAllSequences();
+            for (int i = 0; i < tweens.Count; i++)
+            {
+                tweens[i].CanRecycle = true;
+                tweens[i].IsRecycle = true;
+            }
+            tweens.Clear();
+            tweenConnections.Clear();
+            base.Destroy();
+        }
+
+        #endregion
+
+        internal void ProcessConnection(BaseTween tween)
+        {
+            if (tweenConnections.TryGetValue(tween.Owner, out var idList))
+            {
+                if (idList == null)
+                {
+                    idList = new List<int>();
+                }
+
+                idList.Add(tween.ID);
+            }
+
+            else
+            {
+                tweenConnections[tween.Owner] = new List<int>() { tween.ID };
+            }
+        }
+        
+        public void SetProgress(GameObject owner, float time)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    SetProgress(idList[n], time);
+                }
+            }
+        }
+        
+        public void SetProgress(object customId, float time)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].SetProgress(time);
+                }
+            }
+        }
+        
+        public void SetProgress(int id, float time)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetProgress(time);
+                    break;
+                }
+            }
+        }
+        
+        public void SetCurrentTime(GameObject owner, float time)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    SetCurrentTime(idList[n], time);
+                }
+            }
+        }
+        
+        public void SetCurrentTime(object customId, float time)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].SetCurrentTime(time);
+                }
+            }
+        }
+        
+        public void SetCurrentTime(int id, float time)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetCurrentTime(time);
+                    break;
+                }
+            }
+        }
+        
+        public void ReplayReset(GameObject owner)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    ReplayReset(idList[n]);
+                }
+            }
+        }
+        
+        public void ReplayReset(object customId)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].ReplayReset();
+                }
+            }
+        }
+        
+        public void ReplayReset(int id)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].ReplayReset();
+                    break;
+                }
+            }
+        }
+        
+        public void Complete(GameObject owner)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    Complete(idList[n]);
+                }
+            }
+        }
+        
+        public void Complete(object customId)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].Complete();
+                }
+            }
+        }
+        
+        public void Complete(int id)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].Complete();
+                    break;
+                }
+            }
+        }
+        
+        public void SetCustomId(int id, object customId)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetCustomId(customId);
+                    break;
+                }
+            }
+        }
+        
+        public void SetIgnoreTimeScale(GameObject owner, bool ignoreTimeScale)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    SetIgnoreTimeScale(idList[n], ignoreTimeScale);
+                }
+            }
+        }
+        
+        public void SetIgnoreTimeScale(object customId, bool ignoreTimeScale)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].SetIgnoreTimeScale(ignoreTimeScale);
+                }
+            }
+        }
+        
+        public void SetIgnoreTimeScale(int id, bool ignoreTimeScale)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetIgnoreTimeScale(ignoreTimeScale);
+                    break;
+                }
+            }
+        }
+
+        public void SetUseSmoothDeltaTime(GameObject owner, bool useSmoothDeltaTime)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    SetUseSmoothDeltaTime(idList[n], useSmoothDeltaTime);
+                }
+            }
+        }
+        
+        public void SetUseSmoothDeltaTime(object customId, bool useSmoothDeltaTime)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].SetUseSmoothDeltaTime(useSmoothDeltaTime);
+                }
+            }
+        }
+        
+        public void SetUseSmoothDeltaTime(int id, bool useSmoothDeltaTime)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetUseSmoothDeltaTime(useSmoothDeltaTime);
+                    break;
+                }
+            }
+        }
+        
+        public void SetIsPause(GameObject owner, bool isPause)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    SetIsPause(idList[n], isPause);
+                }
+            }
+        }
+        
+        public void SetIsPause(object customId, bool isPause)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].SetIsPause(isPause);
+                }
+            }
+        }
+        
+        public void SetIsPause(int id, bool isPause)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].SetIsPause(isPause);
+                    break;
+                }
+            }
+        }
+        
+        public void CancelTween(object customId)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].CustomId == customId)
+                {
+                    tweens[n].CanRecycle = true;
+                    tweens[n].IsRecycle = true;
+                }
+            }
+        }
+        
+        public void CancelTween(int id)
+        {
+            for (int n = 0; n < tweens.Count; n++)
+            {
+                if (tweens[n].ID == id)
+                {
+                    tweens[n].CanRecycle = true;
+                    tweens[n].IsRecycle = true;
+                    break;
+                }
+            }
+        }
+
+        // 内部使用
+        private void CancelTween(BaseTween tween)
+        {
+            if (tween != null)
+            {
+                tween.CanRecycle = true;
+                tween.IsRecycle = true;
+            }
+        }
+
+        public void CancelTween(GameObject owner)
+        {
+            if (tweenConnections.TryGetValue(owner, out var idList))
+            {
+                if (idList == null)
+                    return;
+
+                for (int n = 0; n < idList.Count; n++)
+                {
+                    CancelTween(idList[n]);                    
+                }
+
+                tweenConnections.Remove(owner);
+            }
+        }
+
+        #region SCALE_TWEENS
+        public BaseTween ScaleTween(Transform t, Vector3 to, float time)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(t.localScale, to, time);
+            tween.SetOnUpdateVector3((Vector3 v) =>
+            {
+                if (t == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+                t.localScale = v;
+            });
+            return tween;
+        }
+
+        public BaseTween ScaleTween(GameObject go, Vector3 to, float time)
+        {
+            return ScaleTween(go.transform, to, time);
+        }
+
+        public BaseTween ScaleTween(RectTransform rect, Vector3 to, float time)
+        {
+            return ScaleTween(rect.transform, to, time);
+        }
+
+        public BaseTween ScaleTweenAtSpeed(Transform t, Vector3 to, float speed)
+        {
+            float time = Vector3.Distance(t.position, to) / speed;
+            return ScaleTween(t, to, time);
+        }
+
+        public BaseTween ScaleTweenAtSpeed(GameObject go, Vector3 to, float speed)
+        {
+            float time = Vector3.Distance(go.transform.position, to) / speed;
+            return ScaleTween(go, to, time);
+        }
+
+        public BaseTween ScaleTweenAtSpeed(RectTransform rect, Vector3 to, float speed)
+        {
+            float time = Vector3.Distance(rect.transform.position, to) / speed;
+            return ScaleTween(rect.transform, to, time);
+        }
+        public BaseTween ScaleX(Transform obj, float value, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(obj.localScale.x, value, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (obj == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                Vector3 currentScale = obj.localScale;
+                currentScale.x = v;
+                obj.localScale = currentScale;
+            });
+            return tween;
+        }
+
+        public BaseTween ScaleX(GameObject obj, float value, float t)
+        {
+            return ScaleX(obj.transform, value, t);
+        }
+
+        public BaseTween ScaleX(RectTransform obj, float value, float t)
+        {
+            return ScaleX(obj.transform, value, t);
+        }
+
+        public BaseTween ScaleXAtSpeed(Transform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.localScale.x - value) / speed;
+            return ScaleX(obj, value, time);
+        }
+
+        public BaseTween ScaleXAtSpeed(GameObject obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.x - value) / speed;
+            return ScaleX(obj, value, time);
+        }
+
+        public BaseTween ScaleXAtSpeed(RectTransform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.x - value) / speed;
+            return ScaleX(obj, value, time);
+        }
+
+
+        public BaseTween ScaleY(Transform obj, float value, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(obj.localScale.y, value, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (obj == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                Vector3 currentScale = obj.localScale;
+                currentScale.y = v;
+                obj.localScale = currentScale;
+            });
+            return tween;
+        }
+
+        public BaseTween ScaleY(GameObject obj, float value, float t)
+        {
+            return ScaleY(obj.transform, value, t);
+        }
+
+
+        public BaseTween ScaleY(RectTransform obj, float value, float t)
+        {
+            return ScaleY(obj.transform, value, t);
+        }
+
+        public BaseTween ScaleYAtSpeed(Transform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.localScale.y - value) / speed;
+            return ScaleY(obj, value, time);
+        }
+
+        public BaseTween ScaleYAtSpeed(GameObject obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.y - value) / speed;
+            return ScaleY(obj, value, time);
+        }
+
+        public BaseTween ScaleYAtSpeed(RectTransform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.y - value) / speed;
+            return ScaleY(obj, value, time);
+        }
+
+
+        public BaseTween ScaleZ(Transform obj, float value, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(obj.localScale.z, value, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (obj == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                Vector3 currentScale = obj.localScale;
+                currentScale.z = v;
+                obj.localScale = currentScale;
+            });
+            return tween;
+        }
+
+        public BaseTween ScaleZ(GameObject obj, float value, float t)
+        {
+            return ScaleZ(obj.transform, value, t);
+        }
+
+        public BaseTween ScaleZ(RectTransform obj, float value, float t)
+        {
+            return ScaleZ(obj.transform, value, t);
+        }
+
+        public BaseTween ScaleZAtSpeed(Transform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.localScale.z - value) / speed;
+            return ScaleZ(obj, value, time);
+        }
+
+        public BaseTween ScaleZAtSpeed(GameObject obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.z - value) / speed;
+            return ScaleZ(obj, value, time);
+        }
+
+        public BaseTween ScaleZAtSpeed(RectTransform obj, float value, float speed)
+        {
+            float time = Math.Abs(obj.transform.localScale.z - value) / speed;
+            return ScaleZ(obj, value, time);
+        }
+
+        #endregion
+
+        #region ROTATE_TWEENS
+
+        public BaseTween RotateTween(Transform t, Quaternion to, float time)
+        {
+            QuaternionTween tween = TweenPool.GetQuaternionTween(t.rotation, to, time);
+            tween.SetOnUpdateQuaternion((Quaternion v) =>
+            {
+                if (t != null)
+                {
+                    t.rotation = v;
+                }
+                else
+                {
+                    CancelTween(tween);
+                }
+            });
+            
+            return tween;
+        }
+
+        public BaseTween RotateTween(Transform t, Vector3 to, float time)
+        {
+            Quaternion toRotation = Quaternion.Euler(to);
+            return RotateTween(t, toRotation, time);
+        }
+
+        public BaseTween RotateTween(GameObject go, Quaternion to, float time)
+        {
+            return RotateTween(go.transform, to, time);
+        }
+        
+        public BaseTween RotateTween(GameObject go, Vector3 to, float time)
+        {
+            return RotateTween(go.transform, to, time);
+        }
+        
+        public BaseTween RotateTween(RectTransform go, Quaternion to, float time)
+        {
+            return RotateTween(go.transform, to, time);
+        }
+        
+        public BaseTween RotateTween(RectTransform go, Vector3 to, float time)
+        {
+            return RotateTween(go.transform, to, time);
+        }
+
+        public BaseTween RotateTween(Transform t, Vector3 axis, float to, float time)
+        {
+            Quaternion toRotation = Quaternion.Euler(axis * to);
+            return RotateTween(t, toRotation, time);
+        }
+
+        public BaseTween RotateTween(GameObject go, Vector3 axis, float to, float time)
+        {
+            return RotateTween(go.transform, axis, to, time);
+        }
+
+        public BaseTween RotateTween(RectTransform rect, Vector3 axis, float to, float time)
+        {
+            return RotateTween(rect.transform, axis, to, time);
+        }
+
+        #endregion
+
+        #region LOCAL_ROTATE_TWEENS
+
+        public BaseTween LocalRotateTween(Transform t, Quaternion to, float time)
+        {
+            QuaternionTween tween = TweenPool.GetQuaternionTween(t.localRotation, to, time);
+            tween.SetOnUpdateQuaternion((Quaternion v) =>
+            {
+                if (t != null)
+                {
+                    t.localRotation = v;
+                }
+                else
+                {
+                    CancelTween(tween);
+                }
+            });
+    
+            return tween;
+        }
+
+        public BaseTween LocalRotateTween(Transform t, Vector3 to, float time)
+        {
+            Quaternion toRotation = Quaternion.Euler(to);
+            return LocalRotateTween(t, toRotation, time);
+        }
+
+        public BaseTween LocalRotateTween(GameObject go, Quaternion to, float time)
+        {
+            return LocalRotateTween(go.transform, to, time);
+        }
+
+        public BaseTween LocalRotateTween(GameObject go, Vector3 to, float time)
+        {
+            return LocalRotateTween(go.transform, to, time);
+        }
+
+        public BaseTween LocalRotateTween(RectTransform rect, Quaternion to, float time)
+        {
+            return LocalRotateTween(rect.transform, to, time);
+        }
+
+        public BaseTween LocalRotateTween(RectTransform rect, Vector3 to, float time)
+        {
+            return LocalRotateTween(rect.transform, to, time);
+        }
+
+        public BaseTween LocalRotateTween(Transform t, Vector3 axis, float to, float time)
+        {
+            Quaternion toRotation = Quaternion.Euler(axis * to);
+            return LocalRotateTween(t, toRotation, time);
+        }
+
+        public BaseTween LocalRotateTween(GameObject go, Vector3 axis, float to, float time)
+        {
+            return LocalRotateTween(go.transform, axis, to, time);
+        }
+
+        public BaseTween LocalRotateTween(RectTransform rect, Vector3 axis, float to, float time)
+        {
+            return LocalRotateTween(rect.transform, axis, to, time);
+        }
+
+        #endregion
+        
+        #region ROTATE_TWEEN_AT_SPEED
+
+        public BaseTween RotateTweenAtSpeed(Transform t, Quaternion to, float speed)
+        {
+            float angle = Quaternion.Angle(t.rotation, to);
+            float time = angle / speed;
+            return RotateTween(t, to, time);
+        }
+
+        public BaseTween RotateTweenAtSpeed(Transform t, Vector3 to, float speed)
+        {
+            Quaternion toRotation = Quaternion.Euler(to);
+            return RotateTweenAtSpeed(t, toRotation, speed);
+        }
+
+        public BaseTween RotateTweenAtSpeed(GameObject go, Quaternion to, float speed)
+        {
+            return RotateTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween RotateTweenAtSpeed(GameObject go, Vector3 to, float speed)
+        {
+            return RotateTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween RotateTweenAtSpeed(RectTransform rect, Quaternion to, float speed)
+        {
+            return RotateTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        public BaseTween RotateTweenAtSpeed(RectTransform rect, Vector3 to, float speed)
+        {
+            return RotateTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        public BaseTween RotateTweenAtSpeed(Transform t, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return RotateTween(t, axis, toAngle, time);
+        }
+
+        public BaseTween RotateTweenAtSpeed(GameObject go, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return RotateTween(go.transform, axis, toAngle, time);
+        }
+
+        public BaseTween RotateTweenAtSpeed(RectTransform rect, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return RotateTween(rect.transform, axis, toAngle, time);
+        }
+
+        #endregion
+
+        #region LOCAL_ROTATE_TWEEN_AT_SPEED
+
+        public BaseTween LocalRotateTweenAtSpeed(Transform t, Quaternion to, float speed)
+        {
+            float angle = Quaternion.Angle(t.localRotation, to);
+            float time = angle / speed;
+            return LocalRotateTween(t, to, time);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(Transform t, Vector3 to, float speed)
+        {
+            Quaternion toRotation = Quaternion.Euler(to);
+            return LocalRotateTweenAtSpeed(t, toRotation, speed);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(GameObject go, Quaternion to, float speed)
+        {
+            return LocalRotateTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(GameObject go, Vector3 to, float speed)
+        {
+            return LocalRotateTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(RectTransform rect, Quaternion to, float speed)
+        {
+            return LocalRotateTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(RectTransform rect, Vector3 to, float speed)
+        {
+            return LocalRotateTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(Transform t, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return LocalRotateTween(t, axis, toAngle, time);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(GameObject go, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return LocalRotateTween(go.transform, axis, toAngle, time);
+        }
+
+        public BaseTween LocalRotateTweenAtSpeed(RectTransform rect, Vector3 axis, float toAngle, float speed)
+        {
+            float time = Mathf.Abs(toAngle) / speed;
+            return LocalRotateTween(rect.transform, axis, toAngle, time);
+        }
+
+        #endregion
+
+        #region EULERANGLES_TWEENS
+
+        public BaseTween EulerAnglesTween(Transform t, Vector3 to, float time)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(t.eulerAngles, to, time);
+            tween.SetOnUpdateVector3((Vector3 v) =>
+            {
+                if (t != null)
+                {
+                    t.eulerAngles = v;
+                }
+                else
+                {
+                    CancelTween(tween);
+                }
+            });
+            
+            return tween;
+        }
+        
+        public BaseTween EulerAnglesTween(GameObject go, Vector3 to, float time)
+        {
+            return EulerAnglesTween(go.transform, to, time);
+        }
+        
+        public BaseTween EulerAnglesTween(RectTransform go, Vector3 to, float time)
+        {
+            return EulerAnglesTween(go.transform, to, time);
+        }
+
+        #endregion
+        
+        #region LOCAL_EULERANGLES_TWEENS
+
+        public BaseTween LocalEulerAnglesTween(Transform t, Vector3 to, float time)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(t.localEulerAngles, to, time);
+            tween.SetOnUpdateVector3((Vector3 v) =>
+            {
+                if (t != null)
+                {
+                    t.localEulerAngles = v;
+                }
+                else
+                {
+                    CancelTween(tween);
+                }
+            });
+    
+            return tween;
+        }
+
+        public BaseTween LocalEulerAnglesTween(GameObject go, Vector3 to, float time)
+        {
+            return LocalEulerAnglesTween(go.transform, to, time);
+        }
+
+        public BaseTween LocalEulerAnglesTween(RectTransform rect, Vector3 to, float time)
+        {
+            return LocalEulerAnglesTween(rect.transform, to, time);
+        }
+
+        #endregion
+        
+        #region EULERANGLES_TWEEN_AT_SPEED
+
+        public BaseTween EulerAnglesTweenAtSpeed(Transform t, Vector3 to, float speed)
+        {
+            float angle = Vector3.Distance(t.eulerAngles, to);
+            float time = angle / speed;
+            return EulerAnglesTween(t, to, time);
+        }
+
+        public BaseTween EulerAnglesTweenAtSpeed(GameObject go, Vector3 to, float speed)
+        {
+            return EulerAnglesTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween EulerAnglesTweenAtSpeed(RectTransform rect, Vector3 to, float speed)
+        {
+            return EulerAnglesTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        #endregion
+
+        #region LOCAL_EULERANGLES_TWEEN_AT_SPEED
+
+        public BaseTween LocalEulerAnglesTweenAtSpeed(Transform t, Vector3 to, float speed)
+        {
+            float angle = Vector3.Distance(t.localEulerAngles, to);
+            float time = angle / speed;
+            return LocalEulerAnglesTween(t, to, time);
+        }
+
+        public BaseTween LocalEulerAnglesTweenAtSpeed(GameObject go, Vector3 to, float speed)
+        {
+            return LocalEulerAnglesTweenAtSpeed(go.transform, to, speed);
+        }
+
+        public BaseTween LocalEulerAnglesTweenAtSpeed(RectTransform rect, Vector3 to, float speed)
+        {
+            return LocalEulerAnglesTweenAtSpeed(rect.transform, to, speed);
+        }
+
+        #endregion
+        
+        #region FADE_TWEENS
+
+        public BaseTween FadeOut(CanvasGroup cg, float t)
+        {
+            return Fade(cg, 0.0f, t);
+        }
+
+        public BaseTween FadeOutAtSpeed(CanvasGroup cg, float speed)
+        {
+            float t = cg.alpha / speed;
+            return Fade(cg, 0.0f, t);
+        }
+
+        public BaseTween FadeIn(CanvasGroup cg, float t)
+        {
+            return Fade(cg, 1.0f, t);
+        }
+
+        public BaseTween FadeInAtSpeed(CanvasGroup cg, float speed)
+        {
+            float t = Mathf.Abs(cg.alpha - 1.0f) / speed;
+            return Fade(cg, 1.0f, t);
+        }
+
+        public BaseTween Fade(CanvasGroup cg, float to, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(cg.alpha, to, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (cg == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                cg.alpha = v;
+            });
+            return tween;
+        }
+
+        public BaseTween FadeAtSpeed(CanvasGroup cg, float to, float speed)
+        {
+            float t = Math.Abs(cg.alpha - to) / speed;
+            return Fade(cg, to, t);
+        }
+
+        public BaseTween Fade(Image image, float to, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(image.color.a, to, t);
+            tween.SetOnUpdateFloat(v =>
+            {
+                if (image == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                Color c = image.color;
+                c.a = v;
+                image.color = c;
+            });
+            return tween;
+        }
+
+        internal BaseTween SetFloatProperty(Material material, int propertyHash, float value, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(material.GetFloat(propertyHash), value, t);
+            tween.SetOnUpdateFloat(v => material.SetFloat(propertyHash, v));
+            return tween;
+        }
+
+        public BaseTween FadeAtSpeed(Image img, float to, float speed)
+        {
+            float t = Math.Abs(img.color.a - to) / speed;
+            return Fade(img, to, t);
+        }
+
+        public BaseTween FadeOut(Image image, float t)
+        {
+            return Fade(image, 0.0f, t);
+        }
+
+        public BaseTween FadeOutAtSpeed(Image img, float speed)
+        {
+            float t = img.color.a / speed;
+            return Fade(img, 0.0f, t);
+        }
+
+        public BaseTween FadeIn(Image image, float t)
+        {
+            return Fade(image, 1.0f, t);
+        }
+
+        public BaseTween FadeInAtSpeed(Image img, float speed)
+        {
+            float t = Mathf.Abs(img.color.a - 1.0f) / speed;
+            return Fade(img, 1.0f, t);
+        }
+
+        public BaseTween Fade(SpriteRenderer sprite, float to, float t)
+        {
+            ValueTween tween = TweenPool.GetValueTween(sprite.color.a, to, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (sprite == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                Color c = sprite.color;
+                c.a = v;
+                sprite.color = c;
+            });
+            return tween;
+        }
+
+        public BaseTween FadeAtSpeed(SpriteRenderer sprite, float to, float speed)
+        {
+            float t = Math.Abs(sprite.color.a - to) / speed;
+            return Fade(sprite, to, t);
+        }
+
+        public BaseTween FadeOut(SpriteRenderer sprite, float t)
+        {
+            return Fade(sprite, 0.0f, t);
+        }
+
+        public BaseTween FadeOutAtSpeed(SpriteRenderer sprite, float speed)
+        {
+            float t = sprite.color.a / speed;
+            return Fade(sprite, 0.0f, t);
+        }
+
+        public BaseTween FadeIn(SpriteRenderer sprite, float t)
+        {
+            return Fade(sprite, 1.0f, t);
+        }
+
+        public BaseTween FadeInAtSpeed(SpriteRenderer sprite, float speed)
+        {
+            float t = Mathf.Abs(sprite.color.a - 1.0f) / speed;
+            return Fade(sprite, 1.0f, t);
+        }
+
+        #endregion
+
+        #region COLOR_TWEEN
+
+        private Vector3 ColorToVector3(Color c)
+        {
+            return new Vector3(c.r, c.g, c.b);
+        }
+
+        private float CalculateColorDistance(Color a, Color b)
+        {
+            return Vector3.Distance(ColorToVector3(a), ColorToVector3(b));
+        }
+
+        public BaseTween ColorTween(Material material, Color to, float t)
+        {
+            ColorTween tween = TweenPool.GetColorTween(material.color, to, t);
+            tween.SetOnUpdateColor((Color c) =>
+            {
+                if (material == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                material.color = c;
+            });
+            return tween;
+        }
+        
+        public BaseTween ColorTween(SpriteRenderer sprite, Color to, float t)
+        {
+            ColorTween tween = TweenPool.GetColorTween(sprite.color, to, t);
+            tween.SetOnUpdateColor((Color c) =>
+            {
+                if (sprite == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                sprite.color = c;
+            });
+            return tween;
+        }
+
+        public BaseTween ColorTweenAtSpeed(Material material, Color to, float speed)
+        {
+            float t = CalculateColorDistance(material.color, to) / speed;
+            return ColorTween(material, to, t);
+        }
+        
+        public BaseTween ColorTweenAtSpeed(SpriteRenderer sprite, Color to, float speed)
+        {
+            float t = CalculateColorDistance(sprite.color, to) / speed;
+            return ColorTween(sprite, to, t);
+        }
+
+        public BaseTween ColorTween(Image image, Color to, float t)
+        {
+            ColorTween tween = TweenPool.GetColorTween(image.color, to, t);
+            tween.SetOnUpdateColor((Color c) =>
+            {
+                if (image == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                image.color = c;
+            });
+            return tween;
+        }
+
+        public BaseTween ColorTweenAtSpeed(Image img, Color to, float speed)
+        {
+            float t = CalculateColorDistance(img.color, to) / speed;
+            return ColorTween(img, to, t);
+        }
+
+        public BaseTween ColorTween(Color from, Color to, float t)
+        {
+            ColorTween tween = TweenPool.GetColorTween(from, to, t);
+            return tween;
+        }
+
+        public BaseTween ColorTweenAtSpeed(Color from, Color to, float speed)
+        {
+            float t = CalculateColorDistance(from, to) / speed;
+            return ColorTween(from, to, t);
+        }
+        #endregion
+
+        #region FILL_AMOUNT_TWEEN
+        public BaseTween FillAmountTween(Image img, float to, float t)
+        {
+            BaseTween tween = ValueTween(img.fillAmount, to, t);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (img != null)                
+                    img.fillAmount = v;               
+                else
+                    CancelTween(tween);
+
+            } );
+            return tween; 
+        }
+
+        public BaseTween FillAmountTweenAtSpeed(Image img, float to, float speed)
+        {
+            BaseTween tween = ValueTweenAtSpeed(img.fillAmount, to, speed);
+            tween.SetOnUpdateFloat((float v) =>
+            {
+                if (img != null)
+                    img.fillAmount = v;
+                else
+                    CancelTween(tween);
+            });
+            return tween;
+        }
+        #endregion
+        
+        #region VECTOR_TWEEN
+        public BaseTween VectorTween(Vector2 from, Vector2 to, float t)
+        {
+            Vector2Tween tween = TweenPool.GetVector2Tween(from, to, t);
+            return tween;
+        }
+
+        public BaseTween VectorTweenAtSpeed(Vector2 from, Vector2 to, float speed)
+        {
+            float t = Vector2.Distance(from, to) / speed;
+            return VectorTween(from, to, t);
+        }
+
+        public BaseTween VectorTween(Vector3 from, Vector3 to, float t)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(from, to, t);
+            return tween;
+        }
+
+        public BaseTween VectorTweenAtSpeed(Vector3 from, Vector3 to, float speed)
+        {
+            float t = Vector3.Distance(from, to) / speed;
+            return VectorTween(from, to, t);
+        }
+
+        #endregion
+        
+        #region VALUE_TWEEN
+        public BaseTween ValueTween(float from, float to, float t)
+        {
+            var tween = TweenPool.GetValueTween(from, to, t);
+            return tween;
+        }
+
+        public BaseTween ValueTweenAtSpeed(float from, float to, float speed)
+        {
+            float t = Math.Abs(from - to) / speed;
+            return ValueTween(from, to, t);
+        }
+        #endregion
+
+        #region MOVE_TWEEN
+        public BaseTween Move(Transform obj, Transform to, float t)
+        {
+            return Move(obj, to.position, t);
+        }
+
+        public BaseTween LocalMove(Transform obj, Transform to, float t)
+        {
+            return LocalMove(obj, to.localPosition, t);
+        }
+        
+        public BaseTween MoveAtSpeed(Transform obj, Transform to, float speed)
+        {
+            float t = Vector3.Distance(obj.position, to.position) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(Transform obj, Transform to, float speed)
+        {
+            float t = Vector3.Distance(obj.localPosition, to.localPosition) / speed;
+            return LocalMove(obj, to, t);
+        }
+        
+        public BaseTween Move(Transform obj, Vector3 to, float t)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(obj.position, to, t);
+            tween.SetOnUpdateVector3((Vector3 pos) =>
+            {
+                if (obj == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                obj.position = pos;
+            });
+            return tween;
+        }
+
+        public BaseTween LocalMove(Transform obj, Vector3 to, float t)
+        {
+            Vector3Tween tween = TweenPool.GetVector3Tween(obj.localPosition, to, t);
+            tween.SetOnUpdateVector3((Vector3 pos) =>
+            {
+                if (obj == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                obj.localPosition = pos;
+            });
+            return tween;
+        }
+        
+        public BaseTween MoveAtSpeed(Transform obj, Vector3 to, float speed)
+        {
+            float t = Vector3.Distance(obj.position, to) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(Transform obj, Vector3 to, float speed)
+        {
+            float t = Vector3.Distance(obj.localPosition, to) / speed;
+            return LocalMove(obj, to, t);
+        }
+
+        public BaseTween Move(GameObject obj, Transform to, float t)
+        {
+            return Move(obj.transform, to, t);
+        }
+
+        public BaseTween LocalMove(GameObject obj, Transform to, float t)
+        {
+            return LocalMove(obj.transform, to, t);
+        }
+        
+        public BaseTween MoveAtSpeed(GameObject obj, Transform to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.position, to.position) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(GameObject obj, Transform to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.localPosition, to.localPosition) / speed;
+            return LocalMove(obj, to, t);
+        }
+        
+        public BaseTween Move(GameObject obj, Vector3 to, float t)
+        {
+            return Move(obj.transform, to, t);
+        }
+
+        public BaseTween LocalMove(GameObject obj, Vector3 to, float t)
+        {
+            return LocalMove(obj.transform, to, t);
+        }
+        
+        public BaseTween MoveAtSpeed(GameObject obj, Vector3 to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.position, to) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(GameObject obj, Vector3 to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.localPosition, to) / speed;
+            return LocalMove(obj, to, t);
+        }
+        
+        public BaseTween Move(GameObject obj, GameObject to, float t)
+        {
+            return Move(obj.transform, to.transform, t);
+        }
+
+        public BaseTween LocalMove(GameObject obj, GameObject to, float t)
+        {
+            return LocalMove(obj.transform, to.transform, t);
+        }
+        
+        public BaseTween MoveAtSpeed(GameObject obj, GameObject to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.position, to.transform.position) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(GameObject obj, GameObject to, float speed)
+        {
+            float t = Vector3.Distance(obj.transform.localPosition, to.transform.localPosition) / speed;
+            return LocalMove(obj, to, t);
+        }
+        
+        public BaseTween Move(Transform obj, GameObject to, float t)
+        {
+            return Move(obj, to.transform, t);
+        }
+        
+        public BaseTween LocalMove(Transform obj, GameObject to, float t)
+        {
+            return LocalMove(obj, to.transform, t);
+        }
+        
+        public BaseTween MoveAtSpeed(Transform obj, GameObject to, float speed)
+        {
+            float t = Vector3.Distance(obj.position, to.transform.position) / speed;
+            return Move(obj, to, t);
+        }
+
+        public BaseTween LocalMoveAtSpeed(Transform obj, GameObject to, float speed)
+        {
+            float t = Vector3.Distance(obj.localPosition, to.transform.localPosition) / speed;
+            return LocalMove(obj, to, t);
+        }
+        
+        public BaseTween Move(RectTransform rect, Vector2 pos, float t)
+        {
+            Vector2Tween tween = TweenPool.GetVector2Tween(rect.anchoredPosition, pos, t);
+            tween.SetOnUpdateVector2((Vector2 value) =>
+            {
+                if (rect == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                rect.anchoredPosition = value;
+            });
+            return tween;
+        }
+
+        public BaseTween MoveAtSpeed(RectTransform rect, Vector2 pos, float speed)
+        {
+            float t = Vector2.Distance(rect.anchoredPosition, pos) / speed;
+            return Move(rect, pos, t);
+        }
+
+        //use this to position UI in absolute coordenates
+        //0.0 , 1.0 _______________________1.0 , 1.0
+        //          |                      |
+        //          |                      |                  
+        //          |                      |
+        //          |                      |
+        //0.0 , 0.0 |______________________| 1.0 , 0.0
+
+
+        /// <summary>
+        /// Move a UI element using absolute position
+        /// Note: dont use this on Awake
+        /// </summary>
+        /// <param name="rect"></param>
+        /// <param name="absolutePosition"></param>
+        /// <param name="canvas"></param>
+        /// <param name="t"></param>
+        /// <param name="pivotPreset"></param>
+        /// <returns></returns>        
+        public BaseTween MoveUI(RectTransform rect, Vector2 absolutePosition, RectTransform canvas, float t, PivotPreset pivotPreset = PivotPreset.MiddleCenter)
+        {
+            Vector2 pos = rect.FromAbsolutePositionToAnchoredPosition(absolutePosition, canvas, pivotPreset);
+            return Move(rect, pos, t);
+        }
+
+        public BaseTween MoveUIAtSpeed(RectTransform rect, Vector2 absolutePosition, RectTransform canvas, float speed, PivotPreset pivotPreset = PivotPreset.MiddleCenter)
+        {
+            Vector2 pos = rect.FromAbsolutePositionToAnchoredPosition(absolutePosition, canvas, pivotPreset);
+            float time = Vector2.Distance(rect.anchoredPosition, pos) / speed;
+
+            return MoveUI(rect, absolutePosition, canvas, time, pivotPreset);
+        }
+
+        public BaseTween TranslateUI(RectTransform rect, Vector2 translation, RectTransform canvas, float t, PivotPreset pivotPreset = PivotPreset.MiddleCenter)
+        {
+            Vector2 pos = rect.FromAnchoredPositionToAbsolutePosition(canvas, pivotPreset);
+            Vector2 finalPos = pos + translation;
+
+            return MoveUI(rect, finalPos, canvas, t, pivotPreset);
+        }
+
+        public BaseTween TranslateUIAtSpeed(RectTransform rect, Vector2 translation, RectTransform canvas, float speed, PivotPreset pivotPreset = PivotPreset.MiddleCenter)
+        {
+            Vector2 pos = rect.FromAnchoredPositionToAbsolutePosition(canvas, pivotPreset);
+            Vector2 finalPos = pos + translation;
+
+            return MoveUIAtSpeed(rect, finalPos, canvas, speed, pivotPreset);
+        }
+
+        #endregion
+        
+        #region SHAKE_TWEEN
+        
+        public Sequence ShakePosition(Transform obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            var sequence = this.GetSequence();
+            
+            for (int i = 1; i <= shakeCount; i++)
+            {
+                if (fadeOut)
+                {
+                    vibrato /= i;
+                }
+                Vector3 toVector3 = new Vector3(
+                    obj.position.x + UnityEngine.Random.Range(-vibrato.x, vibrato.x),
+                    obj.position.y + UnityEngine.Random.Range(-vibrato.y, vibrato.y),
+                    obj.position.z + UnityEngine.Random.Range(-vibrato.z, vibrato.z));
+                BaseTween tween = Move(obj, toVector3, t);
+                sequence.Append(tween);
+                if (i == shakeCount)
+                {
+                    Vector3 endVector3 = obj.position;
+                    BaseTween tweenEnd = Move(obj, endVector3, t);
+                    sequence.Append(tweenEnd);
+                }
+            }
+            
+            return sequence;
+        }
+
+        public Sequence ShakePositionAtSpeed(Transform obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            float t = Vector3.Distance(obj.transform.position, vibrato) / speed;
+            return ShakeScale(obj, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakePosition(GameObject obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            return ShakeScale(obj.transform, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakePositionAtSpeed(GameObject obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            return ShakePositionAtSpeed(obj.transform, vibrato, shakeCount, speed, fadeOut);
+        }
+        
+        public Sequence ShakeRotation(Transform obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            var sequence = this.GetSequence();
+            
+            for (int i = 1; i <= shakeCount; i++)
+            {
+                if (fadeOut)
+                {
+                    vibrato /= i;
+                }
+                Vector3 toVector3 = new Vector3(
+                    obj.rotation.x + UnityEngine.Random.Range(-vibrato.x, vibrato.x),
+                    obj.rotation.y + UnityEngine.Random.Range(-vibrato.y, vibrato.y),
+                    obj.rotation.z + UnityEngine.Random.Range(-vibrato.z, vibrato.z));
+                BaseTween tween = RotateTween(obj, toVector3, t);
+                sequence.Append(tween);
+                if (i == shakeCount)
+                {
+                    Vector3 endVector3 = obj.rotation.eulerAngles;
+                    BaseTween tweenEnd = RotateTween(obj, endVector3, t);
+                    sequence.Append(tweenEnd);
+                }
+            }
+            
+            return sequence;
+        }
+
+        public Sequence ShakeRotationAtSpeed(Transform obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            float t = Vector3.Distance(obj.transform.eulerAngles, vibrato) / speed;
+            return ShakeRotation(obj, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakeRotation(GameObject obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            return ShakeRotation(obj.transform, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakeRotationAtSpeed(GameObject obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            return ShakeRotationAtSpeed(obj.transform, vibrato, shakeCount, speed, fadeOut);
+        }
+        
+        public Sequence ShakeScale(Transform obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            var sequence = this.GetSequence();
+            
+            for (int i = 1; i <= shakeCount; i++)
+            {
+                if (fadeOut)
+                {
+                    vibrato /= i;
+                }
+                Vector3 toVector3 = new Vector3(
+                    obj.localScale.x + UnityEngine.Random.Range(-vibrato.x, vibrato.x),
+                    obj.localScale.y + UnityEngine.Random.Range(-vibrato.y, vibrato.y),
+                    obj.localScale.z + UnityEngine.Random.Range(-vibrato.z, vibrato.z));
+                BaseTween tween = ScaleTween(obj, toVector3, t);
+                sequence.Append(tween);
+                if (i == shakeCount)
+                {
+                    Vector3 endVector3 = obj.localScale;
+                    BaseTween tweenEnd = ScaleTween(obj, endVector3, t);
+                    sequence.Append(tweenEnd);
+                }
+            }
+            
+            return sequence;
+        }
+
+        public Sequence ShakeScaleAtSpeed(Transform obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            float t = Vector3.Distance(obj.transform.localScale, vibrato) / speed;
+            return ShakeScale(obj, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakeScale(GameObject obj, Vector3 vibrato, int shakeCount = 8, float t = 0.05f, bool fadeOut = false)
+        {
+            return ShakeScale(obj.transform, vibrato, shakeCount, t, fadeOut);
+        }
+        
+        public Sequence ShakeScaleAtSpeed(GameObject obj, Vector3 vibrato, int shakeCount = 8, float speed = 5f, bool fadeOut = false)
+        {
+            return ShakeScaleAtSpeed(obj.transform, vibrato, shakeCount, speed, fadeOut);
+        }
+        
+        #endregion
+        
+        #region PATH_TWEEN
+
+        public BaseTween PathTween(Transform target, IList<Vector3> path, float duration, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            if (target == null || path == null || path.Count < 2)
+            {
+                LogF8.LogError("PathTween: Target or path is invalid!");
+                return null;
+            }
+            
+            return TweenPool.GetPathTween(target, path, duration, pathType, pathMode, resolution, closePath, false);
+        }
+        
+        public BaseTween PathTween(GameObject target, IList<Vector3> path, float duration,
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            return PathTween(target.transform, path, duration, pathType, pathMode, resolution, closePath);
+        }
+        
+        public BaseTween PathTweenAtSpeed(Transform target, IList<Vector3> path, float speed, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            if (path == null || path.Count < 2)
+                return null;
+            
+            float estimatedLength = 0f;
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                estimatedLength += Vector3.Distance(path[i], path[i + 1]);
+            }
+            
+            if (closePath && path.Count > 2)
+            {
+                estimatedLength += Vector3.Distance(path[^1], path[0]);
+            }
+            
+            float duration = estimatedLength / speed;
+            return PathTween(target, path, duration, pathType, pathMode, resolution, closePath);
+        }
+        
+        public BaseTween PathTweenAtSpeed(GameObject target, IList<Vector3> path, float speed, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            return PathTweenAtSpeed(target.transform, path, speed, pathType, pathMode, resolution, closePath);
+        }
+        
+        public BaseTween LocalPathTween(Transform target, IList<Vector3> localPath, float duration, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            if (target == null || localPath == null || localPath.Count < 2)
+            {
+                LogF8.LogError("LocalPathTween: Target or path is invalid!");
+                return null;
+            }
+            
+            return TweenPool.GetPathTween(target, localPath, duration, pathType, pathMode, resolution, closePath, true);
+        }
+        
+        public BaseTween LocalPathTween(GameObject target, IList<Vector3> localPath, float duration, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            return LocalPathTween(target.transform, localPath, duration, pathType, pathMode, resolution, closePath);
+        }
+        
+        public BaseTween LocalPathTweenAtSpeed(Transform target, IList<Vector3> localPath, float speed, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            if (target == null || localPath == null || localPath.Count < 2)
+            {
+                LogF8.LogError("LocalPathTweenAtSpeed: Target or path is invalid!");
+                return null;
+            }
+            
+            float estimatedLength = 0f;
+            for (int i = 0; i < localPath.Count - 1; i++)
+            {
+                estimatedLength += Vector3.Distance(localPath[i], localPath[i + 1]);
+            }
+            
+            if (closePath && localPath.Count > 2)
+            {
+                estimatedLength += Vector3.Distance(localPath[^1], localPath[0]);
+            }
+    
+            float duration = estimatedLength / speed;
+            return LocalPathTween(target, localPath, duration, pathType, pathMode, resolution, closePath);
+        }
+
+        public BaseTween LocalPathTweenAtSpeed(GameObject target, IList<Vector3> localPath, float speed, 
+            PathType pathType = PathType.CatmullRom, PathMode pathMode = PathMode.Ignore, int resolution = 10, bool closePath = false)
+        {
+            return LocalPathTweenAtSpeed(target.transform, localPath, speed, pathType, pathMode, resolution, closePath);
+        }
+        
+        #endregion
+        
+        #region STRING_TWEEN
+
+        public BaseTween StringTween(Text text, string to, float time, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            return StringTween(text, string.Empty, to, time, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        public BaseTween StringTween(Text text, string from, string to, float time, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            StringTween tween = TweenPool.GetStringTween(from, to, time, richTextEnabled, scrambleMode, scrambleChars);
+            tween.SetOnUpdateString((string s) =>
+            {
+                if (text == null)
+                {
+                    CancelTween(tween);
+                    return;
+                }
+
+                text.text = s;
+            });
+            return tween;
+        }
+        
+        public BaseTween StringTweenAtSpeed(Text text, string to, float speed, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            float t = to.Length / speed;
+            return StringTween(text, to, t, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        public BaseTween StringTweenAtSpeed(Text text, string from, string to, float speed, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            float t = Math.Abs(to.Length - from.Length) / speed;
+            return StringTween(text, from, to, t, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        public BaseTween StringTween(string to, float time, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            return StringTween(string.Empty, to, time, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        public BaseTween StringTween(string from, string to, float time, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            StringTween tween = TweenPool.GetStringTween(from, to, time, richTextEnabled, scrambleMode, scrambleChars);
+            return tween;
+        }
+        
+        public BaseTween StringTweenAtSpeed(string to, float speed, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            float t = to.Length / speed;
+            return StringTween(string.Empty, to, t, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        public BaseTween StringTweenAtSpeed(string from, string to, float speed, bool richTextEnabled = false, ScrambleMode scrambleMode = ScrambleMode.None, string scrambleChars = null)
+        {
+            float t = Math.Abs(to.Length - from.Length) / speed;
+            return StringTween(from, to, t, richTextEnabled, scrambleMode, scrambleChars);
+        }
+        
+        #endregion
+    }
+
+}
+

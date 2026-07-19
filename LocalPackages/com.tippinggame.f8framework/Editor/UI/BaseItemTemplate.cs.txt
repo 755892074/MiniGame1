@@ -1,0 +1,77 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using F8Framework.Core;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
+
+    #ROOTNAMESPACEBEGIN#
+public class #SCRIPTNAME# : BaseItem
+{
+    // 预留给刷新Item使用
+    public void Refresh()
+    {
+        #NOTRIM#
+    }
+    
+    // OnEnable
+    private void OnEnable()
+    {
+        #NOTRIM#
+    }
+    
+    // Awake
+    protected override void OnAwake()
+    {
+        #NOTRIM#
+    }
+    
+    // Start
+    protected override void OnStart()
+    {
+        #NOTRIM#
+    }
+    
+    protected override void OnViewTweenInit()
+    {
+        // transform.localScale = Vector3.one * 0.7f;
+    }
+    
+    // 自定义打开界面动画
+    protected override void OnPlayViewTween()
+    {
+        // transform.ScaleTween(Vector3.one, 0.1f).SetOnComplete(OnViewOpen);
+    }
+    
+    // 打开界面动画完成后
+    protected override void OnViewOpen()
+    {
+        #NOTRIM#
+    }
+    
+    // UI组件监听函数
+    protected override void ButtonClick(UIBehaviour ui)
+    {
+	    base.ButtonClick(ui);
+    }
+    
+    protected override void ValueChange<T>(UIBehaviour ui, T value)
+    {
+        base.ValueChange<T>(ui, value);
+    }
+    
+    // OnDisable
+    private void OnDisable()
+    {
+        // 在合适的时候清除
+        base.ClearEventDispatcher();
+        base.ClearTimerTracker();
+        base.ClearAssetLoadTracker(false);
+    }
+    
+    // Auto-generated component bindings below
+    
+    // Auto-generated component bindings below
+}
+#ROOTNAMESPACEEND#

@@ -1,0 +1,26 @@
+{
+    "name": "F8Framework.Tests",
+    "rootNamespace": "",
+    "references": [
+        "F8Framework.Core",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "Unity.Timeline",
+        "ICSharpCode.SharpZipLib",
+        "Excel",
+        "LitJson",
+        "kcp2k",
+        "Telepathy",
+        "SimpleWebTransport",
+        "HybridCLR.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
