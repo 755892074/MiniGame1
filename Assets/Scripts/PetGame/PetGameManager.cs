@@ -4,6 +4,7 @@ using F8Framework.Core;
 using F8Framework.Launcher;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 /// <summary>
 /// 铲屎官疯了 v2 — 脑洞倒水游戏管理器（FSM 驱动）
@@ -58,8 +59,6 @@ public class PetGameManager : MonoBehaviour
             currentLevelId = pendingLevel;
             GameSceneManager.pendingLevelId = -1;  // 清除标记
         }
-
-        AutoStartLevel();
     }
 
     void Update()
@@ -81,12 +80,16 @@ public class PetGameManager : MonoBehaviour
     void LoadConfig()
     {
         levels.Clear();
-        var loaded = Resources.LoadAll<PetLevelConfigV2>("Levels");
-        if (loaded != null && loaded.Length > 0)
+        var handle = ResLoader.LoadAll<PetLevelConfigV2>("Levels");
+        handle.Completed += h =>
         {
-            levels = new List<PetLevelConfigV2>(loaded);
-            levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
-        }
+            if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null && h.Result.Count > 0)
+            {
+                levels = new List<PetLevelConfigV2>(h.Result);
+                levels.Sort((a, b) => a.levelId.CompareTo(b.levelId));
+            }
+            AutoStartLevel();
+        };
     }
 
     void AutoStartLevel()

@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 /// <summary>
 /// MenuScene 入口 — 管理主菜单场景中所有面板的加载和切换
@@ -94,20 +95,23 @@ public class MenuSceneController : MonoBehaviour
     /// <param name="firstTime">是否首次（影响隐私弹窗）</param>
     public void ShowLoginPanel(bool firstTime = false)
     {
-        var pf = Resources.Load<GameObject>("PrefabsV2/LoginPanel");
-        if (pf == null)
+        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/LoginPanel.prefab");
+        handle.Completed += h =>
         {
-            Debug.LogError("[MenuScene] LoginPanel 预制体未找到! 请先执行 Tools → 生成新界面预制体(v3)");
-            return;
-        }
-        var go = Instantiate(pf, canvas.transform);
-        GameFont.ApplyAll(go);
-        go.name = "LoginPanel";
-        SwitchTo(go);
+            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
+            {
+                Debug.LogError("[MenuScene] LoginPanel 预制体未找到! 请先执行 Tools → 生成新界面预制体(v3)");
+                return;
+            }
+            var go = Instantiate(h.Result, canvas.transform);
+            GameFont.ApplyAll(go);
+            go.name = "LoginPanel";
+            SwitchTo(go);
 
-        // 绑定 LoginController
-        var ctrl = go.AddComponent<LoginController>();
-        ctrl.Init(this, firstTime);
+            // 绑定 LoginController
+            var ctrl = go.AddComponent<LoginController>();
+            ctrl.Init(this, firstTime);
+        };
     }
 
     // ========================================
@@ -116,19 +120,22 @@ public class MenuSceneController : MonoBehaviour
 
     public void ShowMainMenu()
     {
-        var pf = Resources.Load<GameObject>("PrefabsV2/MainMenuPanel");
-        if (pf == null)
+        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/MainMenuPanel.prefab");
+        handle.Completed += h =>
         {
-            Debug.LogError("[MenuScene] MainMenuPanel 预制体未找到!");
-            return;
-        }
-        var go = Instantiate(pf, canvas.transform);
-        GameFont.ApplyAll(go);
-        go.name = "MainMenuPanel";
-        SwitchTo(go);
+            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
+            {
+                Debug.LogError("[MenuScene] MainMenuPanel 预制体未找到!");
+                return;
+            }
+            var go = Instantiate(h.Result, canvas.transform);
+            GameFont.ApplyAll(go);
+            go.name = "MainMenuPanel";
+            SwitchTo(go);
 
-        var ctrl = go.AddComponent<MainMenuController>();
-        ctrl.Init(this);
+            var ctrl = go.AddComponent<MainMenuController>();
+            ctrl.Init(this);
+        };
     }
 
     // ========================================
@@ -203,18 +210,21 @@ public class MenuSceneController : MonoBehaviour
     {
         if (settingsPanel != null) return;  // 已打开
 
-        var pf = Resources.Load<GameObject>("PrefabsV2/SettingsPanel");
-        if (pf == null)
+        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/SettingsPanel.prefab");
+        handle.Completed += h =>
         {
-            Debug.LogError("[MenuScene] SettingsPanel 预制体未找到!");
-            return;
-        }
-        settingsPanel = Instantiate(pf, canvas.transform);
-        GameFont.ApplyAll(settingsPanel);
-        settingsPanel.name = "SettingsPanel";
+            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
+            {
+                Debug.LogError("[MenuScene] SettingsPanel 预制体未找到!");
+                return;
+            }
+            settingsPanel = Instantiate(h.Result, canvas.transform);
+            GameFont.ApplyAll(settingsPanel);
+            settingsPanel.name = "SettingsPanel";
 
-        var ctrl = settingsPanel.AddComponent<SettingsController>();
-        ctrl.Init(this);
+            var ctrl = settingsPanel.AddComponent<SettingsController>();
+            ctrl.Init(this);
+        };
     }
 
     public void CloseSettings()
@@ -232,19 +242,22 @@ public class MenuSceneController : MonoBehaviour
 
     public void ShowLevelSelect()
     {
-        var pf = Resources.Load<GameObject>("PrefabsV2/LevelSelectPanel");
-        if (pf == null)
+        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/LevelSelectPanel.prefab");
+        handle.Completed += h =>
         {
-            Debug.LogError("[MenuScene] LevelSelectPanel 预制体未找到!");
-            return;
-        }
-        var go = Instantiate(pf, canvas.transform);
-        GameFont.ApplyAll(go);
-        go.name = "LevelSelectPanel";
-        SwitchTo(go);
+            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
+            {
+                Debug.LogError("[MenuScene] LevelSelectPanel 预制体未找到!");
+                return;
+            }
+            var go = Instantiate(h.Result, canvas.transform);
+            GameFont.ApplyAll(go);
+            go.name = "LevelSelectPanel";
+            SwitchTo(go);
 
-        var ctrl = go.AddComponent<LevelSelectController>();
-        ctrl.Init(this);
+            var ctrl = go.AddComponent<LevelSelectController>();
+            ctrl.Init(this);
+        };
     }
 
     // ========================================

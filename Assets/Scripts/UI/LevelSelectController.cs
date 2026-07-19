@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 /// <summary>
 /// 选关面板控制器
@@ -47,15 +49,19 @@ public class LevelSelectController : MonoBehaviour
             return;
         }
 
-        // 加载关卡数据获取总数
-        var levels = Resources.LoadAll<PetLevelConfigV2>("Levels");
-        int levelCount = levels != null ? levels.Length : 50;
-        int highest = SaveSystem.Data.highestUnlockedLevel;
+        // 异步加载关卡数据（Addressables，抖音小游戏禁止同步等待）
+        var handle = ResLoader.LoadAll<PetLevelConfigV2>("Levels");
+        handle.Completed += h =>
+        {
+            var levelArr = (h.Status == AsyncOperationStatus.Succeeded && h.Result != null && h.Result.Count > 0) ? h.Result.ToArray() : null;
+            var levels = levelArr;
+            int levelCount = levels != null ? levels.Length : 50;
+            int highest = SaveSystem.Data.highestUnlockedLevel;
 #if UNITY_EDITOR
-        highest = levelCount; // 开发期：全部解锁，方便测试任意关卡
+            highest = levelCount; // 开发期：全部解锁，方便测试任意关卡
 #endif
 
-        Debug.Log($"[LevelSelect] 生成关卡网格: {levelCount}关, 已解锁{highest}");
+            Debug.Log($"[LevelSelect] 生成关卡网格: {levelCount}关, 已解锁{highest}");
 
         for (int i = 0; i < levelCount; i++)
         {
@@ -105,6 +111,7 @@ public class LevelSelectController : MonoBehaviour
             GameFont.Apply(t);
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
         }
+        };
     }
 
     T Find<T>(string name) where T : Component

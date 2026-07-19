@@ -4,12 +4,15 @@ using F8Framework.Core;
 using PetGame;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class PetGameUI : MonoBehaviour
 {
     private PetGameManager gm;
     private GameObject gameHUD;
-    private GameObject petItemPf, bowlItemPf, foodIconPf;
+    private GameObject petItemPf, bowlItemPf, foodIconPf, gameHUDPf;
+    private Dictionary<FoodType, Sprite> foodCache = new Dictionary<FoodType, Sprite>();
+    private Dictionary<string, Sprite> faceCache = new Dictionary<string, Sprite>();
 
     private Transform petArea, bowlArea;
     private Text txtLevel, txtScore, txtStep, txtStars, txtResultTitle;
@@ -43,15 +46,41 @@ public class PetGameUI : MonoBehaviour
         sc.matchWidthOrHeight = 1f;
         gameObject.AddComponent<GraphicRaycaster>();
 
-        petItemPf = Resources.Load<GameObject>("PrefabsV2/PetItem");
-        bowlItemPf = Resources.Load<GameObject>("PrefabsV2/BowlItem");
-        foodIconPf = Resources.Load<GameObject>("PrefabsV2/FoodIcon");
-        var hudPf = Resources.Load<GameObject>("PrefabsV2/GameHUD");
-        if (hudPf == null) return;
-        gameHUD = Instantiate(hudPf, transform);
+        // 异步加载 4 个 prefab（抖音小游戏禁止同步等待）
+        int pendingCore = 4;
+        System.Action coreDec = () => { if (--pendingCore == 0) OnCoreReady(); };
+        ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/PetItem.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) petItemPf = h.Result; coreDec(); };
+        ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/BowlItem.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) bowlItemPf = h.Result; coreDec(); };
+        ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/FoodIcon.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodIconPf = h.Result; coreDec(); };
+        ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/GameHUD.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) gameHUDPf = h.Result; coreDec(); };
+    }
+
+    void OnCoreReady()
+    {
+        if (gameHUDPf == null) { Debug.LogError("[PetGameUI] GameHUD 加载失败"); return; }
+        gameHUD = Instantiate(gameHUDPf, transform);
         GameFont.ApplyAll(gameHUD);
         gameHUD.name = "GameHUD";
 
+        // 预加载 15 食物 + 6 宠物 neutral 脸到缓存
+        int pending = 15 + 6;
+        System.Action dec = () => { if (--pending == 0) OnAssetsReady(); };
+        for (int i = 0; i < 15; i++)
+        {
+            var type = (FoodType)i;
+            string path = $"Assets/Art/PetGame/foods/food{i + 1:D2}.png";
+            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodCache[type] = h.Result; dec(); };
+        }
+        foreach (PetType pt in System.Enum.GetValues(typeof(PetType)))
+        {
+            string key = pt.ToString().ToLower();
+            string path = $"Assets/Art/PetGame/pets/{key}/neutral.png";
+            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) faceCache[key] = h.Result; dec(); };
+        }
+    }
+
+    void OnAssetsReady()
+    {
         FindRefs();
         BindButtons();
         if (gm.fsm != null) BuildLevel();
@@ -244,7 +273,7 @@ public class PetGameUI : MonoBehaviour
             else
             {
                 if (animPlayer) animPlayer.enabled = false;
-                if (face) { var s = Resources.Load<Sprite>($"PetFaces/{pet.ToString().ToLower()}/neutral"); if (s) face.sprite = s; }
+                if (face) { if (faceCache.TryGetValue(pet.ToString().ToLower(), out var s) && s != null) face.sprite = s; }
             }
             petGOs.Add(go);
         }
@@ -355,7 +384,7 @@ public class PetGameUI : MonoBehaviour
         }
     }
 
-    Sprite GetFoodSprite(FoodType type) { int i = ((int)type % 15) + 1; return Resources.Load<Sprite>($"ArtFoods/food{i:D2}"); }
+    Sprite GetFoodSprite(FoodType type) { foodCache.TryGetValue(type, out var s); return s; }
 
     #region 动画 — 倒食物
     IEnumerator PourAnimation(int fromId, int toId, int count)

@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.ResourceManagement.AsyncOperations;
 
 /// <summary>
 /// BootScene 入口脚本 — App 启动的第一个场景
@@ -24,7 +25,7 @@ public class Bootstrap : MonoBehaviour
         }
     }
 
-    IEnumerator Start()
+    void Start()
     {
         Debug.Log("[Bootstrap] 启动流程开始");
 
@@ -36,22 +37,31 @@ public class Bootstrap : MonoBehaviour
         bool isDouyin = CloudSaveBridge.IsAvailable;
         Debug.Log($"[Bootstrap] 抖音环境: {isDouyin}");
 
-        // 3. 加载 Splash 预制体
-        var splashPf = Resources.Load<GameObject>("PrefabsV2/SplashPanel");
-        if (splashPf != null)
+        // 3. 异步加载 Splash 预制体（抖音小游戏禁止同步等待）
+        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/SplashPanel.prefab");
+        handle.Completed += h =>
         {
-            // 需要 Canvas
-            var canvas = EnsureCanvas();
-            var splashGO = Object.Instantiate(splashPf, canvas.transform);
-            GameFont.ApplyAll(splashGO);
-            splashGO.name = "SplashPanel";
+            if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null)
+            {
+                var canvas = EnsureCanvas();
+                var splashGO = Object.Instantiate(h.Result, canvas.transform);
+                GameFont.ApplyAll(splashGO);
+                splashGO.name = "SplashPanel";
 
-            // 找进度条
-            var barFill = FindChildRecursive(splashGO.transform, "imgBarFill");
-            if (barFill != null) imgBarFill = barFill as RectTransform;
-        }
+                var barFill = FindChildRecursive(splashGO.transform, "imgBarFill");
+                if (barFill != null) imgBarFill = barFill as RectTransform;
+            }
+            else
+            {
+                Debug.LogError("[Bootstrap] SplashPanel 加载失败，跳过 Splash 直接进菜单");
+            }
+            StartCoroutine(WaitAndGoMenu());
+        };
+    }
 
-        // 4. 等待最小展示时间（模拟加载）
+    IEnumerator WaitAndGoMenu()
+    {
+        // 等待最小展示时间（模拟加载）
         float elapsed = 0f;
         while (elapsed < minSplashTime)
         {
@@ -64,7 +74,6 @@ public class Bootstrap : MonoBehaviour
             yield return null;
         }
 
-        // 5. 跳转到主菜单
         Debug.Log("[Bootstrap] → MenuScene");
         GameSceneManager.LoadMenu();
     }
