@@ -130,6 +130,8 @@
 - **操作**：团结后台开 UOS CDN → 拿 `<BUCKET_ID>`+secret → `uas` CLI：`auth login` → `entries sync --bucket <ID> <ServerData路径(无空格)>` → `releases create`（版本管理，防旧缓存）。抖音开发者工具填链接白名单（去 `https://`）。
 - **验证**：CDN 上资源可公网访问；`uas releases` 有 latest。
 - **产出**：CDN 桶就绪。
+- **开通入口（澄清）**：UOS 是**云服务**，在 `uos.unity.cn` 网页后台开通（建项目→开通 CDN→建 Bucket），**不是** Tuanjie Hub 安装时的勾选项。Hub 勾选的是引擎模块（`Instant Game Package` / `WeixinMiniGameSupport` / Auto Streaming 模块），与 UOS 云服务是两回事。
+- **收费（2026-07-19 核实）**：试用 **20GB 境内流量免费**（仅开发/测试，不支持商用）；正式商用 **¥0.15/GB** 无门槛非阶梯，按月流量计费、账户余额模式。小游戏资源几十 MB、DAU 不高时成本极低（例：1GB/日 ≈ ¥4.5/月）。
 
 ### 阶段 6 — 构建 + 真机验证
 - **操作**：MiniGame 模式 Build → `ByteGameOutput` → 抖音开发者工具导入 → 真机预览。
