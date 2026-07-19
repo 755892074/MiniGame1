@@ -1,0 +1,911 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Local-MVP
+  m_EditorClassIdentifier: 
+  m_GroupName: Local-MVP
+  m_Data:
+    m_SerializedData: []
+  m_GUID: 772074c910b0266498f3a8f57273630d
+  m_SerializeEntries:
+  - m_GUID: 01e1ec87d01c90242a84f6d6ef07268b
+    m_Address: Assets/Art/PetGame/foods/food07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0236d2037f1b4cd4eaa37aa9edb55f95
+    m_Address: Assets/Prefabs/UI/PrefabsV2/FoodIcon.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 06efb32079df24e488128ffe4af0fbe9
+    m_Address: Assets/Data/Levels/Levels/Level_21.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 06f5f71bb28581146a684d15d4032ab6
+    m_Address: Assets/Art/PetGame/foods/food_doubao_07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0c6c163e6b26bc146927bf95fbb28dc7
+    m_Address: Assets/Art/PetGame/UI/badges/item_06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0cb49c15fae34e84a8e18e3efc0c073e
+    m_Address: Assets/Art/PetGame/bowls/full/bowl06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0eee0e65391ebef48833dce5a8ba1e13
+    m_Address: Assets/Art/PetGame/pets/rabbit/sleepy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 12b10c0696c26c24eba17fba8cad5d73
+    m_Address: Assets/Art/PetGame/UI/badges/item_01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 147522d051b6481468e8d256f32ab510
+    m_Address: Assets/Art/PetGame/pets/parrot/begging.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 15c35c585b75ff34bb4b157c9d811f5f
+    m_Address: Assets/Art/PetGame/pets/fish/disgust.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 18f8cd7b6e9f6c74aa3ddc730619682d
+    m_Address: Assets/Art/PetGame/UI/elements/item_10.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 19a182d82c21e8d44afca8cfee6588b5
+    m_Address: Assets/Art/PetGame/pets/rabbit/happy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1d77fc77355280849a0c82b930797cc8
+    m_Address: Assets/Art/PetGame/pets/rabbit/begging.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1e1e84a6c7ded104f879a4c7ea3fe9a5
+    m_Address: Assets/Art/PetGame/UI/badges/item_00.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 1f712f4b3520bde47bf8874fb1a6fcc2
+    m_Address: Assets/Art/PetGame/foods/food10.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2146fab4c5b14dd4c880c29d0a913ebf
+    m_Address: Assets/Art/PetGame/pets/parrot/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 21c0bf7476f2eb94a92428b1f506e36a
+    m_Address: Assets/Data/Levels/Levels/Level_02.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 22bad9f66bd9d8545925e972d07a3ac5
+    m_Address: Assets/Art/PetGame/UI/elements/item_08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 233d43b08bda1eb47b225e664a7a9f48
+    m_Address: Assets/Data/Levels/Levels/Level_18.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 246b09a518009fe40a9c76c44abc806f
+    m_Address: Assets/Data/Levels/Levels/Level_36.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 24f08f9c5acf16d4d9df841dbd931234
+    m_Address: Assets/Art/PetGame/UI/ui07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2733a67a87d8aa7438a1d449974f57dc
+    m_Address: Assets/Data/Levels/Levels/Level_45.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 288699cb8ff56d74390f9581974a03be
+    m_Address: Assets/Data/Levels/Levels/Level_34.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 29135af4e6e323843af34ae3cf2c0e9e
+    m_Address: Assets/Art/PetGame/UI/elements/item_02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2a2b32fba81cfe94e8533a75d8404cc5
+    m_Address: Assets/Art/PetGame/foods/food05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2b51d2b537024194696fdcd5df0724a1
+    m_Address: Assets/Data/Levels/Levels/Level_08.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 2d58ef90a9a93644cb5163d818ab76b5
+    m_Address: Assets/Art/PetGame/pets/parrot/angry.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 311e6c233fa8ae14e8b6e9293fe9446b
+    m_Address: Assets/Art/PetGame/bowls/full/bowl05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 31d4f28bb464c264ab1c02cb2af0c470
+    m_Address: Assets/Art/PetGame/UI/elements/item_14.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 347dda38be647e149afc2d8900110b25
+    m_Address: Assets/Art/PetGame/UI/ui03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3621d75fa3c993e46a278be7651d048c
+    m_Address: Assets/Data/Levels/Levels/Level_23.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3d1f9fad9711c5f41a25e13967c51b60
+    m_Address: Assets/Art/PetGame/foods/food_doubao_08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 40598210ee45da14c8c2fdb0fb22940a
+    m_Address: Assets/Data/Levels/Levels/Level_42.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 41a2345fefa290f40bc823de1489ac20
+    m_Address: Assets/Art/PetGame/pets/fish/angry.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 4402aa95562b4c242a1d567b56a4ea10
+    m_Address: Assets/Art/PetGame/UI/elements/item_04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 470bf7fe62727b041a00408649d8f590
+    m_Address: Assets/Art/PetGame/pets/rabbit/angry.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 554097f4bf966ea4d9c9618c1130677b
+    m_Address: Assets/Art/PetGame/pets/fish/begging.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 560742f808ef08a45868e7ca6b7454b5
+    m_Address: Assets/Prefabs/UI/PrefabsV2/SettingsPanel.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 56dda94679520714f8af6012e4e12270
+    m_Address: Assets/Data/Levels/Levels/Level_49.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 57329e573e6378d46b8bb51f94ac5399
+    m_Address: Assets/Art/PetGame/pets/cat/sleepy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 57e47caf1aa90d64ea2e217180be93cc
+    m_Address: Assets/Art/PetGame/bowls/full/bowl01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5862c2d6d1a0c754793399e143d0b22b
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5895601b28926ff49a428a40c94d4456
+    m_Address: Assets/Data/Levels/Levels/Level_26.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 59b8bf6911846274f9736b906d3dde7c
+    m_Address: Assets/Data/Levels/LevelConfig.csv
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5acb715f1160db349988c458ebf086de
+    m_Address: Assets/Data/Levels/Levels/Level_03.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 62316c4696eba5a40ab5b0bbf19571ee
+    m_Address: Assets/Art/PetGame/foods/food01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 62f7497735bf2594b9e4866446b4a335
+    m_Address: Assets/Data/Levels/Levels/Level_14.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6463cf90350b57848a5c171f83e72013
+    m_Address: Assets/Art/PetGame/bowls/full/bowl08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 688bea6d043026b40935a074e89997e7
+    m_Address: Assets/Data/Levels/Levels/Level_12.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 68cac4186ba6d6348bc30aef0409dbed
+    m_Address: Assets/Art/PetGame/pets/cat/begging.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6b701c4f1b2341d4a8c7f763ca83774b
+    m_Address: Assets/Data/Levels/Levels/Level_17.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6c707b5e6d98dca4989f0e3c3b4ee6c0
+    m_Address: Assets/Data/Levels/Levels/Level_05.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 70efebeef85179e4e86ae47e084414b7
+    m_Address: Assets/Data/Levels/Levels/Level_44.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 722e2f6b62ad3f943ad59a654f15badd
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 727a03b0fa0b28e48a1b5739412dba23
+    m_Address: Assets/Data/Levels/Levels/Level_40.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 72f871ca7cd55ee41acadda8c4a159c0
+    m_Address: Assets/Data/Levels/Levels/Level_37.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 72fa4f0442249f346ab2df374fa3649e
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 751f08f5c4c806647aba20bb95d3a70f
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 75f23d7cedbeeba469e8a3c26932b106
+    m_Address: Assets/Data/Levels/Levels/Level_04.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 789cbed7417d8d8459fcb8b3794e06a8
+    m_Address: Assets/Data/Levels/Levels/Level_06.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 78ee829c0b1427941b5e9fcb9d7fd6ca
+    m_Address: Assets/Art/PetGame/UI/elements/item_12.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7c7b9ca8f22a667458477f6f884c7ed9
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7cbd669ae15a8e949897a6f8a358a9b3
+    m_Address: Assets/Art/PetGame/foods/food12.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7d7ee60ce8a24a84a9ad978a16147ab5
+    m_Address: Assets/Data/Levels/Levels/Level_41.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8097f2f37f3df77469815261cd57569b
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 85035571115967b4b917e88fcc9e165d
+    m_Address: Assets/Art/PetGame/pets/parrot/happy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 860963e738bb8b14bbeabf9fdbc4e229
+    m_Address: Assets/Art/PetGame/UI/ui08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 866d77d77d96f2c479d5ac130104b03c
+    m_Address: Assets/Art/PetGame/foods/food06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8697bd34cc4ddda4580404ed70d9c518
+    m_Address: Assets/Prefabs/UI/PrefabsV2/MainMenuPanel.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 885ac4a5fd9797f4c909f09912490482
+    m_Address: Assets/Data/Levels/Levels/Level_27.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 88a780f5b1ebb6247b72e72c53736db9
+    m_Address: Assets/Data/Levels/Levels/Level_39.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 891fc2f9c19274c4f92adc59e0633c9f
+    m_Address: Assets/Art/PetGame/UI/elements/item_05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8a50f31964e0aa740bcbb97d7cd55e0a
+    m_Address: Assets/Art/PetGame/foods/food04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8cfa12a1ed710a14db8745e46c0b2358
+    m_Address: Assets/Data/Levels/Levels/Level_25.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e6842d2cb054b240b6afa36852a40e3
+    m_Address: Assets/Art/PetGame/UI/badges/item_05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8e9048bdfb7dca448a70cddda29c6e63
+    m_Address: Assets/Data/Levels/Levels/Level_33.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 8fa5d163913f09b46b092f9352cf5f26
+    m_Address: Assets/Art/PetGame/pets/parrot/eating.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 907d6cc619650144fa8edfcd381fde29
+    m_Address: Assets/Art/PetGame/foods/food_doubao_04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 91bf069fe98591e458c131cde567ff6e
+    m_Address: Assets/Art/PetGame/pets/dog/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 950169083db9ce24b98593f21573a979
+    m_Address: Assets/Art/PetGame/pets/dog/happy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 96376980b5ca99047ac7ef0b2d7fde77
+    m_Address: Assets/Art/PetGame/UI/elements/item_06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 966856950faa9334a97d760beb5e9376
+    m_Address: Assets/Data/Levels/Levels/Level_01.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 96e9cb427e109df4ca1e3b1fecef2caa
+    m_Address: Assets/Data/Levels/Levels/Level_22.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9737800648555d042b0ef9d54f2a4c4e
+    m_Address: Assets/Data/Levels/Levels/Level_07.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 988730b22cdfd444aafdbd3e2725414f
+    m_Address: Assets/Prefabs/UI/PrefabsV2/PetItem.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9a932ba1d50a9964e91ca4b06bf370fc
+    m_Address: Assets/Art/PetGame/foods/food09.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9ac1b52db3243ec4682e5578e80bd8ab
+    m_Address: Assets/Art/PetGame/pets/dog/eating.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9c1e3046480fbce4fb79e99295a3b2b7
+    m_Address: Assets/Art/PetGame/UI/ui05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9d3ac208c61732247bf9bb797414be2a
+    m_Address: Assets/Art/PetGame/foods/food03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9eb3964c4f103094e87daa298b63b258
+    m_Address: Assets/Art/PetGame/UI/ui02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9fcb4177eda08144791b8d01aa418bf1
+    m_Address: Assets/Art/PetGame/foods/food02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a027fa6ba97177942a03c92c7b27d02c
+    m_Address: Assets/Art/PetGame/pets/cat/happy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a4e7d9a1cc8640f4ab6d6720cd1ba98c
+    m_Address: Assets/Art/PetGame/UI/elements/item_07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a627bacb342534c4b84b1023ce49a6eb
+    m_Address: Assets/Data/Levels/Levels/Level_28.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a7f26aae223c57b4194cd291923ce37c
+    m_Address: Assets/Art/PetGame/pets/dog/disgust.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a89ceac0c2d0fa34eba704a082d8837c
+    m_Address: Assets/Art/PetGame/pets/fish/happy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: a9c67fc8df4eff64b824ad3427276b05
+    m_Address: Assets/Data/Levels/Levels/Level_24.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aec1c8caa1224494eb0d9a7f4462b1a5
+    m_Address: Assets/Art/PetGame/UI/badges/item_04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: af2c91a8c340be144a3a8e0798fcf53c
+    m_Address: Assets/Art/PetGame/pets/fish/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b0a2204d41c65ef4398666a627ffe834
+    m_Address: Assets/Data/Levels/Levels/Level_38.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b1462691730cf3745bf9dbe8e0c6fba4
+    m_Address: Assets/Art/PetGame/pets/dog/begging.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b28ef193c963aa347ae2e1f451eb6c86
+    m_Address: Assets/Art/PetGame/UI/badges/item_03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b37df6503ae7012428763b152f6a2b23
+    m_Address: Assets/Prefabs/UI/PrefabsV2/LevelSelectPanel.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b3a13d9acf421cf4bb680ff0d9f38eed
+    m_Address: Assets/Data/Levels/Levels/Level_47.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b438919601f23ca46a5dff0ebad2d88c
+    m_Address: Assets/Data/Levels/Levels/Level_16.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b53174323471a414ca0e179ea719b37a
+    m_Address: Assets/Data/Levels/Levels/Level_43.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b65e805a2d881d341b765b9ddf60d368
+    m_Address: Assets/Data/Levels/Levels/Level_15.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b73ee974b3246c7448f4ebedd51cbf86
+    m_Address: Assets/Art/PetGame/pets/parrot/disgust.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b7ef916f52ee5fd46b298239aee02d61
+    m_Address: Assets/Art/PetGame/foods/food11.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b8637ad497c4d804abae9968033bc4fa
+    m_Address: Assets/Art/PetGame/bowls/full/bowl03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b90333ed9fbd02e409015484f4f72461
+    m_Address: Assets/Art/PetGame/pets/dog/angry.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ba16b7ae3f78d0d429c09467f55a8af8
+    m_Address: Assets/Art/PetGame/bowls/full/bowl07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ba58bf559d0d3f04687e1ec72d63b9a9
+    m_Address: Assets/Art/PetGame/UI/ui04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bb1da3467a2bfa44d98445c4c9c0a946
+    m_Address: Assets/Art/PetGame/bowls/full/bowl04.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bc666188381f6a54c9a83541d3c2d0bd
+    m_Address: Assets/Data/Levels/Levels/Level_50.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: beb1c59a3907e0649bb3b7cfe1d86e25
+    m_Address: Assets/Art/PetGame/UI/elements/item_01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c07156d88e0cc0042ac7879bfdde26ef
+    m_Address: Assets/Art/PetGame/foods/food14.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c104e78784064174c884e99c10ea417d
+    m_Address: Assets/Art/PetGame/pets/fish/sleepy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c17593c4e27245c44a0346f1d416a0d1
+    m_Address: Assets/Art/PetGame/pets/fish/eating.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c2b1d427140350846ba463c857b68096
+    m_Address: Assets/Art/PetGame/pets/dog/sleepy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c3d327931bcd17641981139d2e72c1b6
+    m_Address: Assets/Art/PetGame/foods/food13.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c5498548adaf4304eaa5e6295508ffcc
+    m_Address: Assets/Data/Levels/Levels/Level_32.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c847dc614abbf0c4e9c85113afc1713a
+    m_Address: Assets/Art/PetGame/foods/food_doubao_02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c86af038cba479149be83ee016fe75f8
+    m_Address: Assets/Data/Levels/Levels/Level_30.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c88440bf5b445904582e4e3de15f9621
+    m_Address: Assets/Prefabs/UI/PrefabsV2/GameHUD.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c8e64204811dee74ca72eb88dce937f1
+    m_Address: Assets/Art/PetGame/pets/rabbit/eating.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c9eadf2b7251b2249a76a4a4fd1881e7
+    m_Address: Assets/Art/PetGame/UI/badges/item_07.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cc7a7880af9deee4081ca71a2ef1756e
+    m_Address: Assets/Art/PetGame/UI/elements/item_11.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: cd0bcdb47cea1c043b368fea540825fb
+    m_Address: Assets/Art/PetGame/UI/elements/item_00.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d14094fb8a9fdd94096f084a7f24fa44
+    m_Address: Assets/Data/Levels/Levels/Level_19.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d16199e8a2b82b540b827084dd94144f
+    m_Address: Assets/Art/PetGame/UI/badges/item_02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d1871205487b4fc4e99fb2c793d53f4d
+    m_Address: Assets/Data/Levels/Levels/Level_11.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d1e6f13281c87774e9e2b5478d2abd7a
+    m_Address: Assets/Prefabs/UI/PrefabsV2/LoginPanel.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d5339790a69409341888de6b7c466d9f
+    m_Address: Assets/Prefabs/UI/PrefabsV2/BowlItem.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d86d4477cb7c755478fd64220f35357b
+    m_Address: Assets/Data/Levels/Levels/Level_09.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: da4c67891ffad774e9f540b0930ef5f2
+    m_Address: Assets/Data/Levels/Levels/Level_31.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dbd08529f8fce504196391beb596ba73
+    m_Address: Assets/Art/PetGame/pets/hamster/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dcd8da20650966042ae8a340274da646
+    m_Address: Assets/Art/PetGame/foods/food_doubao_06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: de91edf421e32a442b9c4427c7c9b630
+    m_Address: Assets/Data/Levels/Levels/Level_46.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e0aa3bc08b2abef489c34ec043cfad56
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e0cf7acdcb18b8049a07ac5c6de32065
+    m_Address: Assets/Art/PetGame/UI/elements/item_15.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e1858fcd519f6424f84713a62690420f
+    m_Address: Assets/Art/PetGame/UI/ui06.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e22f09931b33ff04e9c050357648e629
+    m_Address: Assets/Art/PetGame/pets/cat/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e3bc0566f1e78fd488d2f72441b3b032
+    m_Address: Assets/Art/PetGame/pets/cat/disgust.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e45a338eb53e60742a8a49451bf52a4e
+    m_Address: Assets/Data/Levels/Levels/Level_29.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e65992b64e2b74747aa9cd2dca0d533e
+    m_Address: Assets/Data/Levels/Levels/Level_13.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e6895a6d2a0342d418b2d24da3c4e404
+    m_Address: Assets/Art/PetGame/foods/food15.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e7071dc03d0191b46831ba14077fdd38
+    m_Address: Assets/Data/Levels/Levels/Level_35.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: e8c3c48134386b24ebb9f0d8fabba952
+    m_Address: Assets/Art/PetGame/UI/elements/item_03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eb307c7b18d3a2d4694ba10a129290a6
+    m_Address: Assets/Art/PetGame/UI/elements/item_09.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: eb898bd26f0b89a40be912f7800b4216
+    m_Address: Assets/Art/PetGame/foods/food08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ec3a6d1265fbf164e943e57925d41709
+    m_Address: Assets/Art/PetGame/UI/elements/item_13.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ee1f1dd8bac18954eaf0f99f69c90902
+    m_Address: Assets/Art/PetGame/bowls/empty/bowl01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f094a76c42c140c4c875e77e1b7d3f47
+    m_Address: Assets/Art/PetGame/foods/food_doubao_01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f1104e32e55226c4f8d1939d9800b21e
+    m_Address: Assets/Data/Levels/Levels/Level_48.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f2e22a5c2b757fb49b1d6c86389455fd
+    m_Address: Assets/Art/PetGame/UI/ui01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f42d7202049db434684a70f43b9a6801
+    m_Address: Assets/Art/PetGame/pets/cat/angry.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f4e1af60e721b754e97b11989b0311da
+    m_Address: Assets/Art/PetGame/pets/parrot/sleepy.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f71b74705d8944747b923844978b4674
+    m_Address: Assets/Art/PetGame/foods/food_doubao_03.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f753d594ba7b9e94e841006cc5232893
+    m_Address: Assets/Art/PetGame/pets/rabbit/disgust.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f7727c5b64fe9e5459c403881a52e1c4
+    m_Address: Assets/Data/Levels/Levels/Level_20.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f8171899b0d669e4f8e2bb2d0fc51607
+    m_Address: Assets/Art/PetGame/pets/cat/eating.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f878523b9d0e0d041be7246369f4369c
+    m_Address: Assets/Art/PetGame/pets/rabbit/neutral.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: f9510641c7287c54586b1c7dc920b999
+    m_Address: Assets/Art/PetGame/foods/food_doubao_05.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fb8e16b8480bb324585a863a510d1798
+    m_Address: Assets/Art/PetGame/bowls/full/bowl02.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fdab67b6cae7c4a42a617bfd1d784f24
+    m_Address: Assets/Prefabs/UI/PrefabsV2/SplashPanel.prefab
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ff22f5655b29af74da4437e650108a10
+    m_Address: Assets/Data/Levels/Levels/Level_10.asset
+    m_ReadOnly: 1
+    m_SerializedLabels:
+    - Levels
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: ca8caccaca40df04f83e31dac23d1618, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 123a888ef81ef3649ab9376c844b4541, type: 2}
+    - {fileID: 11400000, guid: 91d0794e7bf81094ca8f7f8f134c24c3, type: 2}

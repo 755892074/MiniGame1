@@ -5,7 +5,6 @@ using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.AddressableAssets.Settings.GroupSchemas;
-using System.Collections.Generic;
 using System.IO;
 
 /// <summary>
@@ -16,7 +15,8 @@ using System.IO;
 /// </summary>
 public class AddressablesBootstrap
 {
-    const string SettingsPath = "Assets/AddressableAssetsData/AddressableAssetSettings.asset";
+    const string ConfigFolder = "Assets/AddressableAssetsData";
+    const string SettingsName = "AddressableAssetSettings";
     const string LocalGroup = "Local-MVP";
     const string RemoteGroup = "Remote-Heavy";
     const string LevelsLabel = "Levels";
@@ -36,7 +36,10 @@ public class AddressablesBootstrap
     {
         var settings = AddressableAssetSettingsDefaultObject.Settings;
         if (settings == null)
-            settings = AddressableAssetSettings.Create(SettingsPath, "AddressableAssetSettings", true, true);
+        {
+            settings = AddressableAssetSettings.Create(ConfigFolder, SettingsName, true, true);
+            AddressableAssetSettingsDefaultObject.Settings = settings; // 注册为默认对象，构建系统才能识别
+        }
         if (settings == null) { Debug.LogError("[AddressablesBootstrap] 无法创建 Addressable settings"); return; }
 
         var local = EnsureGroup(settings, LocalGroup, false);
@@ -61,8 +64,8 @@ public class AddressablesBootstrap
     {
         var g = settings.FindGroup(name);
         if (g != null) return g;
-        var schemaTypes = new List<System.Type> { typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema) };
-        g = settings.CreateGroup(name, false, false, true, schemaTypes, settings.DefaultGroup);
+        // 1.22.3 签名: CreateGroup(name, setAsDefault, readOnly, postEvent, List<AddressableAssetGroupSchema> schemasToCopy, params Type[] types)
+        g = settings.CreateGroup(name, false, false, true, null, typeof(BundledAssetGroupSchema), typeof(ContentUpdateGroupSchema));
         var bundled = g.GetSchema<BundledAssetGroupSchema>();
         if (bundled != null)
         {

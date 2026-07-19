@@ -15,7 +15,8 @@ EditorBuildSettings:
     path: Assets/Scenes/PetGameScene.unity
     guid: 05cb593704b7edf4f91a20883e7a4af7
   m_BuildProfiles: []
-  m_configObjects: {}
+  m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: fa932b549c340aa499674f1cc7f43fbe, type: 2}
   m_SlimFeaturesWeixinMiniGame:
     ACLDecompression: 0
     AllocateOverhead: 1
