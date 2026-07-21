@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
 using UnityEngine;
 
 /// <summary>
@@ -15,12 +17,13 @@ using UnityEngine;
 /// 流程:
 ///   1. 读取 Resources/LevelConfig.csv
 ///   2. 逐关生成 → BFS 验证 → 筛选 minSteps 在目标范围内
-///   3. 保存为 Assets/Resources/Levels/Level_XX.asset
+///   3. 保存为 Assets/Data/Levels/Level_XX.asset（与 AddressablesBootstrap 的 Levels Label 目录一致）
 /// </summary>
 public static class BatchLevelGenerator
 {
-    private const string CSV_PATH = "Assets/Resources/LevelConfig.csv";
-    private const string OUTPUT_DIR = "Assets/Resources/Levels";
+    // 与 AddressablesBootstrap 标记的 "Assets/Data/Levels" + Levels Label 保持一致
+    private const string CSV_PATH = "Assets/Data/Levels/LevelConfig.csv";
+    private const string OUTPUT_DIR = "Assets/Data/Levels";
 
     [MenuItem("铲屎官疯了/批量生成全部关卡")]
     public static void GenerateAllLevels()
@@ -178,7 +181,26 @@ public static class BatchLevelGenerator
             AssetDatabase.CreateAsset(level, path);
 
         EditorUtility.SetDirty(level);
+        MarkAddressable(path);
         Debug.Log($"[BatchLevelGenerator] 保存 {path}: minSteps={data.minSteps} seed={data.seed}");
+    }
+
+    /// <summary>生成后自动把关卡打进 Local-MVP 组并贴 Levels Label，使 ResLoader.LoadAll&lt;PetLevelConfigV2&gt;("Levels") 能直接加载。</summary>
+    private static void MarkAddressable(string assetPath)
+    {
+        var settings = AddressableAssetSettingsDefaultObject.Settings;
+        if (settings == null)
+        {
+            Debug.LogWarning("[BatchLevelGenerator] Addressables 未初始化，请先运行菜单 Tools/初始化 Addressables (抖音双轨)，否则关卡不会被打进资源包。");
+            return;
+        }
+        var group = settings.FindGroup("Local-MVP") ?? settings.DefaultGroup;
+        if (group == null) return;
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        if (string.IsNullOrEmpty(guid)) return;
+        var entry = settings.CreateOrMoveEntry(guid, group, true, true);
+        if (entry != null)
+            entry.SetLabel("Levels", true, true);
     }
 
     // ===== CSV 解析 =====

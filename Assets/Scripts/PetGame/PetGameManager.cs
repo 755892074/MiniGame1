@@ -25,6 +25,9 @@ public class PetGameManager : MonoBehaviour
     public PourSystem pour { get; private set; } = new PourSystem();
     public int targetScore => currentLevel?.targetScore ?? 200;
 
+    /// <summary>最近一次喂食是否为"首位匹配"（用于不公平气泡反馈）。false=非首位，喂错了顺序</summary>
+    public bool lastFedIsFirst;
+
     private PetLevelConfigV2 currentLevel;
     public PetLevelConfigV2 CurrentLevel => currentLevel;
     public IFSM<PetGameManager> fsm { get; private set; }
@@ -136,6 +139,8 @@ public class PetGameManager : MonoBehaviour
         pour.InitLevel(bowls, pets);
         selectedBowlId = -1;
         elapsedTime = 0;
+
+        SaveSystem.RefillTools();   // 本关道具次数刷新为基数（撤销/加碗/洗牌/提示）
 
         // 先销毁旧状态机，防止重复创建（切关/重开时会触发）
         FF8.FSM.DestoryFSM<PetGameManager>("PetGame");
@@ -268,6 +273,7 @@ public class PetGameManager : MonoBehaviour
         {
             onBowlCompleted.Invoke();
             var (points, fedPet, isFirst) = pour.OnBowlComplete(toId);
+            lastFedIsFirst = isFirst;
             onScoreChanged.Invoke(pour.score);
             onPetFed.Invoke(fedPet, points, isFirst);
         }
@@ -305,6 +311,16 @@ public class PetGameManager : MonoBehaviour
             onPour.Invoke(new PourResult());
             onScoreChanged.Invoke(pour.score);
         }
+    }
+
+    /// <summary>IAA 提示：返回当前局面一步可解的倒食物步骤（只读求解，不修改运行时）。无解返回 null。</summary>
+    public PetGameSolver.Step? Hint()
+    {
+        var level = GetCurrentLevel();
+        if (level == null || level.petQueue == null) return null;
+        var sol = PetGameSolver.Solve(pour, level.petQueue.Length);
+        if (sol == null || sol.Count == 0) return null;
+        return sol[0];
     }
 
     public void CheckWin()

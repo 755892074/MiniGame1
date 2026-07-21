@@ -6,6 +6,7 @@ using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.AddressableAssets.Settings.GroupSchemas;
 using System.IO;
+using System.Linq;
 
 /// <summary>
 /// Addressables 抖音双轨初始化（doc/16 阶段1）。
@@ -52,6 +53,13 @@ public class AddressablesBootstrap
         MarkFolder(settings, local, "Assets/Art/PetGame/UI", true);
         MarkFolder(settings, local, "Assets/Prefabs/UI/PrefabsV2", false);
         // 关卡 → 本地 + Label "Levels"（供 Resources.LoadAll 改造后按 Label 批量加载）
+        // 先清理旧 .csv 的 Levels Label，避免与 PetLevelConfigV2 类型冲突
+        foreach (var entry in local.entries.ToList())
+        {
+            var entryPath = AssetDatabase.GUIDToAssetPath(entry.guid);
+            if (entryPath.EndsWith(".csv") && entry.labels.Contains(LevelsLabel))
+                entry.SetLabel(LevelsLabel, false, true);
+        }
         MarkFolder(settings, local, "Assets/Data/Levels", true, LevelsLabel);
 
         settings.DefaultGroup = local;
@@ -87,7 +95,7 @@ public class AddressablesBootstrap
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
             if (Directory.Exists(path)) continue;
-            if (path.EndsWith(".cs") || path.EndsWith(".meta") || path.EndsWith(".unity")) continue;
+            if (path.EndsWith(".cs") || path.EndsWith(".meta") || path.EndsWith(".unity") || path.EndsWith(".csv")) continue;
             var entry = settings.CreateOrMoveEntry(guid, group, true, true);
             if (entry != null)
             {
@@ -96,6 +104,26 @@ public class AddressablesBootstrap
             }
         }
         Debug.Log($"[AddressablesBootstrap] 标记 {n} 个资源进 {group.Name} ({(label != null ? "label=" + label : "path-key")})");
+    }
+
+    [MenuItem("Tools/Addressables PlayMode = Use Asset Database")]
+    public static void SetPlayModeToUseAssetDatabase()
+    {
+        var settings = AddressableAssetSettingsDefaultObject.Settings;
+        if (settings == null) { Debug.LogError("[AddressablesBootstrap] no settings"); return; }
+        var field = typeof(AddressableAssetSettings).GetField("m_DataBuilders", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (field == null) { Debug.LogError("[AddressablesBootstrap] no m_DataBuilders"); return; }
+        var builders = (System.Collections.IList)field.GetValue(settings);
+        int target = -1;
+        for (int i = 0; i < builders.Count; i++)
+        {
+            var b = builders[i];
+            var np = b.GetType().GetProperty("Name");
+            string name = np != null ? (np.GetValue(b)?.ToString() ?? "?") : b.GetType().Name;
+            if (name.Contains("Asset Database")) target = i;
+        }
+        if (target >= 0) { settings.ActivePlayModeDataBuilderIndex = target; AssetDatabase.SaveAssets(); Debug.Log("[AddressablesBootstrap] PlayMode -> Use Asset Database (index " + target + ")"); }
+        else Debug.LogError("[AddressablesBootstrap] no Asset Database builder");
     }
 }
 #endif

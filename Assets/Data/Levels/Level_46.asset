@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 827ed980d6738904f8c5ec22cee0c851, type: 3}
+  m_Name: Level_46
+  m_EditorClassIdentifier: 
+  levelId: 46
+  levelName: "\u732B\u72D7\u4ED3\u9E66\u9C7C\u5154\xB7\u7EC8\u6781"
+  bowlCapacity: 5
+  targetScore: 200
+  maxMoves: 0
+  difficulty: 2
+  minSteps: 20
+  seed: 46000
+  version: 20260719
+  petQueue: 000000000100000002000000030000000400000005000000
+  bowlInits:
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0200000015000000120000000f000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 07000000020000000200000002000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 070000000f0000000f000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0c000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 150000000c000000120000000f000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 120000000c0000000700000007000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 0c00000007000000150000000c00000015000000
+  - gridPos: {x: 0, y: 0}
+    foodStack: 020000000f000000150000001200000012000000

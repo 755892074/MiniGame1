@@ -81,16 +81,30 @@ public class Bootstrap : MonoBehaviour
     Canvas EnsureCanvas()
     {
         var existingCanvas = FindObjectOfType<Canvas>();
-        if (existingCanvas != null) return existingCanvas;
+        if (existingCanvas == null)
+        {
+            var go = new GameObject("Canvas", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
+            var c = go.GetComponent<Canvas>();
+            c.renderMode = RenderMode.ScreenSpaceOverlay;
+            var sc = go.GetComponent<UnityEngine.UI.CanvasScaler>();
+            sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            sc.referenceResolution = new Vector2(750, 1334);
+            sc.matchWidthOrHeight = 1f;
+            existingCanvas = c;
+        }
+        EnsureCamera();
+        return existingCanvas;
+    }
 
-        var go = new GameObject("Canvas", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
-        var c = go.GetComponent<Canvas>();
-        c.renderMode = RenderMode.ScreenSpaceOverlay;
-        var sc = go.GetComponent<UnityEngine.UI.CanvasScaler>();
-        sc.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        sc.referenceResolution = new Vector2(750, 1334);
-        sc.matchWidthOrHeight = 1f;
-        return c;
+    void EnsureCamera()
+    {
+        if (Camera.main != null) return;
+        var camGO = new GameObject("Main Camera");
+        var cam = camGO.AddComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.96f, 0.94f, 0.90f);
+        cam.cullingMask = 0;
+        cam.orthographic = true;
     }
 
     Transform FindChildRecursive(Transform parent, string name)

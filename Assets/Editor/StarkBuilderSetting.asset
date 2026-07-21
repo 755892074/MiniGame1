@@ -23,7 +23,7 @@ MonoBehaviour:
   profiling: 0
   clearStreamingAssets: 0
   buildOptions: 0
-  wasmSubFramework: 0
+  wasmSubFramework: 1
   hideAfterCallmain: 1
   disableLoadingPage: 0
   useDataCDNAsStreamingAssetsUrl: 0
@@ -61,5 +61,5 @@ MonoBehaviour:
   _publishType: 0
   publishDesc: 
   idePath: 
-  isConvert: 1
+  isConvert: 0
   isOldBuildFormat: 0

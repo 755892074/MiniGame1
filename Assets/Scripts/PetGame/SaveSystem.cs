@@ -34,6 +34,12 @@ public static class SaveSystem
         public int rescueBadge;           // 救助徽章（成就货币，星级通关获得）
         public int rainbowBall;           // 彩虹毛球（稀有货币，看广告获得）
 
+        // --- IAA 道具剩余次数（每关开始刷新为基数；用尽看广告补充）---
+        public int itemUndo = 3;          // 撤销
+        public int itemAddBowl = 2;       // 加空碗
+        public int itemShuffle = 3;       // 洗牌
+        public int itemHint = 3;          // 提示
+
         // --- 铲屎官等级 ---
         public int cleanerExp;            // 当前经验值
         public int cleanerLevel = 1;      // 当前铲屎官等级(1-8)
@@ -377,6 +383,70 @@ public static class SaveSystem
     {
         Data.rainbowBall += amount;
         Save();
+    }
+
+    // ========== IAA 道具次数 ==========
+    // 每关开始 RefillTools() 刷新为基数；用尽后看广告补充（GrantTool）。
+    public enum ToolType { Undo, AddBowl, Shuffle, Hint }
+
+    public const int BaseUndo = 3, BaseAddBowl = 2, BaseShuffle = 3, BaseHint = 3;
+    public const int AdGrantUndo = 2, AdGrantAddBowl = 1, AdGrantShuffle = 2, AdGrantHint = 2;
+    public const int DeadlockRescueGoldCost = 900;  // 死局花金币+1碗（与 IAA 数值参考一致）
+
+    /// <summary>取某道具剩余次数</summary>
+    public static int GetTool(ToolType t)
+    {
+        var d = Data;
+        return t switch
+        {
+            ToolType.Undo => d.itemUndo,
+            ToolType.AddBowl => d.itemAddBowl,
+            ToolType.Shuffle => d.itemShuffle,
+            ToolType.Hint => d.itemHint,
+            _ => 0
+        };
+    }
+
+    /// <summary>消耗 1 次道具，成功返回 true（次数>0 才扣）</summary>
+    public static bool ConsumeTool(ToolType t)
+    {
+        var d = Data;
+        switch (t)
+        {
+            case ToolType.Undo: if (d.itemUndo <= 0) return false; d.itemUndo--; break;
+            case ToolType.AddBowl: if (d.itemAddBowl <= 0) return false; d.itemAddBowl--; break;
+            case ToolType.Shuffle: if (d.itemShuffle <= 0) return false; d.itemShuffle--; break;
+            case ToolType.Hint: if (d.itemHint <= 0) return false; d.itemHint--; break;
+            default: return false;
+        }
+        Save();
+        return true;
+    }
+
+    /// <summary>看广告/奖励补充道具次数</summary>
+    public static void GrantTool(ToolType t, int n)
+    {
+        var d = Data;
+        switch (t)
+        {
+            case ToolType.Undo: d.itemUndo += n; break;
+            case ToolType.AddBowl: d.itemAddBowl += n; break;
+            case ToolType.Shuffle: d.itemShuffle += n; break;
+            case ToolType.Hint: d.itemHint += n; break;
+        }
+        Save();
+    }
+
+    /// <summary>每关开始刷新为基数（失败/重开同样刷新，等于重新发工具包）</summary>
+    public static void RefillTools()
+    {
+        var d = Data;
+        d.itemUndo = BaseUndo;
+        d.itemAddBowl = BaseAddBowl;
+        d.itemShuffle = BaseShuffle;
+        d.itemHint = BaseHint;
+        Save();
+        Debug.Log("[SaveSystem] 本关道具已刷新：撤销3 加碗2 洗牌3 提示3");
     }
 
     // ========== 经验/等级 ==========

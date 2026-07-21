@@ -625,6 +625,7 @@ PlayerSettings:
   webGLPowerPreference: 2
   scriptingDefineSymbols:
     WebGL: TTSDK_MIX_ENGINE
+    WeixinMiniGame: TTSDK_MIX_ENGINE
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}
@@ -762,19 +763,19 @@ PlayerSettings:
   OpenHarmonyUseCustomModuleJsonFive: 0
   OpenHarmonyUseCustomTuanjiePlayerAbility: 0
   apiCompatibilityLevel: 6
-  weixinMiniGameMemorySize: 32
+  weixinMiniGameMemorySize: 128
   weixinMiniGameExceptionSupport: 1
   weixinMiniGameExceptionOnlyEnableForUserCodes: 0
   weixinMiniGameNameFilesAsHashes: 0
   weixinMiniGameShowDiagnostics: 0
-  weixinMiniGameDataCaching: 1
-  weixinMiniGameDebugSymbols: 0
-  weixinMiniGameEmscriptenArgs: 
+  weixinMiniGameDataCaching: 0
+  weixinMiniGameDebugSymbols: 1
+  weixinMiniGameEmscriptenArgs: ' -s TOTAL_MEMORY=128MB'
   weixinMiniGameModulesDirectory: 
   weixinMiniGameTemplate: APPLICATION:Default
   weixinMiniGameAnalyzeBuildSize: 0
   weixinMiniGameUseEmbeddedResources: 0
-  weixinMiniGameCompressionFormat: 0
+  weixinMiniGameCompressionFormat: 2
   weixinMiniGameWasmArithmeticExceptions: 0
   weixinMiniGameLinkerTarget: 1
   weixinMiniGameThreadsSupport: 0

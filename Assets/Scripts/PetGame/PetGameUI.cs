@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using F8Framework.Core;
 using PetGame;
 using UnityEngine;
@@ -18,6 +19,20 @@ public class PetGameUI : MonoBehaviour
     private Text txtLevel, txtScore, txtStep, txtStars, txtResultTitle;
     private GameObject resultOverlay;
     private Button btnUndo, btnAddBowl, btnShuffle, btnRestart, btnNext, btnBack;
+
+    // GM 调试：通关步骤按钮 + 步骤面板
+    private Button btnGM;
+    private GameObject gmPanel;
+
+    // IAA 提示按钮（正式功能，常显）+ 提示高亮/文字的临时对象
+    private Button btnHint;
+    private GameObject hintRoot;
+
+    // IAA 道具剩余次数角标（显示在 4 个工具按钮上）
+    private Text txtUndoCount, txtAddBowlCount, txtShuffleCount, txtHintCount;
+
+    // 死局救援弹窗
+    private GameObject deadlockPanel;
 
     // 结算页动态元素
     private LevelResult lastResult;
@@ -39,6 +54,8 @@ public class PetGameUI : MonoBehaviour
         gm = PetGameManager.Instance;
         if (gm == null) return;
 
+        EnsureCamera();   // 没有相机会导致 Game View 无法渲染
+
         gameObject.AddComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
         var sc = gameObject.AddComponent<CanvasScaler>();
         sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -53,6 +70,18 @@ public class PetGameUI : MonoBehaviour
         ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/BowlItem.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) bowlItemPf = h.Result; coreDec(); };
         ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/FoodIcon.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodIconPf = h.Result; coreDec(); };
         ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/GameHUD.prefab").Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) gameHUDPf = h.Result; coreDec(); };
+    }
+
+    /// <summary>兜底相机：没有 Camera 时 Unity Game View 无法渲染，PetGameScene 里可能没挂相机</summary>
+    void EnsureCamera()
+    {
+        if (Camera.main != null) return;
+        var camGO = new GameObject("Main Camera");
+        var cam = camGO.AddComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.96f, 0.94f, 0.90f); // 木质纸感底色
+        cam.cullingMask = 0;
+        cam.orthographic = true;
     }
 
     void OnCoreReady()
@@ -85,6 +114,10 @@ public class PetGameUI : MonoBehaviour
         BindButtons();
         if (gm.fsm != null) BuildLevel();
         else ShowLevelSelect();
+
+        // GM 调试按钮（仅开发期显示，由 GM.Enabled 控制）
+        if (GM.Enabled) BuildGMButton();
+        BuildHintButton();   // IAA 提示按钮（正式功能，始终显示）
     }
 
     void FindRefs()
@@ -95,6 +128,14 @@ public class PetGameUI : MonoBehaviour
         petArea = FindGO("PetArea")?.transform;
         bowlArea = FindGO("BowlArea")?.transform;
         resultOverlay = FindGO("ResultOverlay");
+
+        // 关闭 BowlArea 上的 GridLayoutGroup：碗用 anchoredPosition 手动定位（按 bowlId 固定 slot）。
+        // 若保留网格布局组，移除/完成一只碗会触发网格重排，其余碗位置全变（用户反馈“少一个碗就重排”）。
+        if (bowlArea != null)
+        {
+            var glg = bowlArea.GetComponent<GridLayoutGroup>();
+            if (glg != null) glg.enabled = false;
+        }
         btnUndo = FindB("btnUndo"); btnAddBowl = FindB("btnAddBowl");
         btnShuffle = FindB("btnShuffle"); btnRestart = FindB("btnRestart");
         btnNext = FindB("btnNext"); btnBack = FindB("btnBack");
@@ -102,9 +143,10 @@ public class PetGameUI : MonoBehaviour
 
     void BindButtons()
     {
-        btnUndo?.onClick.AddListener(() => { gm.Undo(); RebuildAll(); });
-        btnAddBowl?.onClick.AddListener(() => { gm.AddBowl(); BuildBowls(); });
-        btnShuffle?.onClick.AddListener(() => { ShuffleCurrentBowl(); });
+        btnUndo?.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.Undo, () => { gm.Undo(); RebuildAll(); }));
+        btnAddBowl?.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.AddBowl, () => { gm.AddBowl(); BuildBowls(); }));
+        btnShuffle?.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.Shuffle, () => { ShuffleCurrentBowl(); }));
+        InitItemCountBadges();
         btnRestart?.onClick.AddListener(Restart);
         btnNext?.onClick.AddListener(NextLevel);
         btnBack?.onClick.AddListener(BackToMenu);
@@ -339,7 +381,10 @@ public class PetGameUI : MonoBehaviour
                     pos = BowlPos(bowlSlot[bowl.bowlId]);
                     bowlPositions[bowl.bowlId] = pos;
                 }
-                go.GetComponent<RectTransform>().anchoredPosition = pos;
+                var brt = go.GetComponent<RectTransform>();
+                brt.anchoredPosition = pos;
+                // 关掉网格布局组后，碗尺寸不再被 Grid 强制，这里显式给定原 cell 尺寸保持一致观感
+                brt.sizeDelta = new Vector2(140f, 170f);
                 bowlIdToGO[bowl.bowlId] = go;
             }
 
@@ -524,6 +569,14 @@ public class PetGameUI : MonoBehaviour
         if (petAnim != null && petAnim.enabled)
             petAnim.Play("Eat");
 
+        // 不公平气泡：非首位匹配（喂了后排宠物，但更靠前的宠物还没吃到）时，
+        // 由队列最前、仍没吃到食的宠物吐槽（设计核心爽点反馈，时机=碗移到被喂宠物时）
+        if (!gm.lastFedIsFirst && petGOs.Count > 0 && petGOs[0] != null)
+        {
+            var frontRT = petGOs[0].GetComponent<RectTransform>();
+            if (frontRT != null) ShowUnfairBubble(frontRT);
+        }
+
         // 2. 宠物头顶复制碗（含食物）
         var headBowl = Instantiate(bowlItemPf, petGO.transform);
         GameFont.ApplyAll(headBowl);
@@ -604,13 +657,13 @@ public class PetGameUI : MonoBehaviour
             // 检测死局
             if (gm.CheckDeadlock())
             {
-                Debug.Log("[PetGameUI] 检测到死局! 可触发看广告+1碗");
-                // TODO: 接入广告 SDK 后，这里弹出死局救援弹窗
-                // 暂时自动加一个碗方便测试
-                gm.AddBowl();
-                BuildBowls();
+                Debug.Log("[PetGameUI] 检测到死局! 弹出救援弹窗");
+                ShowDeadlockRescue();   // 弹窗处理后续（看广告+1碗/花金币+1碗/重来），不在此切状态
             }
-            gm.fsm?.ChangeState<IdleState>();
+            else
+            {
+                gm.fsm?.ChangeState<IdleState>();
+            }
         }
     }
     #endregion
@@ -624,6 +677,7 @@ public class PetGameUI : MonoBehaviour
         if (txtScore) txtScore.text = $"得分:{gm.GetScore()}/{gm.targetScore}";
         if (txtStep) txtStep.text = $"步数:{gm.pour.totalMoves}";
         UpdateCleanerHUD();
+        UpdateItemCounts();
     }
 
     /// <summary>更新铲屎官等级/货币 HUD（叠加显示在 HUD 顶部）</summary>
@@ -704,6 +758,11 @@ public class PetGameUI : MonoBehaviour
             resultOverlay.SetActive(true);
             // 清掉 prefab 旧内容，完全用动态生成
             Clear(resultOverlay.transform);
+            // 关键：关闭 ResultOverlay 上的 VerticalLayoutGroup。否则布局组会接管动态子物体的
+            // 位置与尺寸（padding top=200 + 子物体 preferred 高度=0），导致结算内容全部塌陷不可见，
+            // 只剩黑色背景图（用户反馈“结算只剩透明黑底”）。
+            var vlg = resultOverlay.GetComponent<LayoutGroup>();
+            if (vlg != null) vlg.enabled = false;
         }
 
         BuildResultPanel(stars);
@@ -852,25 +911,27 @@ public class PetGameUI : MonoBehaviour
         bb.onClick.AddListener(cb);
     }
 
-    /// <summary>看广告翻倍奖励回调（目前无广告SDK，先模拟）</summary>
+    /// <summary>看广告翻倍奖励（走 AdManager；mock 或真 TTSDK）</summary>
     void OnWatchAdForDouble()
     {
         if (adRewardClaimed) return;
-        adRewardClaimed = true;
-
-        // TODO: 接入真实广告SDK：SDK.ShowRewardedAd(() => { ... })
-        int bonusFish = lastResult.fishReward;   // 小鱼干翻倍 = 再给一份
-        int bonusGold = lastResult.goldReward;   // 金币翻倍 = 再给一份
-        SaveSystem.AddFish(bonusFish);
-        SaveSystem.AddGold(bonusGold);
-        Debug.Log($"[结算] 看广告翻倍! 金币+{bonusGold} 小鱼干+{bonusFish}");
-
-        // 重建面板：先清空再生成，避免重复叠加（BuildResultPanel 自身不清 root）
-        if (resultOverlay != null)
+        AdManager.Instance.ShowRewardedAd(success =>
         {
-            Clear(resultOverlay.transform);
-            BuildResultPanel(lastResult.stars);
-        }
+            if (!success) return;
+            adRewardClaimed = true;
+            int bonusFish = lastResult.fishReward;   // 小鱼干翻倍 = 再给一份
+            int bonusGold = lastResult.goldReward;   // 金币翻倍 = 再给一份
+            SaveSystem.AddFish(bonusFish);
+            SaveSystem.AddGold(bonusGold);
+            Debug.Log($"[结算] 看广告翻倍! 金币+{bonusGold} 小鱼干+{bonusFish}");
+
+            // 重建面板：先清空再生成，避免重复叠加
+            if (resultOverlay != null)
+            {
+                Clear(resultOverlay.transform);
+                BuildResultPanel(lastResult.stars);
+            }
+        });
     }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
     void Restart()
@@ -904,6 +965,422 @@ public class PetGameUI : MonoBehaviour
         // 多场景模式：返回主菜单场景
         GameSceneManager.LoadMenu();
     }
+
+    #region IAA 提示
+    /// <summary>底部工具栏的「提示」按钮（正式功能，常显）：点击高亮一步可解的倒食物操作</summary>
+    void BuildHintButton()
+    {
+        var go = new GameObject("BtnHint", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.62f, 0.02f);
+        rt.anchorMax = new Vector2(0.80f, 0.09f);
+        rt.sizeDelta = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.95f, 0.6f, 0.1f, 0.9f);
+        btnHint = go.AddComponent<Button>();
+        var tgo = new GameObject("T", typeof(RectTransform));
+        tgo.transform.SetParent(go.transform, false);
+        var trt = tgo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
+        var t = tgo.AddComponent<SystemFontText>();
+        t.text = "💡 提示"; t.fontSize = 24; t.color = Color.white;
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+        btnHint.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.Hint, ShowHint));
+        // 次数角标
+        var cgo = new GameObject("Count", typeof(RectTransform));
+        cgo.transform.SetParent(go.transform, false);
+        var crt = cgo.GetComponent<RectTransform>();
+        crt.anchorMin = new Vector2(0.55f, 0.04f); crt.anchorMax = new Vector2(0.97f, 0.46f); crt.sizeDelta = Vector2.zero;
+        txtHintCount = cgo.AddComponent<SystemFontText>();
+        txtHintCount.fontSize = 18; txtHintCount.color = Color.white; txtHintCount.alignment = TextAnchor.MiddleCenter; GameFont.Apply(txtHintCount);
+    }
+
+    /// <summary>提示回调：用求解器取一步可解操作，高亮源/目标碗并弹出文字</summary>
+    /// <summary>在宠物上方显示"不公平"吐槽气泡（转换到主 Canvas 坐标，避免受 petArea 布局影响）</summary>
+    void ShowUnfairBubble(RectTransform targetPetRT)
+    {
+        if (targetPetRT == null) return;
+        // 把宠物在屏幕上的位置换算到本 Canvas 的局部坐标
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(null, targetPetRT.position);
+        var canvasRT = GetComponent<RectTransform>();
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRT, screenPos, null, out Vector2 localPos))
+            return;
+        localPos += new Vector2(0, 60);
+
+        var bubble = new GameObject("UnfairBubble", typeof(RectTransform));
+        bubble.transform.SetParent(transform, false);
+        var topCanvas = bubble.AddComponent<Canvas>();
+        topCanvas.overrideSorting = true;
+        topCanvas.sortingOrder = 100;
+        bubble.AddComponent<GraphicRaycaster>();
+        var brt = bubble.GetComponent<RectTransform>();
+        brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
+        brt.pivot = new Vector2(0.5f, 0.5f);
+        brt.anchoredPosition = localPos;
+        brt.sizeDelta = new Vector2(180, 60);
+        var bimg = bubble.AddComponent<Image>();
+        bimg.color = new Color(1f, 0.95f, 0.8f, 0.95f);
+        var outline = bubble.AddComponent<Outline>();
+        outline.effectColor = new Color(0.85f, 0.2f, 0.15f); outline.effectDistance = new Vector2(2, 2);
+
+        var btgo = new GameObject("T", typeof(RectTransform));
+        btgo.transform.SetParent(bubble.transform, false);
+        var btrt = btgo.GetComponent<RectTransform>();
+        btrt.anchorMin = Vector2.zero; btrt.anchorMax = Vector2.one; btrt.sizeDelta = Vector2.zero;
+        var bt = btgo.AddComponent<SystemFontText>();
+        bt.text = "不公平!"; bt.fontSize = 24; bt.color = new Color(0.85f, 0.2f, 0.15f);
+        bt.alignment = TextAnchor.MiddleCenter; GameFont.Apply(bt);
+        StartCoroutine(DestroyAfter(bubble, 1.6f));
+    }
+
+    void ShowHint()
+    {
+        // 先清掉上一轮高亮（HL 子物体挂在碗 GO 上，不归属 hintRoot），避免反复点击叠加
+        ClearHighlights();
+        if (hintRoot != null) { Destroy(hintRoot); hintRoot = null; }
+        hintRoot = new GameObject("HintRoot", typeof(RectTransform));
+        hintRoot.transform.SetParent(transform, false);
+        var hrt = hintRoot.GetComponent<RectTransform>();
+        hrt.anchorMin = Vector2.zero; hrt.anchorMax = Vector2.one; hrt.sizeDelta = Vector2.zero;
+
+        var step = gm.Hint();
+        if (step == null)
+        {
+            ShowHintText("暂时没可提示的步骤（可能已快通关，或已是死局）");
+            StartCoroutine(ClearHintAfter(2.0f));
+            return;
+        }
+
+        HighlightBowl(step.Value.fromId, new Color(0.2f, 0.9f, 0.3f)); // 源：绿
+        HighlightBowl(step.Value.toId, new Color(1f, 0.85f, 0.1f));    // 目标：黄
+        ShowHintText($"把碗{step.Value.fromId}的 {step.Value.count} 个 {FoodCN(step.Value.food)} → 碗{step.Value.toId}");
+        StartCoroutine(ClearHintAfter(2.5f));
+    }
+
+    #region IAA 道具次数 + 广告补充 + 死局救援
+    /// <summary>给 HUD 上的工具按钮挂一个次数角标（只建一次）</summary>
+    Text EnsureCountBadge(Button btn, Text existing)
+    {
+        if (btn == null) return existing;
+        if (existing != null) return existing;
+        var go = new GameObject("Count", typeof(RectTransform));
+        go.transform.SetParent(btn.transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.55f, 0.04f); rt.anchorMax = new Vector2(0.97f, 0.46f); rt.sizeDelta = Vector2.zero;
+        var tx = go.AddComponent<SystemFontText>();
+        tx.fontSize = 18; tx.color = Color.white; tx.alignment = TextAnchor.MiddleCenter; GameFont.Apply(tx);
+        return tx;
+    }
+
+    void InitItemCountBadges()
+    {
+        txtUndoCount = EnsureCountBadge(btnUndo, txtUndoCount);
+        txtAddBowlCount = EnsureCountBadge(btnAddBowl, txtAddBowlCount);
+        txtShuffleCount = EnsureCountBadge(btnShuffle, txtShuffleCount);
+        UpdateItemCounts();
+    }
+
+    void UpdateItemCounts()
+    {
+        if (txtUndoCount) txtUndoCount.text = SaveSystem.GetTool(SaveSystem.ToolType.Undo).ToString();
+        if (txtAddBowlCount) txtAddBowlCount.text = SaveSystem.GetTool(SaveSystem.ToolType.AddBowl).ToString();
+        if (txtShuffleCount) txtShuffleCount.text = SaveSystem.GetTool(SaveSystem.ToolType.Shuffle).ToString();
+        if (txtHintCount) txtHintCount.text = SaveSystem.GetTool(SaveSystem.ToolType.Hint).ToString();
+    }
+
+    /// <summary>使用道具：有次数则消耗并执行 action；无次数则弹"看广告补充"</summary>
+    void TryUseTool(SaveSystem.ToolType t, System.Action action)
+    {
+        if (SaveSystem.GetTool(t) > 0)
+        {
+            SaveSystem.ConsumeTool(t);
+            action();
+            UpdateItemCounts();
+        }
+        else
+        {
+            ShowToolAdSupply(t);
+        }
+    }
+
+    int GrantAmount(SaveSystem.ToolType t) => t switch
+    {
+        SaveSystem.ToolType.Undo => SaveSystem.AdGrantUndo,
+        SaveSystem.ToolType.AddBowl => SaveSystem.AdGrantAddBowl,
+        SaveSystem.ToolType.Shuffle => SaveSystem.AdGrantShuffle,
+        SaveSystem.ToolType.Hint => SaveSystem.AdGrantHint,
+        _ => 1
+    };
+
+    /// <summary>道具用尽 → 看广告补充弹窗</summary>
+    void ShowToolAdSupply(SaveSystem.ToolType t)
+    {
+        CloseDeadlock();
+        deadlockPanel = MakePanel(out var box);
+        AddPanelTitle(box, "道具用尽啦~");
+        float y = 0.5f;
+        MakeBtn(box.transform, 0.1f, 0.8f, y, 0.13f, $"📺 看广告补充 ×{GrantAmount(t)}", new Color(0.95f, 0.6f, 0.1f), () =>
+        {
+            AdManager.Instance.ShowRewardedAd(success =>
+            {
+                if (!success) return;
+                SaveSystem.GrantTool(t, GrantAmount(t));
+                UpdateItemCounts();
+                CloseDeadlock();
+                Toast($"已补充 ×{GrantAmount(t)}，再点一次道具即可使用");
+            });
+        });
+        y -= 0.17f;
+        MakeBtn(box.transform, 0.1f, 0.8f, y, 0.13f, "稍后再说", new Color(0.5f, 0.5f, 0.5f), CloseDeadlock);
+    }
+
+    /// <summary>死局救援弹窗：看广告+1碗 / 花金币+1碗 / 放弃重来</summary>
+    void ShowDeadlockRescue()
+    {
+        CloseDeadlock();
+        deadlockPanel = MakePanel(out var box);
+        AddPanelTitle(box, "😿 当前无解了!");
+        float y = 0.5f;
+        MakeBtn(box.transform, 0.1f, 0.8f, y, 0.13f, "📺 看广告 +1 碗", new Color(0.95f, 0.6f, 0.1f), () =>
+        {
+            AdManager.Instance.ShowRewardedAd(success =>
+            {
+                if (!success) return;
+                gm.AddBowl(); BuildBowls(); CloseDeadlock(); gm.fsm?.ChangeState<IdleState>();
+            });
+        });
+        y -= 0.17f;
+        MakeBtn(box.transform, 0.1f, 0.8f, y, 0.13f, $"🪙 花{SaveSystem.DeadlockRescueGoldCost}金币 +1碗", new Color(0.3f, 0.5f, 0.8f), () =>
+        {
+            if (SaveSystem.SpendGold(SaveSystem.DeadlockRescueGoldCost))
+            {
+                gm.AddBowl(); BuildBowls(); CloseDeadlock(); gm.fsm?.ChangeState<IdleState>();
+            }
+            else { Toast("金币不足，试试看广告~"); }
+        });
+        y -= 0.17f;
+        MakeBtn(box.transform, 0.1f, 0.8f, y, 0.13f, "🔄 放弃重来", new Color(0.6f, 0.3f, 0.3f), () => { CloseDeadlock(); Restart(); });
+    }
+
+    /// <summary>半透明遮罩 + 居中盒子，返回 panel（box 通过 out 返回）</summary>
+    GameObject MakePanel(out GameObject box)
+    {
+        var panel = new GameObject("Panel", typeof(RectTransform));
+        panel.transform.SetParent(transform, false);
+        var prt = panel.GetComponent<RectTransform>();
+        prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one; prt.sizeDelta = Vector2.zero;
+        var bg = panel.AddComponent<Image>(); bg.color = new Color(0f, 0f, 0f, 0.6f);
+        box = new GameObject("Box", typeof(RectTransform));
+        box.transform.SetParent(panel.transform, false);
+        var brt = box.GetComponent<RectTransform>();
+        brt.anchorMin = new Vector2(0.15f, 0.33f); brt.anchorMax = new Vector2(0.85f, 0.72f); brt.sizeDelta = Vector2.zero;
+        var bimg = box.AddComponent<Image>(); bimg.color = new Color(0.2f, 0.14f, 0.1f, 0.98f);
+        return panel;
+    }
+
+    void AddPanelTitle(GameObject box, string title)
+    {
+        var tt = new GameObject("Title", typeof(RectTransform));
+        tt.transform.SetParent(box.transform, false);
+        var trt = tt.GetComponent<RectTransform>();
+        trt.anchorMin = new Vector2(0.08f, 0.78f); trt.anchorMax = new Vector2(0.92f, 0.98f); trt.sizeDelta = Vector2.zero;
+        var t = tt.AddComponent<SystemFontText>();
+        t.text = title; t.fontSize = 26; t.color = Color.white; t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+    }
+
+    void CloseDeadlock()
+    {
+        if (deadlockPanel != null) { Destroy(deadlockPanel); deadlockPanel = null; }
+    }
+
+    /// <summary>短暂提示文字</summary>
+    void Toast(string msg)
+    {
+        var go = new GameObject("Toast", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.2f, 0.08f); rt.anchorMax = new Vector2(0.8f, 0.16f); rt.sizeDelta = Vector2.zero;
+        var img = go.AddComponent<Image>(); img.color = new Color(0f, 0f, 0f, 0.72f);
+        var t = go.AddComponent<SystemFontText>(); t.text = msg; t.fontSize = 20; t.color = Color.white; t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+        StartCoroutine(DestroyAfter(go, 1.6f));
+    }
+    #endregion
+
+    // [已移除] 开发期自动演示 EditorAutoDemo：避免“未操作就强制弹出不公平气泡”误导验收。
+    // 验证提示/不公平：在编辑器手动点「提示」按钮，或真实喂食一个非首位宠物即可触发。
+
+    /// <summary>在指定碗上加一个高亮边框 + 放大，提示结束后随 hintRoot 一起销毁</summary>
+    void HighlightBowl(int bowlId, Color c)
+    {
+        if (!bowlIdToGO.TryGetValue(bowlId, out var go) || go == null) return;
+        var hl = new GameObject("HL", typeof(RectTransform));
+        hl.transform.SetParent(go.transform, false);
+        var hlr = hl.GetComponent<RectTransform>();
+        hlr.anchorMin = new Vector2(-0.15f, -0.15f);
+        hlr.anchorMax = new Vector2(1.15f, 1.15f);
+        hlr.sizeDelta = Vector2.zero;
+        var img = hl.AddComponent<Image>();
+        img.color = new Color(c.r, c.g, c.b, 0.18f);
+        img.raycastTarget = false;
+        var outline = hl.AddComponent<Outline>();
+        outline.effectColor = c; outline.effectDistance = new Vector2(5, 5);
+        go.transform.localScale = Vector3.one * 1.18f;
+    }
+
+    /// <summary>清掉所有碗上残留的高亮（HL 子物体）并复位缩放，避免反复点提示叠加</summary>
+    void ClearHighlights()
+    {
+        foreach (var kv in bowlIdToGO)
+        {
+            if (kv.Value == null) continue;
+            var go = kv.Value;
+            var hls = new List<GameObject>();
+            foreach (Transform t in go.transform)
+                if (t.name == "HL") hls.Add(t.gameObject);
+            foreach (var h in hls) Destroy(h);
+            go.transform.localScale = Vector3.one;
+        }
+    }
+
+    /// <summary>画布顶部居中显示提示文字（背景父节点 + 文字子节点，避免同一 GO 上两个 Graphic）</summary>
+    void ShowHintText(string msg)
+    {
+        var go = new GameObject("HintText", typeof(RectTransform));
+        go.transform.SetParent(hintRoot.transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.1f, 0.82f); rt.anchorMax = new Vector2(0.9f, 0.88f); rt.sizeDelta = Vector2.zero;
+        // 强制渲染在最前，避免被 HUD 覆盖
+        var topCanvas = go.AddComponent<Canvas>();
+        topCanvas.overrideSorting = true;
+        topCanvas.sortingOrder = 100;
+        go.AddComponent<GraphicRaycaster>();
+        var bg = go.AddComponent<Image>();
+        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.85f);
+
+        var tgo = new GameObject("T", typeof(RectTransform));
+        tgo.transform.SetParent(go.transform, false);
+        var trt = tgo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
+        var t = tgo.AddComponent<SystemFontText>();
+        t.text = msg; t.fontSize = 26; t.color = new Color(1f, 0.95f, 0.2f);
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+    }
+
+    IEnumerator ClearHintAfter(float sec)
+    {
+        yield return new WaitForSeconds(sec);
+        ClearHighlights();
+        if (hintRoot != null) { Destroy(hintRoot); hintRoot = null; }
+    }
+
+    IEnumerator DestroyAfter(GameObject go, float sec) { yield return new WaitForSeconds(sec); if (go != null) Destroy(go); }
+    #endregion
+
+    #region GM 调试 — 通关步骤
+    /// <summary>右上角 GM 按钮：点击后弹出本局"不用道具"的通关步骤</summary>
+    void BuildGMButton()
+    {
+        var go = new GameObject("BtnGM", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.86f, 0.02f);
+        rt.anchorMax = new Vector2(0.98f, 0.09f);
+        rt.sizeDelta = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.9f, 0.2f, 0.2f, 0.85f);
+        btnGM = go.AddComponent<Button>();
+        var tgo = new GameObject("T", typeof(RectTransform));
+        tgo.transform.SetParent(go.transform, false);
+        var trt = tgo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
+        var t = tgo.AddComponent<SystemFontText>();
+        t.text = "GM"; t.fontSize = 28; t.color = Color.white;
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+        btnGM.onClick.AddListener(ShowGMSolution);
+    }
+
+    /// <summary>弹出 GM 通关步骤面板（BFS 求解，不修改运行时状态）</summary>
+    void ShowGMSolution()
+    {
+        if (gmPanel != null) { Destroy(gmPanel); gmPanel = null; }
+        gmPanel = new GameObject("GMPanel", typeof(RectTransform));
+        gmPanel.transform.SetParent(transform, false);
+        var prt = gmPanel.GetComponent<RectTransform>();
+        prt.anchorMin = Vector2.zero; prt.anchorMax = Vector2.one; prt.sizeDelta = Vector2.zero;
+        var bg = gmPanel.AddComponent<Image>();
+        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
+
+        // 关闭按钮
+        MakeBtn(gmPanel.transform, 0.82f, 0.15f, 0.9f, 0.07f, "✕ 关闭", new Color(0.6f, 0.2f, 0.2f),
+            () => { Destroy(gmPanel); gmPanel = null; });
+
+        // 标题
+        {
+            var titleGO = new GameObject("GMTitle", typeof(RectTransform));
+            titleGO.transform.SetParent(gmPanel.transform, false);
+            var trt2 = titleGO.GetComponent<RectTransform>();
+            trt2.anchorMin = new Vector2(0.05f, 0.83f); trt2.anchorMax = new Vector2(0.8f, 0.91f); trt2.sizeDelta = Vector2.zero;
+            var tt = titleGO.AddComponent<SystemFontText>();
+            tt.text = "🛠 GM · 通关步骤（无需道具）"; tt.fontSize = 24; tt.color = new Color(1f, 0.84f, 0.4f);
+            tt.alignment = TextAnchor.MiddleLeft; GameFont.Apply(tt);
+        }
+
+        // 滚动容器
+        var scrollGO = new GameObject("GMScroll", typeof(RectTransform));
+        scrollGO.transform.SetParent(gmPanel.transform, false);
+        var srt = scrollGO.GetComponent<RectTransform>();
+        srt.anchorMin = new Vector2(0.03f, 0.05f); srt.anchorMax = new Vector2(0.97f, 0.8f); srt.sizeDelta = Vector2.zero;
+        var scroll = scrollGO.AddComponent<ScrollRect>();
+        var content = new GameObject("Content", typeof(RectTransform));
+        content.transform.SetParent(scrollGO.transform, false);
+        var crt = content.GetComponent<RectTransform>();
+        crt.anchorMin = new Vector2(0, 1); crt.anchorMax = new Vector2(1, 1); crt.pivot = new Vector2(0.5f, 1); crt.sizeDelta = new Vector2(0, 0);
+
+        // 计算解
+        int req = gm.GetCurrentLevel()?.petQueue?.Length ?? 0;
+        var sol = PetGameSolver.Solve(gm.pour, req);
+
+        var sb = new StringBuilder();
+        if (sol == null || sol.Count == 0)
+        {
+            sb.AppendLine("⚠ 当前局面未找到通关步骤（可能超出搜索深度，或已是死局）。");
+            sb.AppendLine("提示：可尝试撤销 / 加空碗 / 洗牌后重试，或点「重开」。");
+        }
+        else
+        {
+            sb.AppendLine($"共 {sol.Count} 步，全程不使用任何道具即可通关：\n");
+            int idx = 1;
+            foreach (var s in sol)
+            {
+                string foodCN = FoodCN(s.food);
+                sb.AppendLine($"{idx}. 碗{s.fromId} → 碗{s.toId}：倒 {s.count} 个 {foodCN}");
+                idx++;
+            }
+            sb.AppendLine($"\n目标：完成 {req} 个满碗（各喂一种宠物）。");
+        }
+
+        var txtGO = new GameObject("GMText", typeof(RectTransform));
+        txtGO.transform.SetParent(content.transform, false);
+        // 关键：用拉伸锚点铺满 content，否则默认居中锚点 + sizeDelta.x=0 会让文字零宽不可见
+        var txtRT = txtGO.GetComponent<RectTransform>();
+        txtRT.anchorMin = Vector2.zero; txtRT.anchorMax = Vector2.one; txtRT.sizeDelta = Vector2.zero;
+        var txt = txtGO.AddComponent<SystemFontText>();
+        txt.text = sb.ToString(); txt.fontSize = 20; txt.color = Color.white;
+        txt.alignment = TextAnchor.UpperLeft; GameFont.Apply(txt);
+
+        int lines = sb.ToString().Split('\n').Length;
+        float h = Mathf.Max(120, lines * 26f);
+        crt.sizeDelta = new Vector2(0, h);
+        txtGO.GetComponent<RectTransform>().sizeDelta = new Vector2(0, h);
+
+        scroll.content = content.GetComponent<RectTransform>();
+        scroll.vertical = true; scroll.horizontal = false;
+    }
+
+    /// <summary>食物→中文（复用食物→宠物的关系，展示为对应宠物粮）</summary>
+    string FoodCN(FoodType f) => PetCN(FoodPetMap.GetPet(f)) + "粮";
+    #endregion
 
     T FindC<T>(GameObject root, string n) where T : Component { foreach (var c in root.GetComponentsInChildren<T>(true)) if (c.name == n) return c; return null; }
     Text FindT(string n) => FindC<Text>(gameHUD, n);

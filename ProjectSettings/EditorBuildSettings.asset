@@ -14,7 +14,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/PetGameScene.unity
     guid: 05cb593704b7edf4f91a20883e7a4af7
-  m_BuildProfiles: []
+  m_BuildProfiles:
+  - enabled: 0
+    path: Assets/Settings/Build Profiles/New DouYin Profile.asset
+    guid: c766ac549cebb7645ad29c4eb36783c1
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: fa932b549c340aa499674f1cc7f43fbe, type: 2}
   m_SlimFeaturesWeixinMiniGame:

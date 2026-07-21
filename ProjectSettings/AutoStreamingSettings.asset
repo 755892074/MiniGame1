@@ -8,7 +8,10 @@ AutoStreamingSettings:
   mCustomSearchFile: 
   mTextureSearchString: 
   mMeshSearchString: 
-  mTextures: []
+  mTextures:
+  - {fileID: 0, guid: f8b3f563bf45cc644aaaa587a5c56006, type: 3}
+  - {fileID: 0, guid: 59712fa32aa77a3459ab74ac8f40e958, type: 3}
+  - {fileID: 0, guid: 64cac016acf38554d8147680e186925c, type: 3}
   mAudios: []
   mMeshes: []
   mAnimations: []
@@ -16,10 +19,10 @@ AutoStreamingSettings:
   mScenes: []
   mConfigCCD:
     useCCD: 0
-    uosSecret: 
-    uosAppid: 
-    bucketUuid: 
-    bucketName: 
-    badgeName: 
-    ttAppid: 
-    targetPlatfrom: 
+    uosSecret: ca81c142cad84c28854364e94b9da57c
+    uosAppid: 2fd86e8a-0631-4764-afef-913ea14c2109
+    bucketUuid: c376b76d-396e-44ff-96c3-28737a5f02be
+    bucketName: MiniGame_01
+    badgeName: latest
+    ttAppid: ttf09486296ef1dfbc07
+    targetPlatfrom: douyin
