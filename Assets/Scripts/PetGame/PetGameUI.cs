@@ -980,11 +980,26 @@ public class PetGameUI : MonoBehaviour
         });
     }
     void OnFail() { if (resultOverlay) resultOverlay.SetActive(true); if (txtResultTitle) txtResultTitle.text = "失败..."; }
+    void ShowHUDButtons()
+    {
+        // OnWin 会隐藏游戏内 HUD 按钮（撤销/加空碗/洗牌/提示/GM），
+        // 进下一关/重开时必须恢复，否则后续关卡永久丢失 IAA 按钮。
+        if (gameHUD != null)
+            foreach (var btn in gameHUD.GetComponentsInChildren<Button>(true))
+                btn.gameObject.SetActive(true);
+        foreach (var n in new[] { "BtnHint", "BtnGM" })
+        {
+            var go = GameObject.Find(n);
+            if (go != null) go.SetActive(true);
+        }
+    }
+
     void Restart()
     {
         StopAnimations();
         if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
         if (resultOverlay) resultOverlay.SetActive(false);
+        ShowHUDButtons();
         gm.StartLevel(gm.currentLevelId);
         BuildLevel();
     }
@@ -994,6 +1009,7 @@ public class PetGameUI : MonoBehaviour
         StopAnimations();
         if (rewardPanel != null) { Destroy(rewardPanel); rewardPanel = null; }
         if (resultOverlay) resultOverlay.SetActive(false);
+        ShowHUDButtons();
         // 跟随存档的解锁进度，不越界
         int next = gm.currentLevelId + 1;
         if (next > gm.LevelCount) next = gm.LevelCount;
