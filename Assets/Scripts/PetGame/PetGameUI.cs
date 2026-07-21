@@ -541,7 +541,29 @@ public class PetGameUI : MonoBehaviour
             var label = FindC<Text>(go, "QueueLabel");
             if (label != null && label.text == targetLabel) { petGO = go; break; }
         }
-        if (petGO == null) { BuildBowls(); BuildPets(); gm.fsm?.ChangeState<IdleState>(); yield break; }
+        // 兜底：petGOs 列表可能已被提前重建，直接从 PetArea 按标签再找一个能匹配的宠物 GO
+        if (petGO == null)
+        {
+            var pa = GameObject.Find("PetArea")?.transform;
+            if (pa != null)
+            {
+                foreach (Transform t in pa)
+                {
+                    var label = FindC<Text>(t.gameObject, "QueueLabel");
+                    if (label != null && label.text == targetLabel) { petGO = t.gameObject; break; }
+                }
+            }
+        }
+        if (petGO == null)
+        {
+            // 即使找不到被喂宠物，也要给排前面的宠物弹不公平气泡
+            if (!gm.lastFedIsFirst && petGOs.Count > 0 && petGOs[0] != null)
+            {
+                var frontRT = petGOs[0].GetComponent<RectTransform>();
+                if (frontRT != null) ShowUnfairBubble(frontRT);
+            }
+            BuildBowls(); BuildPets(); gm.fsm?.ChangeState<IdleState>(); yield break;
+        }
 
         var bowlRT = bowlGO.GetComponent<RectTransform>();
         var petRT = petGO.GetComponent<RectTransform>();
@@ -571,10 +593,19 @@ public class PetGameUI : MonoBehaviour
 
         // 不公平气泡：非首位匹配（喂了后排宠物，但更靠前的宠物还没吃到）时，
         // 由队列最前、仍没吃到食的宠物吐槽（设计核心爽点反馈，时机=碗移到被喂宠物时）
-        if (!gm.lastFedIsFirst && petGOs.Count > 0 && petGOs[0] != null)
+        if (!gm.lastFedIsFirst)
         {
-            var frontRT = petGOs[0].GetComponent<RectTransform>();
-            if (frontRT != null) ShowUnfairBubble(frontRT);
+            var frontGO = (petGOs.Count > 0 && petGOs[0] != null) ? petGOs[0] : null;
+            if (frontGO == null)
+            {
+                var pa = GameObject.Find("PetArea")?.transform;
+                if (pa != null && pa.childCount > 0) frontGO = pa.GetChild(0).gameObject;
+            }
+            if (frontGO != null)
+            {
+                var frontRT = frontGO.GetComponent<RectTransform>();
+                if (frontRT != null) ShowUnfairBubble(frontRT);
+            }
         }
 
         // 2. 宠物头顶复制碗（含食物）
@@ -763,6 +794,21 @@ public class PetGameUI : MonoBehaviour
             // 只剩黑色背景图（用户反馈“结算只剩透明黑底”）。
             var vlg = resultOverlay.GetComponent<LayoutGroup>();
             if (vlg != null) vlg.enabled = false;
+        }
+
+        // 隐藏游戏内按钮，避免与结算面板的“下一关/回主菜单/看广告”按钮重叠
+        if (gameHUD != null)
+        {
+            foreach (var btn in gameHUD.GetComponentsInChildren<Button>(true))
+            {
+                if (resultOverlay != null && btn.transform.IsChildOf(resultOverlay.transform)) continue;
+                btn.gameObject.SetActive(false);
+            }
+        }
+        foreach (var n in new[] { "BtnHint", "BtnGM" })
+        {
+            var go = GameObject.Find(n);
+            if (go != null) go.SetActive(false);
         }
 
         BuildResultPanel(stars);
@@ -1001,19 +1047,14 @@ public class PetGameUI : MonoBehaviour
     void ShowUnfairBubble(RectTransform targetPetRT)
     {
         if (targetPetRT == null) return;
-        // 把宠物在屏幕上的位置换算到本 Canvas 的局部坐标
-        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(null, targetPetRT.position);
+        // 把宠物在屏幕上的位置换算到本 Canvas 的局部坐标（不依赖 Camera，兼容 ScreenSpaceOverlay）
         var canvasRT = GetComponent<RectTransform>();
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRT, screenPos, null, out Vector2 localPos))
-            return;
+        Vector2 localPos = canvasRT.InverseTransformPoint(targetPetRT.position);
         localPos += new Vector2(0, 60);
 
         var bubble = new GameObject("UnfairBubble", typeof(RectTransform));
         bubble.transform.SetParent(transform, false);
-        var topCanvas = bubble.AddComponent<Canvas>();
-        topCanvas.overrideSorting = true;
-        topCanvas.sortingOrder = 100;
-        bubble.AddComponent<GraphicRaycaster>();
+        bubble.transform.SetAsLastSibling();
         var brt = bubble.GetComponent<RectTransform>();
         brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f);
         brt.pivot = new Vector2(0.5f, 0.5f);

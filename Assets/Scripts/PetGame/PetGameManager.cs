@@ -228,7 +228,7 @@ public class PetGameManager : MonoBehaviour
     public void PourFromTo(int fromId, int toId, IFSM<PetGameManager> fsmRef)
     {
         selectedBowlId = -1;
-        onSelectionChanged.Invoke();
+        // onSelectionChanged 延迟到动画事件发出后再调用，避免提前重建 UI 销毁碗/宠物 GO
 
         int count = pour.PickUpAll(fromId);
         if (count == 0) { onMistake.Invoke(); fsmRef.ChangeState<IdleState>(); return; }
@@ -286,6 +286,11 @@ public class PetGameManager : MonoBehaviour
                 ? FoodPetMap.GetPet(pour.GetBowl(toId)!.Top!.Value) : PetType.Cat;
             onFeedAnim.Invoke(toId, fedPet);
         }
+
+        // 成功路径不在这里重建 UI：FeedAnimation 末尾会自己 BuildBowls/BuildPets/UpdateHUD。
+        // 如果提前 Invoke onSelectionChanged，BuildBowls 会立即把碗/宠物 GO 从字典里清掉，
+        // 导致刚启动的 FeedAnimation 协程 0.7s 后再查时找不到对象而 yield break。
+        // 错误路径会 ChangeState<IdleState>，IdleState.OnStateEnter 里会触发 onSelectionChanged。
 
         // 动画结束后状态由 PetGameUI 的回调切换（见动画协程末尾）
     }
