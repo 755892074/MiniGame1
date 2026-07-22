@@ -38,6 +38,7 @@ public class PetGameUI : MonoBehaviour
     private LevelResult lastResult;
     private GameObject rewardPanel;
     private Button btnWatchAd, btnBackMenu;
+    private Sprite stdBtnSprite; // 统一按钮美术（复用工具栏 btnUndo 的 sprite，避免弹窗用纯色块）
     private bool adRewardClaimed;
 
     private List<GameObject> petGOs = new List<GameObject>();
@@ -139,6 +140,8 @@ public class PetGameUI : MonoBehaviour
         btnUndo = FindB("btnUndo"); btnAddBowl = FindB("btnAddBowl");
         btnShuffle = FindB("btnShuffle"); btnRestart = FindB("btnRestart");
         btnNext = FindB("btnNext"); btnBack = FindB("btnBack");
+        // 缓存工具栏按钮的美术 sprite，供 MakeBtn / 弹窗按钮统一复用（不新增资源）
+        stdBtnSprite = btnUndo != null ? btnUndo.image.sprite : null;
     }
 
     void BindButtons()
@@ -915,7 +918,8 @@ public class PetGameUI : MonoBehaviour
             art.anchorMax = new Vector2(0.85f, btnBaseY + 0.14f);
             art.sizeDelta = Vector2.zero;
             var adImg = adGO.AddComponent<Image>();
-            adImg.color = new Color(0.95f, 0.6f, 0.1f);
+            if (stdBtnSprite != null) { adImg.sprite = stdBtnSprite; adImg.type = Image.Type.Sliced; adImg.color = Color.white; }
+            else adImg.color = new Color(0.95f, 0.6f, 0.1f);
             btnWatchAd = adGO.AddComponent<Button>();
             var adText = new GameObject("T", typeof(RectTransform));
             adText.transform.SetParent(adGO.transform, false);
@@ -945,7 +949,9 @@ public class PetGameUI : MonoBehaviour
         brt.anchorMin = new Vector2(x, y); brt.anchorMax = new Vector2(x + w, y + h);
         brt.sizeDelta = Vector2.zero;
         var bimg = bgo.AddComponent<Image>();
-        bimg.color = color;
+        // 统一按钮视觉：复用现有美术 sprite（item_03 等），不再用纯色块
+        if (stdBtnSprite != null) { bimg.sprite = stdBtnSprite; bimg.type = Image.Type.Sliced; bimg.color = Color.white; }
+        else bimg.color = color;
         var bb = bgo.AddComponent<Button>();
         var btgo = new GameObject("T", typeof(RectTransform));
         btgo.transform.SetParent(bgo.transform, false);
