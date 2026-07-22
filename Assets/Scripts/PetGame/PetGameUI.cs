@@ -142,6 +142,59 @@ public class PetGameUI : MonoBehaviour
         btnNext = FindB("btnNext"); btnBack = FindB("btnBack");
         // 缓存工具栏按钮的美术 sprite，供 MakeBtn / 弹窗按钮统一复用（不新增资源）
         stdBtnSprite = btnUndo != null ? btnUndo.image.sprite : null;
+
+        // UI布局修复：调整顶部分数文本的位置和尺寸
+        FixTopBarLayout();
+    }
+
+    /// <summary>修复顶部分数文本布局：水平分布，增大尺寸避免截断；将按钮栏移到底部</summary>
+    void FixTopBarLayout()
+    {
+        // LevelText - 左侧
+        if (txtLevel != null)
+        {
+            var rt = txtLevel.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.05f, 0.85f);
+            rt.anchorMax = new Vector2(0.30f, 0.95f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+            txtLevel.alignment = TextAnchor.MiddleLeft;
+            txtLevel.fontSize = 18;
+        }
+        // ScoreText - 中间（最宽，容纳"得分:0/1100"）
+        if (txtScore != null)
+        {
+            var rt = txtScore.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.30f, 0.85f);
+            rt.anchorMax = new Vector2(0.70f, 0.95f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+            txtScore.alignment = TextAnchor.MiddleCenter;
+            txtScore.fontSize = 20;
+        }
+        // StepText - 右侧
+        if (txtStep != null)
+        {
+            var rt = txtStep.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.70f, 0.85f);
+            rt.anchorMax = new Vector2(0.95f, 0.95f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+            txtStep.alignment = TextAnchor.MiddleRight;
+            txtStep.fontSize = 18;
+        }
+
+        // 将 ButtonRow 从顶部移到底部
+        var buttonRow = transform.Find("ButtonRow");
+        if (buttonRow != null)
+        {
+            var brt = buttonRow.GetComponent<RectTransform>();
+            brt.anchorMin = new Vector2(0, 0);
+            brt.anchorMax = new Vector2(1, 0);
+            brt.anchoredPosition = new Vector2(0, 80);
+            brt.sizeDelta = new Vector2(0, 56);
+            brt.pivot = new Vector2(0.5f, 0);
+        }
     }
 
     void BindButtons()

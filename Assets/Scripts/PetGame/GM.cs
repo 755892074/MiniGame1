@@ -9,7 +9,7 @@ public static class GM
 {
     public static bool Enabled =
 #if UNITY_EDITOR
-        true;
+        false;
 #else
         false;
 #endif
