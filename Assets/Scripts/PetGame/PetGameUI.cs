@@ -150,38 +150,56 @@ public class PetGameUI : MonoBehaviour
     /// <summary>修复顶部分数文本布局：水平分布，增大尺寸避免截断；将按钮栏移到底部</summary>
     void FixTopBarLayout()
     {
+        // 创建简约顶部背景条
+        var topBar = new GameObject("TopBarBg", typeof(RectTransform));
+        topBar.transform.SetParent(transform, false);
+        topBar.transform.SetAsFirstSibling();
+        var topBarRT = topBar.GetComponent<RectTransform>();
+        topBarRT.anchorMin = new Vector2(0, 0.88f);
+        topBarRT.anchorMax = new Vector2(1, 0.98f);
+        topBarRT.anchoredPosition = Vector2.zero;
+        topBarRT.sizeDelta = Vector2.zero;
+        var topBarImg = topBar.AddComponent<Image>();
+        topBarImg.color = new Color(0.12f, 0.12f, 0.15f, 0.85f);
+
         // LevelText - 左侧
         if (txtLevel != null)
         {
             var rt = txtLevel.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.05f, 0.85f);
-            rt.anchorMax = new Vector2(0.30f, 0.95f);
+            rt.anchorMin = new Vector2(0.05f, 0.88f);
+            rt.anchorMax = new Vector2(0.30f, 0.96f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
             txtLevel.alignment = TextAnchor.MiddleLeft;
-            txtLevel.fontSize = 18;
+            txtLevel.fontSize = 20;
+            txtLevel.color = new Color(0.9f, 0.9f, 0.9f, 1f);
+            txtLevel.transform.SetParent(topBar.transform, true);
         }
         // ScoreText - 中间（最宽，容纳"得分:0/1100"）
         if (txtScore != null)
         {
             var rt = txtScore.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.30f, 0.85f);
-            rt.anchorMax = new Vector2(0.70f, 0.95f);
+            rt.anchorMin = new Vector2(0.30f, 0.88f);
+            rt.anchorMax = new Vector2(0.70f, 0.96f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
             txtScore.alignment = TextAnchor.MiddleCenter;
-            txtScore.fontSize = 20;
+            txtScore.fontSize = 22;
+            txtScore.color = new Color(1f, 0.84f, 0.2f, 1f);
+            txtScore.transform.SetParent(topBar.transform, true);
         }
         // StepText - 右侧
         if (txtStep != null)
         {
             var rt = txtStep.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.70f, 0.85f);
-            rt.anchorMax = new Vector2(0.95f, 0.95f);
+            rt.anchorMin = new Vector2(0.70f, 0.88f);
+            rt.anchorMax = new Vector2(0.95f, 0.96f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
             txtStep.alignment = TextAnchor.MiddleRight;
-            txtStep.fontSize = 18;
+            txtStep.fontSize = 20;
+            txtStep.color = new Color(0.9f, 0.9f, 0.9f, 1f);
+            txtStep.transform.SetParent(topBar.transform, true);
         }
 
         // 将 ButtonRow 从顶部移到底部
@@ -215,6 +233,42 @@ public class PetGameUI : MonoBehaviour
         gm.onLevelFail.AddListener(OnFail);
         gm.onPourAnim.AddListener((f, t, c) => StartCoroutine(PourAnimation(f, t, c)));
         gm.onFeedAnim.AddListener((bid, pet) => StartCoroutine(FeedAnimation(bid, pet)));
+
+        // 应用简约按钮样式
+        StyleButtons();
+    }
+
+    /// <summary>将按钮改为简约纯色+文字风格</summary>
+    void StyleButtons()
+    {
+        // 定义按钮颜色
+        var btnColors = new Dictionary<string, Color>
+        {
+            { "btnUndo", new Color(0.2f, 0.6f, 0.9f, 0.9f) },      // 蓝色
+            { "btnAddBowl", new Color(0.3f, 0.8f, 0.4f, 0.9f) },   // 绿色
+            { "btnShuffle", new Color(0.9f, 0.5f, 0.2f, 0.9f) },   // 橙色
+            { "btnRestart", new Color(0.9f, 0.3f, 0.3f, 0.9f) },    // 红色
+            { "btnNext", new Color(0.5f, 0.3f, 0.9f, 0.9f) },      // 紫色
+            { "btnBack", new Color(0.5f, 0.5f, 0.5f, 0.9f) }       // 灰色
+        };
+
+        // 遍历所有按钮
+        foreach (var kvp in btnColors)
+        {
+            var btn = transform.Find(kvp.Key)?.GetComponent<Button>();
+            if (btn != null)
+            {
+                var img = btn.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.sprite = null; // 移除图片，使用纯色
+                    img.color = kvp.Value;
+                }
+                // 修改按钮文字颜色
+                var txt = btn.GetComponentInChildren<SystemFontText>();
+                if (txt != null) txt.color = Color.white;
+            }
+        }
     }
 
     void RebuildAll() { BuildBowls(); BuildPets(); UpdateHUD(); }
