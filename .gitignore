@@ -1,8 +1,9 @@
 Library/
 Temp/
 obj/
-Build/
-Builds/
+# 只忽略工程根的构建输出目录，加 / 锚定，避免误伤 LocalPackages/.../Editor/Build/ 等同名子目录
+/Build/
+/Builds/
 Logs/
 UserSettings/
 # LocalPackages/ 不再忽略：manifest.json 用 file: 引用 com.bytedance.starksdk 等本地包，

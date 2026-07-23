@@ -9,11 +9,18 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 
 public class PetGameUI : MonoBehaviour
 {
+    [Header("UI模式")]
+    [Tooltip("使用简化版UI(纯色+文字)，不加载美术预制体")]
+    public bool useSimpleUI = true;  // 默认启用简化版UI
+    
     private PetGameManager gm;
     private GameObject gameHUD;
     private GameObject petItemPf, bowlItemPf, foodIconPf, gameHUDPf;
     private Dictionary<FoodType, Sprite> foodCache = new Dictionary<FoodType, Sprite>();
     private Dictionary<string, Sprite> faceCache = new Dictionary<string, Sprite>();
+    
+    // 简化版UI引用
+    private SimpleGameUI simpleUI;
 
     private Transform petArea, bowlArea;
     private Text txtLevel, txtScore, txtStep, txtStars, txtResultTitle;
@@ -87,30 +94,70 @@ public class PetGameUI : MonoBehaviour
 
     void OnCoreReady()
     {
+        // 简化版UI模式：跳过美术预制体加载，直接创建纯色文字UI
+        if (useSimpleUI)
+        {
+            // 创建简化版UI
+            var simpleUIGO = new GameObject("SimpleGameUI");
+            simpleUIGO.transform.SetParent(transform, false);
+            simpleUI = simpleUIGO.AddComponent<SimpleGameUI>();
+            simpleUI.Init(gm, transform);
+            
+            // 预加载食物和宠物精灵图（简化版仍需食物图标）
+            int pending = 15 + 6;
+            System.Action dec = () => { if (--pending == 0) OnAssetsReady(); };
+            for (int i = 0; i < 15; i++)
+            {
+                var type = (FoodType)i;
+                string path = $"Assets/Art/PetGame/foods/food{i + 1:D2}.png";
+                ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodCache[type] = h.Result; dec(); };
+            }
+            foreach (PetType pt in System.Enum.GetValues(typeof(PetType)))
+            {
+                string key = pt.ToString().ToLower();
+                string path = $"Assets/Art/PetGame/pets/{key}/neutral.png";
+                ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) faceCache[key] = h.Result; dec(); };
+            }
+            return;
+        }
+        
+        // 原有美术资源加载逻辑
         if (gameHUDPf == null) { Debug.LogError("[PetGameUI] GameHUD 加载失败"); return; }
         gameHUD = Instantiate(gameHUDPf, transform);
         GameFont.ApplyAll(gameHUD);
         gameHUD.name = "GameHUD";
 
         // 预加载 15 食物 + 6 宠物 neutral 脸到缓存
-        int pending = 15 + 6;
-        System.Action dec = () => { if (--pending == 0) OnAssetsReady(); };
+        int pending2 = 15 + 6;
+        System.Action dec2 = () => { if (--pending2 == 0) OnAssetsReady(); };
         for (int i = 0; i < 15; i++)
         {
             var type = (FoodType)i;
             string path = $"Assets/Art/PetGame/foods/food{i + 1:D2}.png";
-            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodCache[type] = h.Result; dec(); };
+            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) foodCache[type] = h.Result; dec2(); };
         }
         foreach (PetType pt in System.Enum.GetValues(typeof(PetType)))
         {
             string key = pt.ToString().ToLower();
             string path = $"Assets/Art/PetGame/pets/{key}/neutral.png";
-            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) faceCache[key] = h.Result; dec(); };
+            ResLoader.LoadSprite(path).Completed += h => { if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null) faceCache[key] = h.Result; dec2(); };
         }
     }
 
     void OnAssetsReady()
     {
+        // 简化版UI模式：使用动态创建的纯色文字UI
+        if (useSimpleUI && simpleUI != null)
+        {
+            BindSimpleUIButtons();
+            if (gm.fsm != null) BuildLevel();
+            else ShowLevelSelect();
+            simpleUI.SetLevel(gm.currentLevelId);
+            simpleUI.UpdateText();
+            return;
+        }
+        
+        // 原有美术资源模式
         FindRefs();
         BindButtons();
         if (gm.fsm != null) BuildLevel();
@@ -195,6 +242,44 @@ public class PetGameUI : MonoBehaviour
             brt.sizeDelta = new Vector2(0, 56);
             brt.pivot = new Vector2(0.5f, 0);
         }
+    }
+
+    // 简化版UI按钮绑定
+    void BindSimpleUIButtons()
+    {
+        if (simpleUI == null) return;
+        
+        // 获取简化版UI的按钮并绑定事件
+        var btnUndoSimple = simpleUI.GetButton("undo");
+        if (btnUndoSimple != null)
+            btnUndoSimple.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.Undo, () => { gm.Undo(); RebuildAll(); }));
+        
+        var btnAddBowlSimple = simpleUI.GetButton("addBowl");
+        if (btnAddBowlSimple != null)
+            btnAddBowlSimple.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.AddBowl, () => { gm.AddBowl(); BuildBowls(); }));
+        
+        var btnShuffleSimple = simpleUI.GetButton("shuffle");
+        if (btnShuffleSimple != null)
+            btnShuffleSimple.onClick.AddListener(() => TryUseTool(SaveSystem.ToolType.Shuffle, () => { ShuffleCurrentBowl(); }));
+        
+        var btnBackSimple = simpleUI.GetButton("back");
+        if (btnBackSimple != null)
+            btnBackSimple.onClick.AddListener(BackToMenu);
+        
+        var btnRestartSimple = simpleUI.GetButton("restart");
+        if (btnRestartSimple != null)
+            btnRestartSimple.onClick.AddListener(Restart);
+        
+        var btnHintSimple = simpleUI.GetButton("hint");
+        if (btnHintSimple != null)
+            btnHintSimple.onClick.AddListener(() => gm.ShowHint());
+        
+        // 监听游戏事件来更新UI文字
+        gm.onScoreChanged.AddListener(_ => simpleUI.UpdateText());
+        gm.onPour.AddListener(_ => simpleUI.UpdateText());
+        gm.onPetFed.AddListener((p, pts, f) => simpleUI.UpdateText());
+        gm.onLevelComplete.AddListener(OnWin);
+        gm.onLevelFail.AddListener(OnFail);
     }
 
     void BindButtons()
@@ -760,6 +845,14 @@ public class PetGameUI : MonoBehaviour
 
     void UpdateHUD()
     {
+        // 简化版UI模式下更新简化UI
+        if (useSimpleUI && simpleUI != null)
+        {
+            simpleUI.UpdateText();
+            return;
+        }
+        
+        // 原有美术资源模式
         if (txtLevel) txtLevel.text = $"第{gm.currentLevelId}关";
         if (txtScore) txtScore.text = $"得分:{gm.GetScore()}/{gm.targetScore}";
         if (txtStep) txtStep.text = $"步数:{gm.pour.totalMoves}";
