@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=750,initial-scale=0.5">
+<title>登录面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#F5F0E8;--main:#E47A52;--sub:#7F77DD;--gold:#EF9F27;--muted:#888780;--white:#FFF}
+body{background:#222;display:flex;justify-content:center;padding:20px 0}
+.phone{width:750px;height:1334px;background:var(--bg);border-radius:20px;overflow:hidden;position:relative;border:4px solid #444;display:flex;flex-direction:column;align-items:center}
+.mini-logo{width:120px;height:120px;margin-top:280px;border-radius:50%;background:linear-gradient(135deg,#E8D5C4,#C9A87C);display:flex;align-items:center;justify-content:center;font-size:48px}
+.title{margin-top:24px;font-size:36px;font-weight:700;color:#2C2C2A;letter-spacing:3px}
+.btn-main{margin-top:80px;width:280px;height:60px;border:none;border-radius:30px;background:var(--main);color:var(--white);font-size:20px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-sub{margin-top:20px;width:280px;height:60px;border:none;border-radius:30px;background:var(--sub);color:var(--white);font-size:20px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.privacy-row{margin-top:36px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.checkbox{width:20px;height:20px;border:2px solid var(--muted);border-radius:4px}
+.links{margin-top:8px;font-size:14px;color:var(--sub)}
+.links a{color:var(--sub);text-decoration:none}
+</style></head><body>
+<div class="phone">
+  <div class="mini-logo">🐾</div>
+  <div class="title">疯狂铲屎官</div>
+  <button class="btn-main">🎮 游客模式开始</button>
+  <button class="btn-sub">📱 抖音授权登录</button>
+  <div class="privacy-row">
+    <div class="checkbox"></div>
+    <span>已阅读并同意</span>
+    <span class="links"><a>《用户协议》</a> 和 <a>《隐私政策》</a></span>
+  </div>
+</div>
+</body></html>

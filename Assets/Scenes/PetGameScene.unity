@@ -182,7 +182,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: da263bcf5b1f24b41a881f119806b8bd, type: 3}
+  m_Sprite: {fileID: 21300000, guid: a3287adea07fa7748aca5cf829883096, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -321,6 +321,7 @@ MonoBehaviour:
   currentLevelId: 1
   selectedBowlId: -1
   elapsedTime: 0
+  lastFedIsFirst: 0
   onScoreChanged:
     m_PersistentCalls:
       m_Calls: []

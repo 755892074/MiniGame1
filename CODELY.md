@@ -1,0 +1,21 @@
+
+
+## Codely Structured Memories
+
+### User
+- [2026-07-24 10:38:48] **User interested in automated UI visual testing & optimization workflow.** Wants screenshot → analyze → auto-fix → verify loops similar to Figma but code-driven. Already has UIVisualInspector.cs (batch screenshots) and UIAcceptanceChecker.cs (rule-based layout checks) in Assets/Editor/. **How to apply:** When working on UI tasks, proactively offer to run acceptance checks and fix issues in a closed loop.
+
+### Feedback
+- [2026-07-24 11:22:59] **analyze_multimedia tool is broken** — backend returns `400 'reasoning_effort' must be one of: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'` for all calls. Cannot use AI visual analysis on screenshots. **How to apply:** Use programmatic pixel analysis (C# Texture2D sampling) and UIAcceptanceChecker as fallback. Tell user to view screenshots manually. Re-test the tool periodically as it may get fixed.
+- [2026-07-28 14:20:56] **UI sprite sheet cutting — CRITICAL LESSON:** Unity Texture2D.GetPixels Y axis: Y=0 is BOTTOM of image, not top. When cutting a sprite sheet where prompt defines Row1 at TOP of image, Row1 maps to HIGHEST Y values. Always do full pixel scan (scan all X positions per row) to get exact element boundaries, never estimate. Must run AddressablesBootstrap.Setup() after adding/removing sprites. Current 19 sprites in Assets/Art/PetGame/UI/Generated/ from paper-wood style sheet (195264_openai): R5(top,Y1206-1357)=horizontal buttons, R4(Y903-1129)=square buttons, R3(Y616-826)=panels, R2(Y321-538)=circular icons, R1(bottom,Y130-257)=toggles/progress.
+
+
+### Project
+- [2026-07-24 10:38:48] **Project pivoted from design docs**: The doc suite (00_README.md, 01_企划书, 03_技术栈, 10_架构设计) describes two games (找茬大师 + 无厘头大挑战), but the actual codebase is a single pet-food-pouring puzzle game (铲屎官疯了/疯狂铲屎官). **Why:** Design docs were written before pivot, never updated. **How to apply:** Trust the code in Assets/Scripts/PetGame/ over the doc descriptions of game mechanics. The doc titles are misleading but the game-specific docs (02_铲屎官疯了_游戏设计v2.md, 14_小院建造与宠物养成设计.md) are accurate.
+- [2026-07-24 17:47:35] **Current UI state (2026-07-24):** Fancy backgrounds removed, replaced solid #F5F0E8. 19 AI-generated UI sprites in Assets/Art/PetGame/UI/Generated/ cut from numbered sprite sheet (prompt: fixed 5-row layout, each element numbered). Mapping: R1=horizontal buttons (btn_main coral, btn_gray, btn_gold, btn_light), R2=square buttons (btn_sq_blue/green/orange/yellow for toolbar), R3=panels (card_bg, bar_bg, input_bg), R4=circular icons (icon_back/close/settings/volume), R5=toggles+danger (toggle_on/off, progress_bg, btn_danger). Old code-generated sprites deleted. PetGameUI.BuildHintButton loads "btn_gold" not "btn_sub". After changing sprites must run AddressablesBootstrap.Setup() to re-register in Addressables. TopBarHUD must SetSiblingIndex after Background. Bowl/food/pet components unchanged. 49 deprecated assets moved to doc/deprecated_art/.
+
+- [2026-07-24 16:17:28] **AutoPlayerBot.cs** in Assets/Editor/ — automated game testing framework. 8 menu entries under "铲屎官疯了/AutoPlayer/": play 1-10, play all, full player flow, economy, menu UI, yard buildings, pet system, 50-level regression. Uses PetGameSolver BFS to auto-clear levels. Must use `gm.StartLevel(lvl)` directly instead of scene reload. All 8 scenarios verified passing (pets: 6/6 rescued+fed+interacted, buildings: 4/4 upgraded, economy: correct gold/fish/badge deductions).
+
+
+### Reference
+

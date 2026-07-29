@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=750,initial-scale=0.5">
+<title>设置面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#F5F0E8;--main:#E47A52;--danger:#C93C3C;--muted:#888780;--dark:#2C2C2A;--white:#FFF;--overlay:rgba(0,0,0,0.6)}
+body{background:#222;display:flex;justify-content:center;padding:20px 0}
+.phone{width:750px;height:1334px;background:var(--overlay);border-radius:20px;overflow:hidden;position:relative;border:4px solid #444;display:flex;align-items:center;justify-content:center}
+.card{width:580px;height:720px;background:var(--white);border-radius:16px;display:flex;flex-direction:column;align-items:center;padding:40px;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.2)}
+.close{position:absolute;top:12px;right:12px;width:36px;height:36px;border:none;border-radius:50%;background:#F0EBE3;color:var(--dark);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.card-title{font-size:28px;font-weight:700;color:var(--dark);margin-bottom:8px}
+.divider{width:100%;height:1px;background:#E8E3DB;margin:20px 0}
+.setting-row{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+.setting-label{font-size:18px;color:var(--dark);display:flex;align-items:center;gap:8px}
+.toggle{width:52px;height:28px;border-radius:14px;background:var(--main);position:relative;cursor:pointer}
+.toggle::after{content:'';position:absolute;width:24px;height:24px;border-radius:50%;background:white;top:2px;right:2px}
+.toggle.off{background:#DDD}
+.toggle.off::after{right:auto;left:2px}
+.link-btn{width:100%;height:48px;border:none;border-radius:8px;background:#F5F0E8;color:var(--dark);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.reset-btn{width:240px;height:44px;border:none;border-radius:22px;background:transparent;border:2px solid var(--danger);color:var(--danger);font-size:16px;cursor:pointer;margin-top:16px}
+</style></head><body>
+<div class="phone">
+  <div class="card">
+    <button class="close">✕</button>
+    <div class="card-title">⚙️ 设置</div>
+    <div class="divider"></div>
+    <div class="setting-row"><span class="setting-label">🎵 音乐</span><div class="toggle"></div></div>
+    <div class="setting-row"><span class="setting-label">🔊 音效</span><div class="toggle"></div></div>
+    <div class="setting-row"><span class="setting-label">📳 振动</span><div class="toggle off"></div></div>
+    <div class="divider"></div>
+    <button class="link-btn">📱 账号管理</button>
+    <button class="link-btn">📋 隐私政策</button>
+    <button class="link-btn">📄 用户协议</button>
+    <button class="reset-btn">重置存档</button>
+  </div>
+</div>
+</body></html>

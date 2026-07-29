@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=750,initial-scale=0.5">
+<title>选关面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#F5F0E8;--main:#E47A52;--sub:#7F77DD;--gold:#EF9F27;--muted:#888780;--dark:#2C2C2A;--white:#FFF;--green:#4CAF7D;--lock:#BDB8AE}
+body{background:#222;display:flex;justify-content:center;padding:20px 0}
+.phone{width:750px;height:1334px;background:var(--bg);border-radius:20px;overflow:hidden;position:relative;border:4px solid #444;display:flex;flex-direction:column}
+.back-btn{position:absolute;top:20px;left:20px;width:80px;height:40px;border:none;border-radius:20px;background:rgba(255,255,255,0.8);color:var(--dark);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;z-index:10}
+.title{margin-top:50px;text-align:center;font-size:40px;font-weight:700;color:var(--dark);letter-spacing:3px}
+.player-info{text-align:center;margin-top:12px;font-size:16px;color:var(--gold)}
+.grid{flex:1;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;padding:30px 40px;overflow-y:auto}
+.level-btn{width:140px;height:140px;border:none;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font-size:32px;font-weight:700;color:var(--white);position:relative}
+.level-num{font-size:28px;font-weight:700}
+.level-stars{font-size:14px;opacity:.8}
+.level-unlocked{background:var(--sub)}
+.level-completed{background:var(--green)}
+.level-locked{background:var(--lock);color:rgba(255,255,255,0.5)}
+.level-locked .level-num::after{content:'🔒';font-size:28px}
+</style></head><body>
+<div class="phone">
+  <button class="back-btn">← 返回</button>
+  <div class="title">疯狂铲屎官</div>
+  <div class="player-info">高级铲屎官 | 🐟1210 | ⭐30</div>
+  <div class="grid">
+    <button class="level-btn level-completed"><span class="level-num">1</span><span class="level-stars">★★★</span></button>
+    <button class="level-btn level-completed"><span class="level-num">2</span><span class="level-stars">★★☆</span></button>
+    <button class="level-btn level-completed"><span class="level-num">3</span><span class="level-stars">★★★</span></button>
+    <button class="level-btn level-unlocked"><span class="level-num">4</span><span class="level-stars">☆☆☆</span></button>
+    <button class="level-btn level-locked"><span class="level-num"></span></button>
+    <button class="level-btn level-locked"><span class="level-num"></span></button>
+    <button class="level-btn level-locked"><span class="level-num"></span></button>
+    <button class="level-btn level-locked"><span class="level-num"></span></button>
+  </div>
+</div>
+</body></html>

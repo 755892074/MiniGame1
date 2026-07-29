@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=750, initial-scale=0.5">
+<title>疯狂铲屎官 - 主菜单原型</title>
+<style>
+  /* ===== 全局重置 ===== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  /* ===== 设计 Token（对应 Unity 配色）===== */
+  :root {
+    --color-bg: #F5F0E8;          /* 暖米白 */
+    --color-bg-dark: #EFEBE3;     /* 顶栏底色 */
+    --color-btn-main: #E47A52;    /* 珊瑚橙 */
+    --color-btn-main-hover: #D85A30;
+    --color-btn-sub: #7F77DD;     /* 紫色 */
+    --color-btn-sub-hover: #534AB7;
+    --color-text-dark: #2C2C2A;   /* 正文 */
+    --color-text-muted: #888780;  /* 副文本 */
+    --color-text-gold: #EF9F27;   /* 货币高亮 */
+    --color-white: #FFFFFF;
+    --color-overlay: rgba(0,0,0,0.6);
+    --color-card: #FFFFFF;
+    --shadow-soft: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-btn: 0 3px 8px rgba(0,0,0,0.15);
+  }
+  
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #222;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px 0;
+  }
+  
+  /* ===== 手机外框 ===== */
+  .phone-frame {
+    width: 750px;
+    height: 1334px;
+    background: var(--color-bg);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 40px rgba(0,0,0,0.3);
+    border: 4px solid #444;
+  }
+  
+  /* ===== 主菜单根容器 ===== */
+  .main-menu {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: linear-gradient(180deg, #F8F4ED 0%, #F0E8DC 100%);
+  }
+  
+  /* ===== 玩家信息栏 ===== */
+  .player-bar {
+    height: 70px;
+    background: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+    gap: 20px;
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    flex-shrink: 0;
+  }
+  
+  .player-title {
+    font-size: 16px;
+    color: var(--color-text-gold);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .player-title::before {
+    content: "🎖";
+    font-size: 20px;
+  }
+  
+  .player-currency {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+  }
+  
+  .currency-item {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .currency-fish { color: var(--color-text-gold); }
+  .currency-stars { color: #F0C020; }
+  
+  /* ===== 主视觉区 ===== */
+  .hero-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 300px;
+  }
+  
+  .hero-art {
+    width: 500px;
+    height: 350px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #E8D5C4 0%, #D4B896 50%, #C9A87C 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-soft);
+    position: relative;
+  }
+  
+  /* 用 emoji 模拟插画内容 */
+  .hero-art::after {
+    content: "🐱 🐶 🐹 🐦 🐟 🐰";
+    font-size: 48px;
+    letter-spacing: 8px;
+    opacity: 0.8;
+  }
+  
+  .hero-label {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    color: var(--color-text-muted);
+  }
+  
+  /* ===== 按钮区域 ===== */
+  .buttons-area {
+    flex: 0 0 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 40px 80px;
+    gap: 28px;
+  }
+  
+  /* 主按钮 */
+  .btn-main {
+    width: 340px;
+    height: 70px;
+    border: none;
+    border-radius: 35px;
+    background: linear-gradient(135deg, #F0997B 0%, #E47A52 50%, #D85A30 100%);
+    color: var(--color-white);
+    font-size: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(228,122,82,0.4);
+    transition: transform 0.1s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 2px;
+  }
+  
+  .btn-main:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(228,122,82,0.5);
+  }
+  
+  .btn-main:active {
+    transform: translateY(0);
+  }
+  
+  /* 次按钮行 */
+  .btn-row {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .btn-sub {
+    width: 160px;
+    height: 56px;
+    border: none;
+    border-radius: 28px;
+    background: linear-gradient(135deg, #8B83E5 0%, #7F77DD 50%, #534AB7 100%);
+    color: var(--color-white);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(127,119,221,0.35);
+    transition: transform 0.1s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  
+  .btn-sub:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(127,119,221,0.45);
+  }
+  
+  /* ===== 右上角快捷按钮 ===== */
+  .quick-btn {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.8);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-soft);
+    transition: background 0.2s;
+  }
+  
+  .quick-btn:hover {
+    background: rgba(255,255,255,1);
+  }
+  
+  .quick-settings {
+    top: 84px;
+    right: 20px;
+  }
+  
+  /* ===== 底部版本号 ===== */
+  .version-tag {
+    position: absolute;
+    bottom: 8px;
+    right: 16px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+  }
+  
+  /* ===== 标注覆盖层（设计审查用）===== */
+  .annotation {
+    position: absolute;
+    background: #FF6B6B;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  
+  /* ===== 尺寸标尺 ===== */
+  .ruler {
+    position: absolute;
+    background: #2196F3;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  
+  .ruler-w { height: 1px; }
+  .ruler-h { width: 1px; }
+  
+  /* ===== 切换按钮（查看不同状态）===== */
+  .toolbar {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 999;
+    display: flex;
+    gap: 8px;
+  }
+  
+  .toolbar button {
+    padding: 6px 12px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  
+  .toolbar button.active {
+    background: #E47A52;
+    border-color: #E47A52;
+  }
+  
+  /* ===== 信息卡片 ===== */
+  .info-card {
+    position: absolute;
+    top: 86px;
+    right: 74px;
+    background: rgba(0,0,0,0.75);
+    color: #4FC3F7;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="active" onclick="showState('normal')">正常状态</button>
+  <button onclick="showState('grid')">网格参考线</button>
+  <button onclick="showState('specs')">尺寸标注</button>
+</div>
+
+<div class="phone-frame">
+  <div class="main-menu" id="mainMenu">
+    
+    <!-- 玩家信息栏 -->
+    <div class="player-bar">
+      <span class="player-title">初级铲屎官</span>
+      <div class="player-currency">
+        <span class="currency-item currency-fish">🐟 128</span>
+        <span class="currency-item currency-stars">⭐ 15</span>
+      </div>
+    </div>
+    
+    <!-- 主视觉区 -->
+    <div class="hero-area">
+      <div class="hero-art">
+        <span class="hero-label">[主视觉插画占位 500×350]</span>
+      </div>
+    </div>
+    
+    <!-- 按钮区 -->
+    <div class="buttons-area">
+      <button class="btn-main">▶ 继续游戏</button>
+      
+      <div class="btn-row">
+        <button class="btn-sub">📋 选择关卡</button>
+        <button class="btn-sub">🏠 我的小院</button>
+      </div>
+      
+      <div class="btn-row">
+        <button class="btn-sub">⚙️ 设置</button>
+        <button class="btn-sub">🏆 成就</button>
+      </div>
+    </div>
+    
+    <!-- 右上角快捷设置 -->
+    <button class="quick-btn quick-settings">⚙️</button>
+    
+    <!-- 版本号 -->
+    <div class="version-tag">v1.0.0</div>
+    
+    <!-- 尺寸标注（默认隐藏）-->
+    <div id="specsLayer" style="display:none;">
+      <div class="annotation" style="top:0;left:375px;">750px</div>
+      <div class="annotation" style="top:350px;left:10px;">70px 玩家栏</div>
+      <div class="annotation" style="top:760px;left:10px;">380px 主视觉区</div>
+      <div class="annotation" style="top:450px;left:205px;">500px 主视觉宽</div>
+      <div class="annotation" style="top:820px;left:205px;">340px 主按钮宽</div>
+      <div class="annotation" style="top:910px;left:295px;">160px 次按钮宽</div>
+    </div>
+    
+    <!-- 网格参考线（默认隐藏）-->
+    <div id="gridLayer" style="display:none;position:absolute;inset:0;pointer-events:none;">
+      <!-- 垂直中线 -->
+      <div style="position:absolute;left:375px;top:0;bottom:0;width:1px;background:rgba(33,150,243,0.3);"></div>
+      <!-- 水平三等分 -->
+      <div style="position:absolute;top:445px;left:0;right:0;height:1px;background:rgba(33,150,243,0.2);"></div>
+      <div style="position:absolute;top:890px;left:0;right:0;height:1px;background:rgba(33,150,243,0.2);"></div>
+      <!-- 左右安全边距 -->
+      <div style="position:absolute;left:40px;top:0;bottom:0;width:1px;background:rgba(255,107,107,0.2);"></div>
+      <div style="position:absolute;right:40px;top:0;bottom:0;width:1px;background:rgba(255,107,107,0.2);"></div>
+    </div>
+    
+  </div>
+</div>
+
+<script>
+function showState(state) {
+  document.querySelectorAll('.toolbar button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  document.getElementById('specsLayer').style.display = state === 'specs' ? 'block' : 'none';
+  document.getElementById('gridLayer').style.display = state === 'grid' ? 'block' : 'none';
+}
+</script>
+
+</body>
+</html>

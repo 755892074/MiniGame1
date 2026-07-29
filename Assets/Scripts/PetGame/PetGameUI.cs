@@ -147,71 +147,145 @@ public class PetGameUI : MonoBehaviour
         FixTopBarLayout();
     }
 
-    /// <summary>修复顶部分数文本布局：水平分布，增大尺寸避免截断；将按钮栏移到底部</summary>
+    /// <summary>统一的顶部 HUD 条（合并原来 TopBarBg + CleanerHUD + GameHUD.TopBar 三层）</summary>
+    private GameObject topBarHUD;
+
+    /// <summary>构建顶部 HUD：一条背景 + 左侧关卡/分数/步数 + 右侧称号/货币/经验</summary>
     void FixTopBarLayout()
     {
-        // 创建简约顶部背景条
-        var topBar = new GameObject("TopBarBg", typeof(RectTransform));
-        topBar.transform.SetParent(transform, false);
-        topBar.transform.SetAsFirstSibling();
-        var topBarRT = topBar.GetComponent<RectTransform>();
+        // 隐藏 GameHUD 预制体里的原始 TopBar（它的子文本已被我们 reparent 到 topBarHUD）
+        var prefabTopBar = gameHUD != null ? gameHUD.transform.Find("TopBar") : null;
+        if (prefabTopBar != null) prefabTopBar.gameObject.SetActive(false);
+
+        // 创建唯一顶部背景条
+        topBarHUD = new GameObject("TopBarHUD", typeof(RectTransform));
+        topBarHUD.transform.SetParent(transform, false);
+        // 放到 Background 之后、GameHUD 之前，确保顶栏不被背景挡住
+        var bg = transform.Find("Background");
+        if (bg != null) topBarHUD.transform.SetSiblingIndex(bg.GetSiblingIndex() + 1);
+        else topBarHUD.transform.SetAsLastSibling();
+        var topBarRT = topBarHUD.GetComponent<RectTransform>();
         topBarRT.anchorMin = new Vector2(0, 0.88f);
-        topBarRT.anchorMax = new Vector2(1, 0.98f);
+        topBarRT.anchorMax = new Vector2(1, 1f);
         topBarRT.anchoredPosition = Vector2.zero;
         topBarRT.sizeDelta = Vector2.zero;
-        var topBarImg = topBar.AddComponent<Image>();
+        var topBarImg = topBarHUD.AddComponent<Image>();
+        topBarImg.sprite = LoadGenSprite("bar_bg");
+        topBarImg.type = topBarImg.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
         topBarImg.color = new Color(0.12f, 0.12f, 0.15f, 0.85f);
 
+        // --- 左半区：关卡 ---
         // LevelText - 左侧
         if (txtLevel != null)
         {
             var rt = txtLevel.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.05f, 0.88f);
-            rt.anchorMax = new Vector2(0.30f, 0.96f);
+            rt.anchorMin = new Vector2(0.04f, 0.2f);
+            rt.anchorMax = new Vector2(0.30f, 0.7f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
             txtLevel.alignment = TextAnchor.MiddleLeft;
-            txtLevel.fontSize = 20;
-            txtLevel.color = new Color(0.9f, 0.9f, 0.9f, 1f);
-            txtLevel.transform.SetParent(topBar.transform, true);
+            txtLevel.fontSize = 18;
+            txtLevel.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+            txtLevel.transform.SetParent(topBarHUD.transform, true);
         }
-        // ScoreText - 中间（最宽，容纳"得分:0/1100"）
+        // --- 中区：分数 + 步数 ---
         if (txtScore != null)
         {
             var rt = txtScore.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.30f, 0.88f);
-            rt.anchorMax = new Vector2(0.70f, 0.96f);
+            rt.anchorMin = new Vector2(0.30f, 0.45f);
+            rt.anchorMax = new Vector2(0.70f, 0.85f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
             txtScore.alignment = TextAnchor.MiddleCenter;
             txtScore.fontSize = 22;
             txtScore.color = new Color(1f, 0.84f, 0.2f, 1f);
-            txtScore.transform.SetParent(topBar.transform, true);
+            txtScore.transform.SetParent(topBarHUD.transform, true);
         }
-        // StepText - 右侧
         if (txtStep != null)
         {
             var rt = txtStep.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.70f, 0.88f);
-            rt.anchorMax = new Vector2(0.95f, 0.96f);
+            rt.anchorMin = new Vector2(0.30f, 0.1f);
+            rt.anchorMax = new Vector2(0.70f, 0.4f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = Vector2.zero;
-            txtStep.alignment = TextAnchor.MiddleRight;
-            txtStep.fontSize = 20;
-            txtStep.color = new Color(0.9f, 0.9f, 0.9f, 1f);
-            txtStep.transform.SetParent(topBar.transform, true);
+            txtStep.alignment = TextAnchor.MiddleCenter;
+            txtStep.fontSize = 16;
+            txtStep.color = new Color(0.7f, 0.7f, 0.7f, 1f);
+            txtStep.transform.SetParent(topBarHUD.transform, true);
         }
 
-        // 将 ButtonRow 从顶部移到底部
-        var buttonRow = transform.Find("ButtonRow");
+        // --- 右半区：称号 / 货币 / 经验 ---
+        // 称号（右侧上）
+        var titleGO = new GameObject("CleanerTitle", typeof(RectTransform));
+        titleGO.transform.SetParent(topBarHUD.transform, false);
+        var titleRT = titleGO.GetComponent<RectTransform>();
+        titleRT.anchorMin = new Vector2(0.70f, 0.60f);
+        titleRT.anchorMax = new Vector2(0.98f, 0.90f);
+        titleRT.sizeDelta = Vector2.zero;
+        txtTitle = titleGO.AddComponent<SystemFontText>();
+        txtTitle.fontSize = 15;
+        txtTitle.color = new Color(1f, 0.84f, 0f);
+        txtTitle.alignment = TextAnchor.MiddleRight;
+        GameFont.Apply(txtTitle);
+
+        // 货币（右侧中）
+        var fishGO = new GameObject("FishDisplay", typeof(RectTransform));
+        fishGO.transform.SetParent(topBarHUD.transform, false);
+        var fishRT = fishGO.GetComponent<RectTransform>();
+        fishRT.anchorMin = new Vector2(0.70f, 0.30f);
+        fishRT.anchorMax = new Vector2(0.98f, 0.60f);
+        fishRT.sizeDelta = Vector2.zero;
+        txtFish = fishGO.AddComponent<SystemFontText>();
+        txtFish.fontSize = 15;
+        txtFish.color = new Color(1f, 0.8f, 0.3f);
+        txtFish.alignment = TextAnchor.MiddleRight;
+        GameFont.Apply(txtFish);
+
+        // 经验（右侧底）
+        var expGO = new GameObject("ExpDisplay", typeof(RectTransform));
+        expGO.transform.SetParent(topBarHUD.transform, false);
+        var expRT = expGO.GetComponent<RectTransform>();
+        expRT.anchorMin = new Vector2(0.70f, 0.05f);
+        expRT.anchorMax = new Vector2(0.98f, 0.30f);
+        expRT.sizeDelta = Vector2.zero;
+        txtExp = expGO.AddComponent<SystemFontText>();
+        txtExp.fontSize = 12;
+        txtExp.color = new Color(0.7f, 0.7f, 0.7f);
+        txtExp.alignment = TextAnchor.MiddleRight;
+        GameFont.Apply(txtExp);
+
+        // 将 ButtonRow 从顶部移到底部（匹配 HTML: 底部20px边距, 90x90按钮, 间距12）
+        var buttonRowGO = FindGO("ButtonRow");
+        var buttonRow = buttonRowGO != null ? buttonRowGO.transform : null;
         if (buttonRow != null)
         {
             var brt = buttonRow.GetComponent<RectTransform>();
             brt.anchorMin = new Vector2(0, 0);
             brt.anchorMax = new Vector2(1, 0);
-            brt.anchoredPosition = new Vector2(0, 80);
-            brt.sizeDelta = new Vector2(0, 56);
+            brt.anchoredPosition = new Vector2(0, 20);
+            brt.sizeDelta = new Vector2(0, 100);
             brt.pivot = new Vector2(0.5f, 0);
+            // 间距 12px
+            var hlg = buttonRow.GetComponent<HorizontalLayoutGroup>();
+            if (hlg != null)
+            {
+                hlg.spacing = 12f;
+                hlg.padding = new RectOffset(30, 30, 0, 0);
+                hlg.childControlWidth = true;
+                hlg.childControlHeight = true;
+                hlg.childForceExpandWidth = false;
+                hlg.childForceExpandHeight = false;
+            }
+            // 每个按钮 90x90
+            foreach (Transform child in buttonRow)
+            {
+                var le = child.GetComponent<LayoutElement>();
+                if (le == null) le = child.gameObject.AddComponent<LayoutElement>();
+                le.preferredWidth = 90;
+                le.preferredHeight = 90;
+                var img = child.GetComponent<Image>();
+                if (img != null) img.type = Image.Type.Sliced;
+            }
         }
     }
 
@@ -235,40 +309,6 @@ public class PetGameUI : MonoBehaviour
         gm.onFeedAnim.AddListener((bid, pet) => StartCoroutine(FeedAnimation(bid, pet)));
 
         // 应用简约按钮样式
-        StyleButtons();
-    }
-
-    /// <summary>将按钮改为简约纯色+文字风格</summary>
-    void StyleButtons()
-    {
-        // 定义按钮颜色
-        var btnColors = new Dictionary<string, Color>
-        {
-            { "btnUndo", new Color(0.2f, 0.6f, 0.9f, 0.9f) },      // 蓝色
-            { "btnAddBowl", new Color(0.3f, 0.8f, 0.4f, 0.9f) },   // 绿色
-            { "btnShuffle", new Color(0.9f, 0.5f, 0.2f, 0.9f) },   // 橙色
-            { "btnRestart", new Color(0.9f, 0.3f, 0.3f, 0.9f) },    // 红色
-            { "btnNext", new Color(0.5f, 0.3f, 0.9f, 0.9f) },      // 紫色
-            { "btnBack", new Color(0.5f, 0.5f, 0.5f, 0.9f) }       // 灰色
-        };
-
-        // 遍历所有按钮
-        foreach (var kvp in btnColors)
-        {
-            var btn = transform.Find(kvp.Key)?.GetComponent<Button>();
-            if (btn != null)
-            {
-                var img = btn.GetComponent<Image>();
-                if (img != null)
-                {
-                    img.sprite = null; // 移除图片，使用纯色
-                    img.color = kvp.Value;
-                }
-                // 修改按钮文字颜色
-                var txt = btn.GetComponentInChildren<SystemFontText>();
-                if (txt != null) txt.color = Color.white;
-            }
-        }
     }
 
     void RebuildAll() { BuildBowls(); BuildPets(); UpdateHUD(); }
@@ -821,12 +861,10 @@ public class PetGameUI : MonoBehaviour
         UpdateItemCounts();
     }
 
-    /// <summary>更新铲屎官等级/货币 HUD（叠加显示在 HUD 顶部）</summary>
-    private GameObject cleanerHUD;
+    /// <summary>更新铲屎官等级/货币 HUD 文本（挂载在 topBarHUD 中）</summary>
     private Text txtTitle, txtFish, txtExp;
     void UpdateCleanerHUD()
     {
-        if (cleanerHUD == null) BuildCleanerHUD();
         if (txtTitle) txtTitle.text = $"{SaveSystem.GetCurrentTitle()}";
         if (txtFish) txtFish.text = $"🪙{SaveSystem.Data.gold}  🐟{SaveSystem.Data.fishDiscount}";
         if (txtExp)
@@ -834,58 +872,6 @@ public class PetGameUI : MonoBehaviour
             int toNext = SaveSystem.ExpToNextLevel();
             txtExp.text = toNext > 0 ? $"下一级:{toNext}" : "MAX";
         }
-    }
-
-    void BuildCleanerHUD()
-    {
-        cleanerHUD = new GameObject("CleanerHUD", typeof(RectTransform));
-        cleanerHUD.transform.SetParent(transform, false);
-        var rt = cleanerHUD.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 0.9f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.sizeDelta = Vector2.zero;
-        // 半透明木质底色，让称号/小鱼干文字在场景背景上更清晰
-        var chBg = cleanerHUD.AddComponent<Image>();
-        chBg.color = new Color(0.20f, 0.14f, 0.10f, 0.35f);
-
-        // 称号（左上）
-        var titleGO = new GameObject("CleanerTitle", typeof(RectTransform));
-        titleGO.transform.SetParent(cleanerHUD.transform, false);
-        var titleRT = titleGO.GetComponent<RectTransform>();
-        titleRT.anchorMin = new Vector2(0.02f, 0.5f);
-        titleRT.anchorMax = new Vector2(0.3f, 0.95f);
-        titleRT.sizeDelta = Vector2.zero;
-        txtTitle = titleGO.AddComponent<SystemFontText>();
-        txtTitle.fontSize = 16;
-        txtTitle.color = new Color(1f, 0.84f, 0f);
-        txtTitle.alignment = TextAnchor.MiddleLeft;
-        GameFont.Apply(txtTitle);
-
-        // 小鱼干（右上，含金币）
-        var fishGO = new GameObject("FishDisplay", typeof(RectTransform));
-        fishGO.transform.SetParent(cleanerHUD.transform, false);
-        var fishRT = fishGO.GetComponent<RectTransform>();
-        fishRT.anchorMin = new Vector2(0.5f, 0.5f);
-        fishRT.anchorMax = new Vector2(0.98f, 0.95f);
-        fishRT.sizeDelta = Vector2.zero;
-        txtFish = fishGO.AddComponent<SystemFontText>();
-        txtFish.fontSize = 16;
-        txtFish.color = new Color(1f, 0.8f, 0.3f);
-        txtFish.alignment = TextAnchor.MiddleRight;
-        GameFont.Apply(txtFish);
-
-        // 经验（右上下方）
-        var expGO = new GameObject("ExpDisplay", typeof(RectTransform));
-        expGO.transform.SetParent(cleanerHUD.transform, false);
-        var expRT = expGO.GetComponent<RectTransform>();
-        expRT.anchorMin = new Vector2(0.7f, 0.05f);
-        expRT.anchorMax = new Vector2(0.98f, 0.45f);
-        expRT.sizeDelta = Vector2.zero;
-        txtExp = expGO.AddComponent<SystemFontText>();
-        txtExp.fontSize = 12;
-        txtExp.color = new Color(0.7f, 0.7f, 0.7f);
-        txtExp.alignment = TextAnchor.MiddleRight;
-        GameFont.Apply(txtExp);
     }
 
     void OnWin(int stars)
@@ -1148,11 +1134,13 @@ public class PetGameUI : MonoBehaviour
         var go = new GameObject("BtnHint", typeof(RectTransform));
         go.transform.SetParent(transform, false);
         var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.62f, 0.02f);
-        rt.anchorMax = new Vector2(0.80f, 0.09f);
+        rt.anchorMin = new Vector2(0.65f, 0.09f);
+        rt.anchorMax = new Vector2(0.92f, 0.14f);
         rt.sizeDelta = Vector2.zero;
         var img = go.AddComponent<Image>();
-        img.color = new Color(0.95f, 0.6f, 0.1f, 0.9f);
+        img.sprite = LoadGenSprite("btn_green") ?? stdBtnSprite;
+        img.type = img.sprite != stdBtnSprite ? Image.Type.Sliced : Image.Type.Simple;
+        img.color = img.sprite == stdBtnSprite ? new Color(0.95f, 0.6f, 0.1f, 0.9f) : Color.white;
         btnHint = go.AddComponent<Button>();
         var tgo = new GameObject("T", typeof(RectTransform));
         tgo.transform.SetParent(go.transform, false);
@@ -1557,6 +1545,14 @@ public class PetGameUI : MonoBehaviour
     Button FindB(string n) => FindC<Button>(gameHUD, n);
     GameObject FindGO(GameObject root, string n) { foreach (var t in root.GetComponentsInChildren<Transform>(true)) if (t.name == n) return t.gameObject; return null; }
     GameObject FindGO(string n) => FindGO(gameHUD, n);
+
+    /// <summary>加载代码生成的 9-slice UI 精灵</summary>
+    Sprite LoadGenSprite(string name)
+    {
+        var handle = ResLoader.Load<Sprite>($"Assets/Art/PetGame/UI/Generated/{name}.png");
+        try { return handle.WaitForCompletion(); }
+        catch { return null; }
+    }
     void Clear(Transform t) { foreach (Transform c in t) Destroy(c.gameObject); }
     string PetCN(PetType p) => p switch { PetType.Cat => "橘猫", PetType.Dog => "柴犬", PetType.Hamster => "仓鼠", PetType.Parrot => "鹦鹉", PetType.Fish => "金鱼", PetType.Rabbit => "垂耳兔", _ => p.ToString() };
 }
