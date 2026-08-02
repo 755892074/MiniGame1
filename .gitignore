@@ -53,3 +53,11 @@ project.config.json
 tools/com.bytedance.bgdt*.unitypackage
 tools/analyze_ui.py
 tools/*_sm.png
+
+# 出包/调试生成物（每次构建重新生成，不入库）
+build_args.json
+doc/douyin_runtime_log.txt
+_*.py
+
+# codely 剪贴板缓存
+.codely/
