@@ -53,7 +53,7 @@ public class YardPanelController : MonoBehaviour
 
         // 关闭按钮
         MakeBtn(panel.transform, new Vector2(0.86f, 0.915f), new Vector2(0.96f, 0.985f),
-            "✕", new Color(0.79f, 0.24f, 0.24f), () => Close());
+            "X", new Color(0.79f, 0.24f, 0.24f), () => Close());
 
         // 分隔线
         MakeLine(panel.transform, 0.89f);

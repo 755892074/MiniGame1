@@ -21,9 +21,14 @@ public static class GameSceneManager
         SceneManager.LoadScene(BOOT);
     }
 
-    /// <summary>加载主菜单场景</summary>
+    /// <summary>加载主菜单场景（带防重入：若已是当前场景则跳过，避免重复重载把正在异步加载的 UI 干掉）</summary>
     public static void LoadMenu()
     {
+        if (SceneManager.GetActiveScene().name == MENU)
+        {
+            Debug.LogWarning("[GameSceneManager] LoadMenu 跳过：当前已是 MenuScene");
+            return;
+        }
         Debug.Log("[GameSceneManager] → MenuScene");
         SceneManager.LoadScene(MENU);
     }

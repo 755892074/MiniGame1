@@ -57,6 +57,9 @@ public static class SaveSystem
         public long firstPlayTimestamp;   // 首次游玩时间(Unix秒)
         public long lastSaveTimestamp;     // 最后存档时间(Unix秒)，用于云端合并冲突
 
+        // --- 成就系统 ---
+        public List<string> unlockedAchievements = new List<string>();  // 已解锁成就 id 列表（成就系统使用）
+
         // --- 设置 ---
         public bool bgmEnabled = true;
         public bool sfxEnabled = true;
@@ -239,7 +242,7 @@ public static class SaveSystem
         }
 
         lastCloudStatus = CloudSyncStatus.Downloading;
-        CloudSaveBridge.GetSave(CLOUD_KEY, (json) =>
+        CloudSaveBridge.GetSaveChunks(CLOUD_KEY, (json) =>
         {
             if (string.IsNullOrEmpty(json))
             {
@@ -276,17 +279,34 @@ public static class SaveSystem
         });
     }
 
-    /// <summary>将 JSON 拆分为多个不超过 maxLen 的分片，用 \x00 分隔符编码为单字符串</summary>
-    private static string SplitJson(string json, int maxLen)
+    /// <summary>
+    /// 将 JSON 安全拆分为多个不超过 maxBytes 字节的分片（无损，绝不截断）。
+    /// 返回 string[]，由 CloudSaveBridge 以多个 key（{key}_0, {key}_1 ...）存储，
+    /// 读取时再拼接还原。拆分严格按 UTF-8 字节边界，避免在多字节字符中间切断。
+    /// </summary>
+    private static string[] SplitJson(string json, int maxBytes)
     {
-        // 抖音云限制每个 key+value 最大 1024 字节
-        // 简单策略：如果 JSON < 900 字节，直接存；否则用 Base64 压缩
-        // 这里用一个简单编码：存原始 JSON（实际休闲游戏存档不会太大）
-        if (json.Length <= maxLen) return json;
+        if (string.IsNullOrEmpty(json)) return new[] { "" };
 
-        // 大存档情况：做简单压缩（去掉空白）
-        string compact = JsonUtility.ToJson(_cache, false);
-        return compact.Length <= maxLen ? compact : compact.Substring(0, maxLen);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        if (bytes.Length <= maxBytes)
+            return new[] { json };
+
+        var chunks = new List<string>();
+        int i = 0;
+        while (i < bytes.Length)
+        {
+            int len = Math.Min(maxBytes, bytes.Length - i);
+            // 若在 UTF-8 多字节字符中间截断，则回退到字符起始边界
+            if (i + len < bytes.Length)
+            {
+                while (len > 0 && (bytes[i + len] & 0xC0) == 0x80) len--; // 0x80 = 10xxxxxx 续字节
+                if (len <= 0) len = 1; // 极端兜底，防止死循环
+            }
+            chunks.Add(System.Text.Encoding.UTF8.GetString(bytes, i, len));
+            i += len;
+        }
+        return chunks.ToArray();
     }
 
     // ========== 关卡进度 ==========
@@ -319,7 +339,12 @@ public static class SaveSystem
             data.highestUnlockedLevel = Mathf.Max(data.highestUnlockedLevel, levelId + 1);
 
         data.totalLevelsCompleted++;
+
+        // 进度解锁：跨过 YardDefs.PETS 解锁阈值时自动救助对应宠物
+        CheckPetUnlocks();
+
         Save();
+        AchievementSystem.CheckAll();   // 通关后判定成就解锁
         return improved;
     }
 
@@ -459,6 +484,7 @@ public static class SaveSystem
         Data.cleanerLevel = GetLevelByExp(Data.cleanerExp);
         bool leveled = Data.cleanerLevel > oldLevel;
         Save();
+        AchievementSystem.CheckAll();   // 经验/等级变化后判定成就解锁
         return leveled;
     }
 
@@ -530,6 +556,7 @@ public static class SaveSystem
             data.totalPetsRescued++;
         }
         Save();
+        AchievementSystem.CheckAll();   // 救助宠物后判定成就解锁
     }
 
     /// <summary>升级宠物成长阶段(1→2→3)</summary>
@@ -558,6 +585,25 @@ public static class SaveSystem
 
     /// <summary>已救助宠物数量</summary>
     public static int RescuedPetCount => Data.pets.Count(p => p.unlocked);
+
+    /// <summary>
+    /// 进度解锁：当最高解锁关卡跨过 YardDefs.PETS 的解锁阈值时，
+    /// 自动救助对应宠物（橘猫 unlockLevel=0 为初始伙伴，由默认存档处理，这里跳过）。
+    /// 幂等：已解锁的宠物不会重复救助。
+    /// </summary>
+    private static void CheckPetUnlocks()
+    {
+        var data = Data;
+        foreach (var pet in YardDefs.PETS)
+        {
+            if (pet.unlockLevel <= 0) continue;
+            if (data.highestUnlockedLevel >= pet.unlockLevel && !IsPetRescued(pet.type))
+            {
+                RescuePet(pet.type);
+                Debug.Log($"[SaveSystem] 进度解锁新宠物：{pet.name}（已通关第{pet.unlockLevel}关）");
+            }
+        }
+    }
 
     // ============================================================
     // 喂养 / 互动（P3）
@@ -706,6 +752,7 @@ public static class SaveSystem
         else
             b.level++;
         Save();
+        AchievementSystem.CheckAll();   // 建筑升级后判定成就解锁
         Debug.Log($"[建筑] {buildingId} 升级 → Lv.{GetBuildingLevel(buildingId)}");
         return true;
     }
@@ -781,5 +828,8 @@ public static class SaveSystem
         }
 
         if (dirty) Save();
+
+        // 兼容旧档：已通关高关卡的存档，补回相应进度解锁的宠物
+        CheckPetUnlocks();
     }
 }

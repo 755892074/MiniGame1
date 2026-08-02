@@ -119,6 +119,7 @@ public class PetGameUI : MonoBehaviour
         // GM 调试按钮（仅开发期显示，由 GM.Enabled 控制）
         if (GM.Enabled) BuildGMButton();
         BuildHintButton();   // IAA 提示按钮（正式功能，始终显示）
+        BuildBackButton();   // 返回主菜单按钮（常驻）
     }
 
     void FindRefs()
@@ -465,10 +466,68 @@ public class PetGameUI : MonoBehaviour
             else
             {
                 if (animPlayer) animPlayer.enabled = false;
-                if (face) { if (faceCache.TryGetValue(pet.ToString().ToLower(), out var s) && s != null) face.sprite = s; }
+                // Dog: play frame animation like cat
+                if (pet == PetType.Dog)
+                {
+                    if (animPlayer == null && face != null)
+                    {
+                        animPlayer = face.gameObject.AddComponent<AnimationPlayer>();
+                        animPlayer.uiImage = face;
+                        animPlayer.petName = "dog";
+                        animPlayer.autoPlay = false;
+                    }
+                    // Register dog animations if not yet registered
+                    RegisterDogAnimations();
+                    if (animPlayer)
+                    {
+                        animPlayer.enabled = true;
+                        animPlayer.petName = "dog";
+                        animPlayer.Play("Idle");
+                        animPlayer.frameRate = 4f;
+                        StartCoroutine(CatBreath(go)); // reuse breathing effect
+                    }
+                }
+                else if (face) { if (faceCache.TryGetValue(pet.ToString().ToLower(), out var s) && s != null) face.sprite = s; }
             }
             petGOs.Add(go);
         }
+    }
+
+    /// <summary>注册狗的帧动画到 AnimationManager（首次调用时注册）</summary>
+    static bool dogAnimRegistered = false;
+    void RegisterDogAnimations()
+    {
+        if (dogAnimRegistered) return;
+        var mgr = PetGame.AnimationManager.Instance;
+        if (mgr == null) return;
+
+        var dogSet = new PetGame.AnimationManager.PetAnimationSet { petName = "dog" };
+
+        // Load frames async → register synchronously for editor
+        void AddClip(string name, int count, float fps, bool loop)
+        {
+            var clip = new PetGame.AnimationManager.AnimationClip { animName = name, frameRate = fps, isLoop = loop };
+            for (int i = 1; i <= count; i++)
+            {
+                string path = $"Assets/Art/PetGame/pets/dog/animation/dog_{name.ToLower()}_{i:D2}.png";
+                var handle = ResLoader.Load<Sprite>(path);
+                try { var sp = handle.WaitForCompletion(); if (sp != null) clip.frames.Add(sp); }
+                catch { }
+            }
+            dogSet.animations.Add(clip);
+        }
+
+        AddClip("Idle", 4, 4f, true);
+        AddClip("Walk", 6, 8f, true);
+        AddClip("Eat", 4, 6f, true);
+
+        // Remove existing if any, then add
+        var existing = mgr.GetPetAnimationSet("dog");
+        if (existing != null) mgr.petAnimationSets.Remove(existing);
+        mgr.petAnimationSets.Add(dogSet);
+
+        dogAnimRegistered = true;
+        Debug.Log($"[Dog] Animations registered: idle(4) walk(6) eat(4)");
     }
 
     /// <summary>排队橘猫的"呼吸"缩放，让 idle 动画更明显（petGO 销毁后自动停止）</summary>
@@ -1159,6 +1218,30 @@ public class PetGameUI : MonoBehaviour
         txtHintCount.fontSize = 18; txtHintCount.color = Color.white; txtHintCount.alignment = TextAnchor.MiddleCenter; GameFont.Apply(txtHintCount);
     }
 
+    /// <summary>返回主菜单按钮（常驻左下角）</summary>
+    void BuildBackButton()
+    {
+        var go = new GameObject("BtnBack", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.05f, 0.09f);
+        rt.anchorMax = new Vector2(0.30f, 0.14f);
+        rt.sizeDelta = Vector2.zero;
+        var img = go.AddComponent<Image>();
+        img.sprite = LoadGenSprite("btn_green") ?? stdBtnSprite;
+        img.type = img.sprite != stdBtnSprite ? Image.Type.Sliced : Image.Type.Simple;
+        img.color = img.sprite == stdBtnSprite ? new Color(0.5f, 0.5f, 0.5f, 0.9f) : Color.white;
+        var btn = go.AddComponent<Button>();
+        var tgo = new GameObject("T", typeof(RectTransform));
+        tgo.transform.SetParent(go.transform, false);
+        var trt = tgo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero; trt.anchorMax = Vector2.one; trt.sizeDelta = Vector2.zero;
+        var t = tgo.AddComponent<SystemFontText>();
+        t.text = "🏠 主菜单"; t.fontSize = 20; t.color = Color.white;
+        t.alignment = TextAnchor.MiddleCenter; GameFont.Apply(t);
+        btn.onClick.AddListener(BackToMenu);
+    }
+
     /// <summary>提示回调：用求解器取一步可解操作，高亮源/目标碗并弹出文字</summary>
     /// <summary>在宠物上方显示"不公平"吐槽气泡（转换到主 Canvas 坐标，避免受 petArea 布局影响）</summary>
     void ShowUnfairBubble(RectTransform targetPetRT)
@@ -1470,7 +1553,7 @@ public class PetGameUI : MonoBehaviour
         bg.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
 
         // 关闭按钮
-        MakeBtn(gmPanel.transform, 0.82f, 0.15f, 0.9f, 0.07f, "✕ 关闭", new Color(0.6f, 0.2f, 0.2f),
+        MakeBtn(gmPanel.transform, 0.82f, 0.15f, 0.9f, 0.07f, "X 关闭", new Color(0.6f, 0.2f, 0.2f),
             () => { Destroy(gmPanel); gmPanel = null; });
 
         // 标题

@@ -7,7 +7,8 @@ using UnityEngine.UI;
 /// </summary>
 public class PetGamePrefabGenV2
 {
-    const string PREFAB_DIR = "Assets/Resources/PrefabsV2";
+    // 同 UIPrefabGenV3：写到代码实际读、Addressables 标记的目录。
+    const string PREFAB_DIR = "Assets/Prefabs/UI/PrefabsV2";
     const string ART = "Assets/Art/PetGame";
 
     [MenuItem("铲屎官疯了/生成UI预制体(v2)")]

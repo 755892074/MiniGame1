@@ -33,14 +33,21 @@ public class Bootstrap : MonoBehaviour
         SaveSystem.Load();
         Debug.Log($"[Bootstrap] 存档加载完成: 关卡{SaveSystem.Data.currentLevelId} / 已解锁{SaveSystem.Data.highestUnlockedLevel}");
 
+        // 1.5 成就系统：启动期回溯判定（silent 不弹 toast）+ 订阅解锁提示
+        AchievementSystem.EnsureToastWired();
+        AchievementSystem.CheckAll(true);
+
         // 2. 检测SDK环境
         bool isDouyin = CloudSaveBridge.IsAvailable;
         Debug.Log($"[Bootstrap] 抖音环境: {isDouyin}");
 
         // 3. 异步加载 Splash 预制体（抖音小游戏禁止同步等待）
         var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/SplashPanel.prefab");
+        bool callbackFired = false;
         handle.Completed += h =>
         {
+            if (callbackFired) return;
+            callbackFired = true;
             if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null)
             {
                 var canvas = EnsureCanvas();
@@ -57,6 +64,17 @@ public class Bootstrap : MonoBehaviour
             }
             StartCoroutine(WaitAndGoMenu());
         };
+        // 超时保护：如果 5 秒内 Addressables 没回调，直接进菜单
+        StartCoroutine(TimeoutFallback(5f, () => {
+            if (!callbackFired) { callbackFired = true; StartCoroutine(WaitAndGoMenu()); }
+        }));
+    }
+
+    /// <summary>超时回调保护：seconds 秒后如果还未触发，执行 action</summary>
+    IEnumerator TimeoutFallback(float seconds, System.Action action)
+    {
+        yield return new WaitForSeconds(seconds);
+        action?.Invoke();
     }
 
     IEnumerator WaitAndGoMenu()

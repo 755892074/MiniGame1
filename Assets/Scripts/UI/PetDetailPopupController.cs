@@ -54,7 +54,7 @@ public class PetDetailPopupController : MonoBehaviour
 
         // 关闭
         MakeBtn(panel.transform, new Vector2(0.85f, 0.88f), new Vector2(0.97f, 0.98f),
-            "✕", new Color(0.79f, 0.24f, 0.24f), () => menuController.ClosePopup());
+            "X", new Color(0.79f, 0.24f, 0.24f), () => menuController.ClosePopup());
 
         // 成长阶段
         string stage = rec != null && rec.stage >= 1 && rec.stage <= 3 ? YardDefs.STAGE_NAMES[rec.stage] : "";

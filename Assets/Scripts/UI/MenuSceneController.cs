@@ -12,13 +12,38 @@ public class MenuSceneController : MonoBehaviour
 {
     private Canvas canvas;
     private GameObject currentPanel;
+    private bool _started = false;
 
     void Start()
     {
+        if (_started) { Debug.Log("[MenuScene] Start() 已执行过，跳过重复初始化"); return; }
+        _started = true;
+
+        Debug.Log($"[MenuScene] Start() privacyAgreed={SaveSystem.Data.privacyAgreed} 当前场景={UnityEngine.SceneManagement.SceneManager.GetActiveScene().name}");
         EnsureCamera();
         EnsureEventSystem();
+        DisableTTSDKMockUI();
         canvas = EnsureCanvas();
+        Debug.Log("[MenuScene] Canvas 就绪, 准备显示初始面板");
         ShowInitialPanel();
+    }
+
+    /// <summary>
+    /// 关闭 TTSDK 自带的 MockUI（开发者调试 OnGUI 渲染，发布时不应出现在 UI 上）。
+    /// MockUI 组件在 ttsdk.dll 中无法直接编辑，只能运行时禁用。
+    /// </summary>
+    void DisableTTSDKMockUI()
+    {
+        foreach (var m in FindObjectsOfType<MonoBehaviour>(true))
+        {
+            if (m == null) continue;
+            var tn = m.GetType().FullName;
+            if (tn == "TTSDK.MockUIUtil" || tn == "TTSDK.TTSDKLog")
+            {
+                m.enabled = false;
+                m.gameObject.SetActive(false);
+            }
+        }
     }
 
     Canvas EnsureCanvas()
@@ -33,6 +58,7 @@ public class MenuSceneController : MonoBehaviour
         sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         sc.referenceResolution = new Vector2(750, 1334);
         sc.matchWidthOrHeight = 1f;
+        Debug.Log("[MenuScene] 新建 Canvas 完成");
         return c;
     }
 
@@ -69,10 +95,12 @@ public class MenuSceneController : MonoBehaviour
         // 已同意隐私 → 直接主菜单
         if (!SaveSystem.Data.privacyAgreed)
         {
+            Debug.Log("[MenuScene] 显示 LoginPanel (首次)");
             ShowLoginPanel(true);
         }
         else
         {
+            Debug.Log("[MenuScene] 显示 MainMenu (已同意隐私)");
             ShowMainMenu();
         }
     }
@@ -87,6 +115,44 @@ public class MenuSceneController : MonoBehaviour
         currentPanel = newPanel;
     }
 
+    /// <summary>
+    /// 带超时兜底的 prefab 加载（与 Bootstrap 一致）。
+    /// 抖音小游戏环境若 LoadAssetAsync 回调迟迟不触发，6s 后强制报错，避免永久白屏。
+    /// </summary>
+    void LoadPanelWithTimeout(string key, string label, System.Action<GameObject> onReady)
+    {
+        Debug.Log($"[MenuScene] LoadPrefab 开始: {label} ({key})");
+        var handle = ResLoader.LoadPrefab(key);
+        bool done = false;
+
+        handle.Completed += h =>
+        {
+            if (done) return;
+            done = true;
+            if (h.Status == AsyncOperationStatus.Succeeded && h.Result != null)
+            {
+                Debug.Log($"[MenuScene] LoadPrefab 成功: {label}");
+                onReady?.Invoke(h.Result);
+            }
+            else
+            {
+                Debug.LogError($"[MenuScene] {label} 预制体加载失败! status={h.Status} result={(h.Result == null ? "null" : h.Result.name)}");
+            }
+        };
+
+        StartCoroutine(LoadTimeout(label, () => {
+            if (done) return;
+            done = true;
+            Debug.LogError($"[MenuScene] LoadPrefab 超时(6s)未完成: {label} —— 可能 Addressables 在该环境挂起");
+        }));
+    }
+
+    IEnumerator LoadTimeout(string label, System.Action onTimeout)
+    {
+        yield return new WaitForSeconds(6f);
+        onTimeout?.Invoke();
+    }
+
     // ========================================
     // 登录面板
     // ========================================
@@ -95,23 +161,17 @@ public class MenuSceneController : MonoBehaviour
     /// <param name="firstTime">是否首次（影响隐私弹窗）</param>
     public void ShowLoginPanel(bool firstTime = false)
     {
-        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/LoginPanel.prefab");
-        handle.Completed += h =>
+        LoadPanelWithTimeout("Assets/Prefabs/UI/PrefabsV2/LoginPanel.prefab", "LoginPanel", go =>
         {
-            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
-            {
-                Debug.LogError("[MenuScene] LoginPanel 预制体未找到! 请先执行 Tools → 生成新界面预制体(v3)");
-                return;
-            }
-            var go = Instantiate(h.Result, canvas.transform);
-            GameFont.ApplyAll(go);
-            go.name = "LoginPanel";
-            SwitchTo(go);
+            var inst = Instantiate(go, canvas.transform);
+            GameFont.ApplyAll(inst);
+            inst.name = "LoginPanel";
+            SwitchTo(inst);
+            Debug.Log("[MenuScene] LoginPanel 已实例化并挂载到 Canvas");
 
-            // 绑定 LoginController
-            var ctrl = go.AddComponent<LoginController>();
+            var ctrl = inst.AddComponent<LoginController>();
             ctrl.Init(this, firstTime);
-        };
+        });
     }
 
     // ========================================
@@ -120,22 +180,17 @@ public class MenuSceneController : MonoBehaviour
 
     public void ShowMainMenu()
     {
-        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/MainMenuPanel.prefab");
-        handle.Completed += h =>
+        LoadPanelWithTimeout("Assets/Prefabs/UI/PrefabsV2/MainMenuPanel.prefab", "MainMenuPanel", go =>
         {
-            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
-            {
-                Debug.LogError("[MenuScene] MainMenuPanel 预制体未找到!");
-                return;
-            }
-            var go = Instantiate(h.Result, canvas.transform);
-            GameFont.ApplyAll(go);
-            go.name = "MainMenuPanel";
-            SwitchTo(go);
+            var inst = Instantiate(go, canvas.transform);
+            GameFont.ApplyAll(inst);
+            inst.name = "MainMenuPanel";
+            SwitchTo(inst);
+            Debug.Log("[MenuScene] MainMenuPanel 已实例化并挂载到 Canvas");
 
-            var ctrl = go.AddComponent<MainMenuController>();
+            var ctrl = inst.AddComponent<MainMenuController>();
             ctrl.Init(this);
-        };
+        });
     }
 
     // ========================================
@@ -210,21 +265,16 @@ public class MenuSceneController : MonoBehaviour
     {
         if (settingsPanel != null) return;  // 已打开
 
-        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/SettingsPanel.prefab");
-        handle.Completed += h =>
+        LoadPanelWithTimeout("Assets/Prefabs/UI/PrefabsV2/SettingsPanel.prefab", "SettingsPanel", go =>
         {
-            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
-            {
-                Debug.LogError("[MenuScene] SettingsPanel 预制体未找到!");
-                return;
-            }
-            settingsPanel = Instantiate(h.Result, canvas.transform);
+            settingsPanel = Instantiate(go, canvas.transform);
             GameFont.ApplyAll(settingsPanel);
             settingsPanel.name = "SettingsPanel";
+            Debug.Log("[MenuScene] SettingsPanel 已实例化");
 
             var ctrl = settingsPanel.AddComponent<SettingsController>();
             ctrl.Init(this);
-        };
+        });
     }
 
     public void CloseSettings()
@@ -242,22 +292,17 @@ public class MenuSceneController : MonoBehaviour
 
     public void ShowLevelSelect()
     {
-        var handle = ResLoader.LoadPrefab("Assets/Prefabs/UI/PrefabsV2/LevelSelectPanel.prefab");
-        handle.Completed += h =>
+        LoadPanelWithTimeout("Assets/Prefabs/UI/PrefabsV2/LevelSelectPanel.prefab", "LevelSelectPanel", go =>
         {
-            if (h.Status != AsyncOperationStatus.Succeeded || h.Result == null)
-            {
-                Debug.LogError("[MenuScene] LevelSelectPanel 预制体未找到!");
-                return;
-            }
-            var go = Instantiate(h.Result, canvas.transform);
-            GameFont.ApplyAll(go);
-            go.name = "LevelSelectPanel";
-            SwitchTo(go);
+            var inst = Instantiate(go, canvas.transform);
+            GameFont.ApplyAll(inst);
+            inst.name = "LevelSelectPanel";
+            SwitchTo(inst);
+            Debug.Log("[MenuScene] LevelSelectPanel 已实例化");
 
-            var ctrl = go.AddComponent<LevelSelectController>();
+            var ctrl = inst.AddComponent<LevelSelectController>();
             ctrl.Init(this);
-        };
+        });
     }
 
     // ========================================

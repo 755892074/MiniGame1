@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tag: 0
   wasmResourceUrl: http://
-  OutputDir: D:\WorkBuddy_WorkSpace\Projects\MiniGame1\doc\douyin_package
+  OutputDir: F:\WorkBuddy\H5MiniGame\MiniGame1\MiniGame1_Project\doc\douyin_package
   useByteAudioAPI: 0
   wasmMemorySize: 128
   isWebGL2: 0

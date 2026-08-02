@@ -160,7 +160,10 @@ public static class CloudSaveBridge
 #endif
     }
 
-    /// <summary>分片上传（当存档超过 1KB 时使用，多个 key 分段）</summary>
+    /// <summary>分片上传：当存档超过单 key 1KB 限制时，拆分为多个 key 存储。
+    /// 存储格式：{key}__n = 分片数；{key}_0..{key}_{n-1} = 各分片内容。
+    /// 真实 SDK 接入时（P4），建议将这些 KV 一次性批量提交（TT.SetUserCloudStorage 支持 List）。
+    /// 注意：抖音云每个用户每游戏最多 128 个 key，单存档分片数远小于此上限。</summary>
     public static void SetSave(string key, string[] chunks, System.Action<bool> callback)
     {
         if (chunks == null || chunks.Length == 0)
@@ -169,16 +172,44 @@ public static class CloudSaveBridge
             return;
         }
 
-        // 当前版本：休闲游戏存档通常 < 1KB，直接用第一个分片
-        // 后续如果存档增大（如关卡星级记录超过 100 关），可扩展为多 key 上传
-        // 策略：{key}_0, {key}_1, {key}_2... 每个不超过 900 字节
-        if (chunks.Length == 1)
+        int n = chunks.Length;
+        int done = 0;
+        bool anyFail = false;
+        System.Action<bool> onOne = (ok) =>
         {
-            SetSave(key, chunks[0], callback);
-            return;
-        }
+            if (!ok) anyFail = true;
+            if (++done >= n + 1) callback?.Invoke(!anyFail); // +1 含 count key
+        };
 
-        // 多分片上传（预留扩展）
-        SetSave(key, chunks[0], callback);
+        // 先写分片数
+        SetSave(key + "__n", n.ToString(), onOne);
+        // 再写各分片
+        for (int i = 0; i < n; i++)
+            SetSave(key + "_" + i, chunks[i], onOne);
+    }
+
+    /// <summary>分片读取：与 SetSave(string[],...) 配对。先读 {key}__n，再拼接 {key}_0..
+    /// 若无分片数（旧格式单 key 存档），回退读 {key} 原值。</summary>
+    public static void GetSaveChunks(string key, System.Action<string> callback)
+    {
+        GetSave(key + "__n", (nStr) =>
+        {
+            if (string.IsNullOrEmpty(nStr) || !int.TryParse(nStr, out int n) || n <= 0)
+            {
+                // 旧格式兼容：单 key 直接读
+                GetSave(key, (legacy) => callback?.Invoke(legacy));
+                return;
+            }
+
+            var sb = new System.Text.StringBuilder();
+            int got = 0;
+            System.Action<string> onOne = (chunk) =>
+            {
+                if (chunk != null) sb.Append(chunk);
+                if (++got >= n) callback?.Invoke(sb.Length > 0 ? sb.ToString() : null);
+            };
+            for (int i = 0; i < n; i++)
+                GetSave(key + "_" + i, onOne);
+        });
     }
 }

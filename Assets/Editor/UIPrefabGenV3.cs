@@ -9,7 +9,10 @@ using UnityEngine.UI;
 /// </summary>
 public class UIPrefabGenV3
 {
-    const string PREFAB_DIR = "Assets/Resources/PrefabsV2";
+    // 注意：必须和代码读取路径一致 (Bootstrap/MenuSceneController 都用 Assets/Prefabs/UI/PrefabsV2/...)，
+    // 以及 AddressablesBootstrap 标记 Local-MVP 的目录。以前写在 Resources/PrefabsV2 是个隐性 bug：
+    // 生成的 prefab 没人读、菜单用的还是旧 sprite 断链的 prefab → 渲染回退 Unity 默认 "Cheezy Friespot"。
+    const string PREFAB_DIR = "Assets/Prefabs/UI/PrefabsV2";
     const string ART = "Assets/Art/PetGame";
 
     static Font _font;

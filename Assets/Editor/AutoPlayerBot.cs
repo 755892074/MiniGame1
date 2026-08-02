@@ -40,6 +40,9 @@ public class AutoPlayerBot : EditorWindow
     [MenuItem("铲屎官疯了/AutoPlayer/全量回归测试(50关)")]
     static void RunRegression() => StartBot(RunScenario_Regression50());
 
+    [MenuItem("铲屎官疯了/AutoPlayer/玩家跑测+报告导出")]
+    static void RunPlayerSession() => StartBot(RunScenario_PlayerSession());
+
     static bool isRunning;
 
     static void StartBot(IEnumerator scenario)
@@ -648,6 +651,161 @@ public class AutoPlayerBot : EditorWindow
             report.AppendLine($"\n⚠️ 有{failCount}关失败，需检查！");
 
         Debug.Log("[Bot]" + report.ToString());
+    }
+
+    // ============================================================
+    // 场景 8：玩家跑测 + 报告导出（最多保留5份）
+    // ============================================================
+    static IEnumerator RunScenario_PlayerSession()
+    {
+        string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        string reportDir = Application.dataPath + "/../运营分析/playtest_reports";
+        if (!System.IO.Directory.Exists(reportDir)) System.IO.Directory.CreateDirectory(reportDir);
+
+        var report = new StringBuilder();
+        report.AppendLine("玩家ID: AutoPlayer_" + timestamp);
+        report.AppendLine("开始时间: " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        report.AppendLine("========================================");
+
+        int gold0 = SaveSystem.Data.gold;
+        int fish0 = SaveSystem.Data.fishDiscount;
+        int badge0 = SaveSystem.Data.rescueBadge;
+        int level0 = SaveSystem.Data.cleanerLevel;
+        int exp0 = SaveSystem.Data.cleanerExp;
+        int highest0 = SaveSystem.Data.highestUnlockedLevel;
+        int totalCompleted0 = SaveSystem.Data.totalLevelsCompleted;
+
+        report.AppendLine($"\n【初始存档】");
+        report.AppendLine($"  关卡进度: currentLevel={SaveSystem.Data.currentLevelId} highestUnlocked={highest0}");
+        report.AppendLine($"  货币: 金币={gold0} 小鱼干={fish0} 徽章={badge0}");
+        report.AppendLine($"  等级: Lv{level0} Exp={exp0}");
+        report.AppendLine($"  宠物: {SaveSystem.Data.pets.Count}只  建筑: {SaveSystem.Data.buildings.Count}个");
+        report.AppendLine($"  通关总数: {totalCompleted0}");
+
+        report.AppendLine("\n【Phase 1: 进入游戏】");
+        var ctrl = Object.FindObjectOfType<MenuSceneController>();
+        if (ctrl != null) { ctrl.EnterGame(1); report.AppendLine("  从主菜单进入第1关"); }
+        yield return WaitForSeconds(4f);
+
+        report.AppendLine("\n【Phase 2: 通关记录】");
+        report.AppendLine("关卡|结果|星级|步数|得分|目标分|金币获得|小鱼干获得|徽章获得|经验获得|耗时(秒)|死局?|碗数|宠物数|宠物类型");
+        report.AppendLine("----|----|----|----|----|------|--------|---------|--------|--------|--------|-----|----|------|--------");
+
+        var levelData = new List<string>();
+        float sessionStart = Time.realtimeSinceStartup;
+
+        var gm = PetGameManager.Instance;
+        if (gm == null) { report.AppendLine("ERROR: PetGameManager 未找到"); SaveReport(reportDir, timestamp, report.ToString()); yield break; }
+
+        int maxLevel = Mathf.Min(10, gm.LevelCount);
+
+        for (int lvl = 1; lvl <= maxLevel; lvl++)
+        {
+            gm.StartLevel(lvl);
+            yield return WaitForSeconds(1.5f);
+
+            float levelStart = Time.realtimeSinceStartup;
+            int goldBefore = SaveSystem.Data.gold;
+            int fishBefore = SaveSystem.Data.fishDiscount;
+            int expBefore = SaveSystem.Data.cleanerExp;
+            int bowlCount = gm.GetBowls().Count;
+            int petCount = gm.GetPetQueue().Count;
+            int targetScore = gm.targetScore;
+            string petTypes = string.Join(",", gm.GetPetQueue().ToArray());
+
+            int steps = 0;
+            bool solved = false;
+            bool hitDeadlock = false;
+
+            while (steps < 80)
+            {
+                string st = gm.fsm?.CurrentState?.GetType().Name ?? "null";
+                if (gm.GetPetQueue().Count == 0 && (st == "WinState" || st == "IdleState")) { solved = true; break; }
+                if (st != "IdleState") { yield return WaitForSeconds(0.3f); continue; }
+                if (gm.CheckDeadlock()) { hitDeadlock = true; gm.AddBowl(); yield return WaitForSeconds(0.5f); continue; }
+                var step = gm.Hint();
+                if (step == null) break;
+                gm.PourFromTo(step.Value.fromId, step.Value.toId, gm.fsm);
+                steps++;
+                yield return WaitForSeconds(1.5f);
+            }
+
+            yield return WaitForSeconds(1f);
+            float levelTime = Time.realtimeSinceStartup - levelStart;
+
+            int finalScore = gm.GetScore();
+            int goldEarned = SaveSystem.Data.gold - goldBefore;
+            int fishEarned = SaveSystem.Data.fishDiscount - fishBefore;
+            int expEarned = SaveSystem.Data.cleanerExp - expBefore;
+            int stars = 0;
+            var sr = SaveSystem.Data.levelStars?.Find(x => x.levelId == lvl);
+            if (sr != null) stars = sr.stars;
+
+            string row = $"L{lvl:D2}|{(solved?"通关":"失败")}|{stars}★|{steps}|{finalScore}|{targetScore}|{goldEarned}|{fishEarned}|{(stars>=3?1:0)}|{expEarned}|{levelTime:F1}|{(hitDeadlock?"是":"否")}|{bowlCount}|{petCount}|{petTypes}";
+            levelData.Add(row);
+            report.AppendLine(row);
+        }
+
+        float totalTime = Time.realtimeSinceStartup - sessionStart;
+
+        // Summary
+        report.AppendLine($"\n【Phase 3: 会话总结】");
+        report.AppendLine($"  总耗时: {totalTime:F1}秒 ({totalTime/60:F1}分钟)");
+        report.AppendLine($"  金币变化: {gold0} → {SaveSystem.Data.gold} (+{SaveSystem.Data.gold - gold0})");
+        report.AppendLine($"  小鱼干变化: {fish0} → {SaveSystem.Data.fishDiscount} (+{SaveSystem.Data.fishDiscount - fish0})");
+        report.AppendLine($"  徽章变化: {badge0} → {SaveSystem.Data.rescueBadge} (+{SaveSystem.Data.rescueBadge - badge0})");
+        report.AppendLine($"  等级变化: Lv{level0} → Lv{SaveSystem.Data.cleanerLevel}");
+        report.AppendLine($"  经验变化: {exp0} → {SaveSystem.Data.cleanerExp} (+{SaveSystem.Data.cleanerExp - exp0})");
+        report.AppendLine($"  最高解锁: {highest0} → {SaveSystem.Data.highestUnlockedLevel}");
+        report.AppendLine($"  通关总数: {totalCompleted0} → {SaveSystem.Data.totalLevelsCompleted}");
+
+        int star3 = 0, star2 = 0, star1 = 0, star0 = 0;
+        foreach (var row in levelData)
+        {
+            var parts = row.Split('|');
+            if (parts[2].StartsWith("3")) star3++;
+            else if (parts[2].StartsWith("2")) star2++;
+            else if (parts[2].StartsWith("1")) star1++;
+            else star0++;
+        }
+        report.AppendLine($"\n【星级分布】 3星:{star3} 2星:{star2} 1星:{star1} 失败:{star0}");
+
+        int totalSteps = 0, totalScore = 0, totalGold = 0, totalFish = 0;
+        foreach (var row in levelData)
+        {
+            var p = row.Split('|');
+            totalSteps += int.Parse(p[3]); totalScore += int.Parse(p[4]);
+            totalGold += int.Parse(p[6]); totalFish += int.Parse(p[7]);
+        }
+        int played = levelData.Count;
+        report.AppendLine($"\n【平均数据(每关)】 步数:{(float)totalSteps/played:F1} 得分:{(float)totalScore/played:F0} 金币:{(float)totalGold/played:F0} 小鱼干:{(float)totalFish/played:F0} 耗时:{totalTime/played:F1}秒");
+
+        report.AppendLine("\n结束时间: " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+        report.AppendLine("========================================");
+
+        string reportText = report.ToString();
+        SaveReport(reportDir, timestamp, reportText);
+
+        Debug.Log("[PLAYER_REPORT]\n" + reportText);
+    }
+
+    /// <summary>保存报告文件，最多保留5份，超出删最早的</summary>
+    static void SaveReport(string dir, string timestamp, string content)
+    {
+        // Write new report
+        string path = System.IO.Path.Combine(dir, $"playtest_{timestamp}.md");
+        System.IO.File.WriteAllText(path, content);
+        Debug.Log($"[REPORT] Saved: {path}");
+
+        // Cleanup: keep max 5 files
+        var files = new List<string>(System.IO.Directory.GetFiles(dir, "playtest_*.md"));
+        files.Sort(); // oldest first (filename has timestamp)
+        while (files.Count > 5)
+        {
+            Debug.Log($"[REPORT] Deleting old report: {System.IO.Path.GetFileName(files[0])}");
+            System.IO.File.Delete(files[0]);
+            files.RemoveAt(0);
+        }
     }
 
     // ============================================================

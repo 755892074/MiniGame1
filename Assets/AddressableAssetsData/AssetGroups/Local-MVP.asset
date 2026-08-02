@@ -195,6 +195,11 @@ MonoBehaviour:
     m_ReadOnly: 1
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 3e5f6be6755fdf94e8ff7a21d7d820d6
+    m_Address: Assets/Art/PetGame/pets/dog/animation/clips/DogAnimatorController.controller
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 3ee7296eda8adc142851c94ae8d0e829
     m_Address: Assets/Art/PetGame/UI/Generated/btn_gold.png
     m_ReadOnly: 1
@@ -350,6 +355,11 @@ MonoBehaviour:
     m_ReadOnly: 1
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 69c14ac82bd53cb42ae1030240cdd0cf
+    m_Address: Assets/Art/PetGame/pets/dog/animation/clips/dog_walk.anim
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 722e2f6b62ad3f943ad59a654f15badd
     m_Address: Assets/Art/PetGame/bowls/empty/bowl06.png
     m_ReadOnly: 1
@@ -431,6 +441,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 822e6c0ae6e1a7f4696fdf303705f6f0
     m_Address: Assets/Art/PetGame/pets/dog/animation/dog_idle_01.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 834e1f79c03ac684abb1cf7f2cdaa5c6
+    m_Address: Assets/Art/PetGame/pets/dog/animation/clips/dog_idle.anim
     m_ReadOnly: 1
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -837,6 +852,11 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: eb898bd26f0b89a40be912f7800b4216
     m_Address: Assets/Art/PetGame/foods/food08.png
+    m_ReadOnly: 1
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: ec61f02bee0c2ce409193c0227cc4d7c
+    m_Address: Assets/Art/PetGame/pets/dog/animation/clips/dog_eat.anim
     m_ReadOnly: 1
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

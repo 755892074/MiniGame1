@@ -64,14 +64,20 @@ public class AutoBuildDouyin
         var sw = System.Diagnostics.Stopwatch.StartNew();
         Debug.Log("[AutoBuild] ====== 开始抖音小游戏自动构建 ======");
 
-        // 1. 切换平台到 MiniGame
-        var mgTarget = (BuildTarget)36;   // MiniGame enum value
-        var mgGroup = (BuildTargetGroup)34; // MiniGame enum value
+        // 1. 切换平台到 WeixinMiniGame（抖音小游戏载体）
+        // 注意：在团结引擎里 BuildTarget.MiniGame 与 BuildTarget.WeixinMiniGame
+        // 同为 47，对应的 BuildTargetGroup.WeixinMiniGame 为 36。
+        // 切勿写成 (BuildTarget)36 / (BuildTargetGroup)34 —— 那是 group/target 错位，
+        // 会切到一个非法平台组合，把「抖音子平台 / ByteGame」工具卸掉（出包后需手动重挂）。
+        var mgTarget = BuildTarget.WeixinMiniGame;
+        var mgGroup = BuildTargetGroup.WeixinMiniGame;
         if (EditorUserBuildSettings.activeBuildTarget != mgTarget)
         {
-            Debug.Log("[AutoBuild] 切换平台到 MiniGame...");
+            Debug.Log("[AutoBuild] 切换平台到 WeixinMiniGame...");
             EditorUserBuildSettings.SwitchActiveBuildTarget(mgGroup, mgTarget);
         }
+        // 出包结束后保持 WeixinMiniGame 目标，不切回其它平台，
+        // 这样「抖音工具 / ByteGame」子平台始终挂载，无需每次重新 enable。
 
         // 2. Gamma
         if (PlayerSettings.colorSpace != ColorSpace.Gamma)
@@ -160,6 +166,8 @@ public class AutoBuildDouyin
         if (error == null)
         {
             Debug.Log($"[AutoBuild] ====== 构建成功！耗时 {sw.Elapsed.TotalSeconds:F0}s ======");
+            // 注入日志中继 shim：让运行时把 console/报错发回本机收集器（tools/log_relay/server.py）
+            InjectLogRelay(fullOut);
             EditorUtility.RevealInFinder(fullOut);
             EditorUtility.DisplayDialog("构建成功",
                 $"抖音小游戏工程已生成:\n{fullOut}\n\n请用抖音开发者工具打开此目录。",
@@ -259,5 +267,61 @@ public class AutoBuildDouyin
         }
 
         Debug.Log("[AutoBuild] 未找到 DouYin BuildProfile，使用现有 StarkBuilderSettings");
+    }
+
+    // 把日志中继 shim 注入到出包产物的 JS 入口，使运行时日志可被本机收集器读取。
+    // shim 源文件: <项目>/tools/log_relay/shim.js
+    static void InjectLogRelay(string pkgDir)
+    {
+        try
+        {
+            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            string shimPath = Path.Combine(projectRoot, "tools", "log_relay", "shim.js");
+            if (!File.Exists(shimPath))
+            {
+                Debug.LogWarning("[AutoBuild] 找不到 tools/log_relay/shim.js，跳过日志注入");
+                return;
+            }
+            string shim = File.ReadAllText(shimPath);
+            string[] targets = new[]
+            {
+                Path.Combine(pkgDir, "tt-minigame", "game.js"),
+                Path.Combine(pkgDir, "tt-minigame", "webgl.framework.js"),
+            };
+            const string mark = "DOUYIN LOG RELAY SHIM";
+            foreach (var t in targets)
+            {
+                if (!File.Exists(t)) continue;
+                string content = File.ReadAllText(t);
+                if (content.Contains(mark)) continue;
+                File.WriteAllText(t, shim + "\n" + content);
+                Debug.Log($"[AutoBuild] 已注入日志中继 shim: {t}");
+            }
+            PatchProjectConfig(pkgDir);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[AutoBuild] 日志中继注入失败（不影响出包）: " + e.Message);
+        }
+    }
+
+    static void PatchProjectConfig(string pkgDir)
+    {
+        try
+        {
+            string cfg = Path.Combine(pkgDir, "tt-minigame", "project.config.json");
+            if (!File.Exists(cfg)) return;
+            string text = File.ReadAllText(cfg);
+            if (text.Contains("\"urlCheck\"")) return;
+            int idx = text.IndexOf('{');
+            if (idx < 0) return;
+            text = text.Insert(idx + 1, "\n  \"urlCheck\": false,");
+            File.WriteAllText(cfg, text);
+            Debug.Log("[AutoBuild] 已关闭域名校验 urlCheck:false（本地调试用）");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[AutoBuild] project.config.json urlCheck 补丁失败（不影响出包）: " + e.Message);
+        }
     }
 }

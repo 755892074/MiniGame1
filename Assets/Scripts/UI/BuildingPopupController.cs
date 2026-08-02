@@ -50,7 +50,7 @@ public class BuildingPopupController : MonoBehaviour
             $"{info.icon} {info.name}", 30, new Color(0.40f, 0.28f, 0.18f), TextAnchor.MiddleCenter);
 
         MakeBtn(panel.transform, new Vector2(0.85f, 0.88f), new Vector2(0.97f, 0.98f),
-            "✕", new Color(0.79f, 0.24f, 0.24f), () => menuController.ClosePopup());
+            "X", new Color(0.79f, 0.24f, 0.24f), () => menuController.ClosePopup());
 
         MakeText(panel.transform, "Desc", new Vector2(0.08f, 0.72f), new Vector2(0.92f, 0.82f),
             info.effectDesc, 18, new Color(0.5f, 0.4f, 0.3f), TextAnchor.MiddleCenter);
